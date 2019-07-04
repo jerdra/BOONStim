@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# This script sets up the base dependencies for the mri2mesh container to run properly
+# Will prompt for license file
+
+if [ -z "$LICENSE" ]; then
+
+	echo "Please enter the Freesurfer license file path (mounted)" 
+	read path
+else
+	path="$LICENSE"
+fi
+
+
+ln -s "/opt/freesurfer-6.0.0/license.txt" "$path"
+
+exec /bin/bash 

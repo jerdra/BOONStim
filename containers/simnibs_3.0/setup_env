@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# This script sets up the base dependencies for the mri2mesh container to run properly
+# Will prompt for license file
+
+source ${FREESURFER_HOME}/SetUpFreeSurfer.sh
+source ${FSLDIR}/etc/fslconf/fsl.sh
+exec /bin/bash 

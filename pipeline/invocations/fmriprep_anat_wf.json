@@ -1,0 +1,13 @@
+{
+	"bids_dir":"/bids",
+	"output_dir":"/output",
+	"analysis_level":"participant",
+	"fs_license_file":"/license/license.txt",
+	"nthreads":4,
+	"omp_nthreads":2,
+	"verbosity":"-vv",
+	"low_mem":true,
+	"anat_only":true,
+	"no_run_reconall":true
+}
+
