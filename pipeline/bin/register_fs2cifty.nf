@@ -94,15 +94,74 @@ process assign_surface_properties {
                 saveAs: { "${sub}.${sphere}" }
     
     input:
-    set val(hemi), file(sphere), val(sub)  from test
+    set val(structure), file(sphere), val(sub)  from test
 
     output:
     file "$sphere" into assigned_spheres
+    val sub into subject
 
     """
-    wb_command -set-structure ${sphere} ${hemi} -surface-type "SPHERICAL"
+    wb_command -set-structure ${sphere} ${structure} -surface-type "SPHERICAL"
     """
 
 }
 
-//Spherical Deformation method
+subject_reg_spheres = Channel.create()
+subject_native_spheres = Channel.create()
+
+subject_assigned_spheres = assigned_spheres
+                                    .merge(subject)
+                                    .choice(subject_reg_spheres,
+                                             subject_native_spheres)
+                                           { a -> a[0].name.contains('reg') ? 0 : 1 }
+
+
+//Write in hemisphere as tuple
+subject_reg_spheres = subject_reg_spheres
+                                .map { n -> [ n[0], n[0].name.take(1), n[1] ] }
+
+
+// Spherical Deformation method
+process spherical_deformation {
+
+    label 'connectome'
+    echo true
+    stageInMode 'copy'
+    
+    containerOptions "-B ${params.atlasdir}:/atlas"
+
+    input:
+    set file(reg_sphere), val(hemi), val(sub) from subject_reg_spheres
+
+    output:
+    file "${hemi}.sphere.reg.reg_LR.native.surf.gii" into reg_LR_spheres
+    
+
+    """
+    echo ${reg_sphere} ${hemi} ${sub}
+    wb_command -surface-sphere-project-unproject \
+    ${reg_sphere} \
+    /atlas/fsaverage.${hemi}.sphere.164k_fs_${hemi}.surf.gii \
+    /atlas/fs_${hemi}-to-fs_LR_fsaverage.${hemi}_LR.spherical_std.164k_fs_${hemi}.surf.gii \
+    ${hemi}.sphere.reg.reg_LR.native.surf.gii
+    """ 
+}
+
+// Pre-MSM Spherical Rotation
+
+process spherical_affine_regression{
+
+    label 'connectome'
+    echo true
+    stageInMode 'copy'
+
+    input:
+    set file(sphere), val(hemi), val(sub) from subject_native_spheres
+    file reg_LR_sphere from reg_LR_spheres
+
+    
+    """
+    echo $sphere $hemi $sub $reg_LR_sphere
+    """
+
+}
