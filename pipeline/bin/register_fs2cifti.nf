@@ -328,6 +328,7 @@ msm_inputs =  rotated_sphere
 process msm_sulc {
 
     label 'connectome'
+    stageInMode 'copy'
     echo true
     containerOptions "-B ${params.atlasdir}:/atlas -B ${params.msm_conf}:/msm_conf"
 
@@ -338,7 +339,7 @@ process msm_sulc {
     /msm/msm --inmesh=$sphere \
         --indata=$sulc \
         --refmesh=/atlas/fsaverage.${hemi}_LR.spherical_std.164k_fs_LR.surf.gii \
-        --refdata=/atlas/${hemi}.refsulc.164k_fs_LR.shape.gii
+        --refdata=/atlas/${hemi}.refsulc.164k_fs_LR.shape.gii \
         --conf=/msm_conf/MSMSulcStrainFinalconf \
         --out=${hemi}. \
         --verbose
