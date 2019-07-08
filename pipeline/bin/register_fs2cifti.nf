@@ -99,6 +99,10 @@ process invert_sulcal_add_struct {
 
     label 'connectome'
 
+    publishDir "$params.out/registration/${sub}/", \
+                saveAs: { "${sub}.$it" }, \
+                mode: 'copy'
+
     input:
     set val(sub), val(hemi), val(structure), file(sulc) from sulcal_struct_input
 
@@ -116,6 +120,7 @@ process convert_spheres2gifti {
     label 'freesurfer'
     stageInMode 'copy'
 
+                
     containerOptions "-B ${params.license}:/license" 
 
     input:
@@ -150,7 +155,6 @@ spheres_2_assign = fs_derived_spheres
 process assign_surface_properties {
 
     label 'connectome'
-    echo true
     stageInMode 'copy'
 
     publishDir "${params.out}/registration/$sub/", \
@@ -205,6 +209,9 @@ process spherical_deformation {
     
     containerOptions "-B ${params.atlasdir}:/atlas"
 
+    publishDir "$params.out/registration/${sub}/", \
+                saveAs: { "${sub}.$it" }, \
+                mode: 'copy'
     input:
     set val(sub), file(reg_sphere), val(hemi) from reg_spheres
 
@@ -264,6 +271,10 @@ process normalize_rotation {
     label 'optimize'
     stageInMode 'copy'
 
+    publishDir "$params.out/registration/${sub}/", \
+                saveAs: { "${sub}.${hemi}.affine.mat" }, \
+                mode: 'copy'
+
     input:
     set val(sub), val(hemi), file(affine) from affines
 
@@ -295,6 +306,9 @@ rotation_inputs = spheres2rot
 process apply_affine {
 
     label 'connectome'
+    publishDir "$params.out/registration/${sub}/", \
+                saveAs: { "${sub}.$it" }, \
+                mode: 'copy'
 
     input:
     set val(sub), val(hemi), file(sphere), file(affine) from rotation_inputs
@@ -337,8 +351,11 @@ process msm_sulc {
 
     label 'connectome'
     stageInMode 'copy'
-    echo true
     containerOptions "-B ${params.atlasdir}:/atlas -B ${params.msm_conf}:/msm_conf"
+
+    publishDir "$params.out/registration/${sub}/", \
+                saveAs: { "${sub}.$it" }, \
+                mode: 'copy'
 
     input:
     set val(sub), val(hemi), val(structure), file(sphere), file(sulc) from msm_inputs
@@ -370,7 +387,10 @@ process calc_areal_distortion {
 
     label 'connectome'
     stageInMode 'copy'
-    echo true
+
+    publishDir "$params.out/registration/${sub}/", \
+                saveAs: { "${sub}.$it" }, \
+                mode: 'copy'
     
     input:
     set val(sub), val(hemi), file(sphere), file(msm_sphere) from msm_outputs
@@ -381,5 +401,3 @@ process calc_areal_distortion {
     """
 
 }
-
-// Will need another script for computing midthicknesses for each subject
