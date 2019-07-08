@@ -324,6 +324,14 @@ process apply_affine {
 
 msm_inputs =  rotated_sphere
                         .join(sulcal_depth, by: [0,1])
+                        .map { n -> [
+                                        n[0],
+                                        n[1],
+                                        structure_map[n[1]],
+                                        n[2],
+                                        n[3]
+                                    ]
+                            }
 
 process msm_sulc {
 
@@ -333,7 +341,10 @@ process msm_sulc {
     containerOptions "-B ${params.atlasdir}:/atlas -B ${params.msm_conf}:/msm_conf"
 
     input:
-    set val(sub), val(hemi), file(sphere), file(sulc) from msm_inputs
+    set val(sub), val(hemi), val(structure), file(sphere), file(sulc) from msm_inputs
+    
+    output:
+    set val(sub), val(hemi), file(sphere), file("${hemi}.sphere.reg_msm.surf.gii") into msm_outputs
 
     """
     /msm/msm --inmesh=$sphere \
@@ -343,5 +354,32 @@ process msm_sulc {
         --conf=/msm_conf/MSMSulcStrainFinalconf \
         --out=${hemi}. \
         --verbose
+
+    mv "${hemi}.sphere.reg.surf.gii" \
+        "${hemi}.sphere.reg_msm.surf.gii"
+
+    wb_command -set-structure ${hemi}.sphere.reg_msm.surf.gii \
+                                ${structure}
+    
     """
 }
+
+
+// Make arealdistortion maps
+process calc_areal_distortion {
+
+    label 'connectome'
+    stageInMode 'copy'
+    echo true
+    
+    input:
+    set val(sub), val(hemi), file(sphere), file(msm_sphere) from msm_outputs
+
+    """
+    wb_command -surface-distortion ${sphere} ${msm_sphere} \
+                ${hemi}.areal_distortion.shape.gii
+    """
+
+}
+
+// Will need another script for computing midthicknesses for each subject
