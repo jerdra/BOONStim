@@ -91,6 +91,10 @@ process assign_structure {
 
     label 'connectome'
 
+    publishDir "$params.out/registration/${sub}/", \
+                saveAs: { "${sub}.$it" }, \
+                mode: 'copy'
+
     input:
     set val(sub), val(hemi), val(structure), file(gifti) from assign_struct_input
 
@@ -122,6 +126,9 @@ midthickness_input = assigned_gifti
 process compute_midthickness {
 
     label 'connectome'
+    publishDir "$params.out/registration/${sub}/", \
+                saveAs: { "${sub}.$it" }, \
+                mode: 'copy'
 
     input:
     set val(sub), val(hemi), file(pial), file(white) from midthickness_input
