@@ -4,7 +4,6 @@
 
 //INPUTS:
 //out                   Directory containing outputs for sim_mesh
-//bids                  Directory with BIDS subjects
 
 //IMPLICIT CONFIG VARIABLES:
 //template_dir          Directory containing templates for atlases
