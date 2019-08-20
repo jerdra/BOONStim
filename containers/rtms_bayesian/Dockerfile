@@ -40,12 +40,12 @@ ENV	MOE_CC_PATH=/usr/bin/gcc \
 #Set up SimNIBS python package and compile Cornell-MOE
 RUN	pip install -f https://github.com/simnibs/simnibs/releases/latest simnibs 
 RUN	cd /Cornell-MOE && python ./setup.py install \
-	&& pip install jupyter numba matplotlib
+	&& pip install jupyter numba matplotlib docopt
 
 
 #Set up Field Optimization package
 RUN	mkdir -p /field_pkgs/ \
-	&& git clone https://github.com/jerdra/fieldopt /field_pkgs/
+	&& git clone https://github.com/jerdra/fieldopt /field_pkgs/fieldopt
 
 ENV	PYTHONPATH=$PYTHONPATH:/Cornell-MOE:/gmsh-sdk/lib/:/field_pkgs
 

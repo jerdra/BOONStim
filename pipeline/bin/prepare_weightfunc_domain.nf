@@ -14,12 +14,6 @@
 // Transformation affine for mapping quadratic domain inputs to sampling surface
 // Nodal weights
 
-
-
-
-
-
-
 // INPUT SPECIFICATION
 //Check input parameters
 if (!params.out){
@@ -46,8 +40,19 @@ if (!params.out){
 // Get a list of all subjects with mesh generated
 println(params.out) 
 sim_mesh_dirs = "$params.out/ciftify/sub-*"
+
+weightfunc_input = Channel.create()
+affine_extract_input = Channel.create()
+
 weightfunc_subs = Channel.fromPath(sim_mesh_dirs, type: 'dir')
                     .map { n -> n.getBaseName() }
+                    .tap ( weightfunc_input )
+                    .map { n -> [
+                                    n,
+                                    file("$params.out/sim_mesh/$n/${n}_T1fs_conform.nii.gz")
+                                ]
+                         }
+                    .tap ( affine_extract_input )
 
 // Compute weighting function to use give the output file!
 process compute_weightfunc {
@@ -55,7 +60,7 @@ process compute_weightfunc {
     echo true
 
     input:
-    val sub from weightfunc_subs
+    val sub from weightfunc_input
 
     output:
     set val(sub), file("*${params.outfile}") into weightfunc_outputs
@@ -162,4 +167,72 @@ process calculate_CoM {
 }
 
 
-//Use centre coordinate, load in mesh file and generate sampling surfaces and quadratic function
+// Extract affine transformation matrix using ciftify output
+process extract_affine {
+
+    input:
+    set val(sub), file("t1fs.nii.gz") from affine_extract_input
+
+    output:
+    set val(sub), file("affine") into affines
+    
+
+    shell:
+    '''
+    #!/usr/bin/env python
+
+
+    import nibabel as nib
+    import numpy as np
+    import os
+
+    img = nib.load("t1fs.nii.gz")
+    affine = img.affine    
+    affine.tofile("affine")
+    '''
+}
+
+// Make a channel with mesh, affine, and centroid inputs
+surface_patch_input = com_out
+                        .map { s,c ->   [
+                                            s,
+                                            c,
+                                            file("$params.out/sim_mesh/$s/${s}.msh")
+                                        ]
+                             }
+                        .join ( affines )
+//                        .subscribe { log.info("$it") }
+
+
+// Make a surface patch 
+process make_surface_patch {
+
+    input:
+    set val(sub), file("coordinate.txt"), file("data.msh"), file("affine") from surface_patch_input
+
+    output:
+    set val(sub), file("patch_dilated_coords"), file("patch_mean_norm") into surface_patch
+
+    """
+    extract_surface_patch.py "data.msh" "affine" "coordinate.txt" "patch" 
+    """
+
+}
+
+
+// Parameterize the surface patch using quadratic fit
+process parameterize_surface {
+
+    input:
+    set val(sub), file("patch"), file("norm") from surface_patch
+
+    output:
+    set val(sub), file("surf_C"), file("surf_R"), file("surf_bounds") into param_surf
+
+    """
+    parameterize_surface_patch.py "patch" "norm" "surf"
+    """
+
+}
+
+// Prepare tetrahedral weights using projection algorithm

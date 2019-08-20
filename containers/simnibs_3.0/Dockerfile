@@ -110,13 +110,13 @@ RUN apt-get update -qq \
 RUN apt-get update && apt-get install -y --no-install-recommends software-properties-common \
 	&& add-apt-repository ppa:deadsnakes/ppa \
 	&& apt-get update \
-	&& apt-get install -y --no-install-recommends python3.7 \
+	&& apt-get install -y --no-install-recommends python3.7 qt5-default\
 	&& curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py \
 	&& python3.7 /get-pip.py && rm /get-pip.py \
 	&& rm /usr/bin/python3 \
 	&& ln -s /usr/bin/python3.7 /usr/bin/python3 \
 	&& ln -s /usr/bin/python3.7 /usr/bin/python \
-	&& pip install pytest pyqt5
+	&& pip install pytest pyqt5 pyopengl
 
 #Simnibs Setup
 RUN pip install -f https://github.com/simnibs/simnibs/releases/latest simnibs 
