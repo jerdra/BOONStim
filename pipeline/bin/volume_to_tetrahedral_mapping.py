@@ -18,9 +18,28 @@ import gmsh
 import numpy as np
 import nibabel as nib
 from docopt import docopt
+from fieldopt import geolib, tetrapro as gl, tp
 
 
-SURF_HEAD=[(3,1005), (3,5)]
+SURF_HEAD=[(3,1002), (3,2)]
+
+
+def guess_entity(msh, dim, tag):
+    '''
+    Use last digit method of figuring out what the entity ID is
+    '''
+
+    gmsh.initialize()
+    gmsh.open(msh)
+    ent_list = gmsh.model.getEntities()
+
+    subset = [k for k in ent_list if k[0] == dim]
+    entity = [k for k in subset if str[k[1]][-1] == tag]
+
+    gmsh.clear()
+
+    return entity
+
 def main():
 
     args = docopt(__doc__)
@@ -32,11 +51,52 @@ def main():
     # First load in the image file
     img = nib.load(vol_file)
 
-    #Try every alternative of SURF_HEAD
-    for i,s in enumerate(SURF_HEAD):
-        try:
+    tet_entity = guess_entity(fem_file, 3, 2)
+    gm_entity = guess_entity(fem_file, 2, 2)
+    wm_entity = guess_entity(gem_file, 2, 1)
 
-        
+    tn_tag, tn_coord, tn_param = gl.load_gmsh_nodes(fem_file,tet_entity)
+    te_tag, _, te_param = gl.load_gmsh_elems(fem_file,tet_entity)
+    gmn_tag, gmn_coord, _ = gl.load_gmsh_nodes(fem_file,gm_entity)
+    wmn_tag, wmn_coord, _ = gl.load_gmsh_nodes(fem_file,wm_entity)
+
+    #Pull ribbon data
+    ribbon = nib.load(vol_file).get_data()
+    x,y,z = np.where(ribbon > 0)
+
+    #Formulate lists as arrays
+    tn_param = np.array(tn_param[0])
+    tn_tag = np.array(tn_tag)
+    gmn_tag = np.array(gmn_tag)
+    wmn_tag = np.array(wmn_tag)
+
+    #Set up inputs
+    tn_list = te_param.reshape( (-1,4) )
+
+    #First concatenate nodes
+    min_t, max_t, len_t = np.min(tn_tag), np.max(tn_tag), np.size(tn_tag)
+    min_g, max_g, len_g = np.min(gmn_tag), np.max(gmn_tag), np.size(gmn_tag)
+    min_w, max_w, len_w = np.min(wmn_tag), np.max(wmn_tag), np.size(wmn_tag)
+
+    #Wrap up features
+    prop_arr = np.array([
+            [min_t, max_t, len_t],
+            [min_g, max_g, len_g],
+            [min_w, max_w, len_w]
+        ])
+
+    #Map nodes to contiguous indexing
+    out = np.zeros_like(tn_list, dtype=np.int64)
+    node_list = tp.map_nodes(tn_list, prop_arr, out)
+
+    #Coordinate array matching indexing
+    coord_arr = np.concatenate( (tn_coord, gmn_coord, wmn_coord) )
+    coords = coord_arr.reshape((-1,3))
+
+    #Project
+    n_out_arr = tp.tetrahedral_projection(node_list, coord_arr, ribbon, affine)
+    n_out_arr.tofile(out)
+
 
 if __name__ == '__main__':
     main()
