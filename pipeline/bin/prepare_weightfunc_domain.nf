@@ -57,7 +57,9 @@ weightfunc_subs = Channel.fromPath(sim_mesh_dirs, type: 'dir')
 // Compute weighting function to use give the output file!
 process compute_weightfunc {
 
-    echo true
+
+    module 'connectome-workbench'
+    module 'python/3.6.3-anaconda-5.0.1'
 
     input:
     val sub from weightfunc_input
@@ -78,6 +80,7 @@ process combine_weightfiles {
 
     echo true
     module 'connectome-workbench'
+    module 'python/3.6.3-anaconda-5.0.1'
 
     input:
     set val(sub), file("input*") from weightfunc_outputs
@@ -144,15 +147,20 @@ process weightfunc_to_tetra {
 
 }
 
+com_inputs = Channel.create()
+tetra_inputs = Channel.create()
+resamp_weightfiles.into { com_inputs; ribbon_input}
+
 
 // Using the weight function, find the centre of mass using a user-provided function
 process calculate_CoM {
 
     echo true
     module 'connectome-workbench'
+    module 'python/3.6.3-anaconda-5.0.1'
 
     input:
-    set val(sub), file("weight.mesh.dscalar.nii") from resamp_weightfiles
+    set val(sub), file("weight.mesh.dscalar.nii") from com_inputs
     file output from file(params.out)
     
     output:
@@ -214,11 +222,10 @@ process make_surface_patch {
     set val(sub), file("patch_dilated_coords"), file("patch_mean_norm") into surface_patch
 
     """
-    extract_surface_patch.py "data.msh" "affine" "coordinate.txt" "patch" 
+    $params.rtms_bin/extract_surface_patch.py "data.msh" "affine" "coordinate.txt" "patch" 
     """
 
 }
-
 
 // Parameterize the surface patch using quadratic fit
 process parameterize_surface {
@@ -230,9 +237,81 @@ process parameterize_surface {
     set val(sub), file("surf_C"), file("surf_R"), file("surf_bounds") into param_surf
 
     """
-    parameterize_surface_patch.py "patch" "norm" "surf"
+    $params.rtms_bin/parameterize_surface_patch.py "patch" "norm" "surf"
     """
 
 }
 
-// Prepare tetrahedral weights using projection algorithm
+process ribbon_projection { 
+    
+    module 'connectome-workbench'
+    
+    input:
+    set val(sub), file("weight.dscalar.nii") from ribbon_input
+    file "output" from file(params.out)
+
+    output:
+    set val(sub), file("ribbon.nii.gz") into ribbon_out
+
+    shell:
+    '''
+    #!/bin/bash
+    
+    #Split CIFTI file into GIFTI
+    wb_command -cifti-separate \
+                weight.dscalar.nii \
+                COLUMN \
+                -metric CORTEX_RIGHT weight.R.shape.gii \
+                -metric CORTEX_LEFT weight.L.shape.gii
+
+    #Project each half into volume space
+    wb_command -metric-to-volume-mapping \
+                weight.R.shape.gii \
+                output/registration/!{sub}/!{sub}.R.midthickness.surf.gii \
+                output/sim_mesh/!{sub}/!{sub}_T1fs_conform.nii.gz \
+                -ribbon-constrained \
+                output/registration/!{sub}/!{sub}.R.white.surf.gii \
+                output/registration/!{sub}/!{sub}.R.pial.surf.gii \
+                ribbon.R.nii.gz
+
+    wb_command -metric-to-volume-mapping \
+                weight.L.shape.gii \
+                output/registration/!{sub}/!{sub}.L.midthickness.surf.gii \
+                output/sim_mesh/!{sub}/!{sub}_T1fs_conform.nii.gz \
+                -ribbon-constrained \
+                output/registration/!{sub}/!{sub}.L.white.surf.gii \
+                output/registration/!{sub}/!{sub}.L.pial.surf.gii \
+                ribbon.L.nii.gz
+
+    #Squish them together
+    wb_command -volume-math \
+                "a+b" \
+                -var a ribbon.R.nii.gz \
+                -var b ribbon.L.nii.gz \
+                ribbon.nii.gz
+    '''
+
+
+}
+
+tetra_input = ribbon_out
+                    .map { n,r ->   [
+                                        n,
+                                        r,
+                                        file("$params.out/sim_mesh/$n/${n}.msh")
+                                    ]
+                         }
+process tetrahedral_projection {
+
+    input:
+    set val(sub), file("ribbon.nii.gz"), file("data.msh") from tetra_input
+
+    output:
+    set val(sub), file("tetraweights") into tetra_out
+
+    shell:
+    """
+    $params.rtms_bin/volume_to_tetrahedral_mapping.py ribbon.nii.gz data.msh tetraweights
+    """
+
+}

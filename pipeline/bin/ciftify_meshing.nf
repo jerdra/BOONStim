@@ -177,7 +177,13 @@ process run_mri2mesh{
     beforeScript "source /etc/profile"
     module 'slurm'
     echo true
-    publishDir "${params.out}/sim_mesh/${sub}/", mode: 'move'
+
+    publishDir "${params.out}/sim_mesh/${sub}/", mode: 'move', \
+                pattern: "sub*!(.geo)"
+
+    publishDir "${params.out}/sim_mesh/${sub}/", mode: 'copy', \
+                pattern: "sub*.geo"
+
     containerOptions "-B ${params.license}:/license"
 
     input: 
@@ -188,9 +194,7 @@ process run_mri2mesh{
     output:
     file 'fs_sub*' into fs_sub
     file 'm2m_sub*' into m2m_sub
-    file 'sub*' into mesh_files
-    
-
+    set val(sub), file('sub*.geo') into mesh_files
     
     // Within container run command
     shell:
@@ -201,6 +205,32 @@ process run_mri2mesh{
     source $FSLDIR/etc/fslconf/fsl.sh
     mri2mesh --all !{sub} !{t1}
     rm !{t1}
+
+    #GMSH3 .msh is bad
+    rm !{sub}.msh
+    '''
+}
+
+
+// Use newest GMSH to formulate a msh2 file
+process update_msh{
+
+    beforeScript "source /etc/profile"
+    echo true
+    publishDir "${params.out}/sim_mesh/${sub}/${sub}.msh, mode: 'move'
+
+    input:
+    set val(sub), file("sub.geo") from mesh_files
+
+    output:
+    file 'sub.msh' into updated_mesh
+
+    shell:
+    '''
+    set +u
+    
+    /gmsh-sdk/bin/gmsh -3 -bin -format msh2 -o sub.msh sub.geo
     
     '''
+
 }

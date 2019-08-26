@@ -18,7 +18,8 @@ import gmsh
 import numpy as np
 import nibabel as nib
 from docopt import docopt
-from fieldopt import geolib, tetrapro as gl, tp
+from fieldopt import geolib as gl
+from fieldopt import tetrapro as tp
 
 
 SURF_HEAD=[(3,1002), (3,2)]
@@ -29,16 +30,18 @@ def guess_entity(msh, dim, tag):
     Use last digit method of figuring out what the entity ID is
     '''
 
+    tag = str(tag)
+
     gmsh.initialize()
     gmsh.open(msh)
     ent_list = gmsh.model.getEntities()
 
     subset = [k for k in ent_list if k[0] == dim]
-    entity = [k for k in subset if str[k[1]][-1] == tag]
+    entity = [k for k in subset if str(k[1])[-1] == tag]
 
     gmsh.clear()
 
-    return entity
+    return entity[0]
 
 def main():
 
@@ -53,25 +56,25 @@ def main():
 
     tet_entity = guess_entity(fem_file, 3, 2)
     gm_entity = guess_entity(fem_file, 2, 2)
-    wm_entity = guess_entity(gem_file, 2, 1)
+    wm_entity = guess_entity(fem_file, 2, 1)
 
-    tn_tag, tn_coord, tn_param = gl.load_gmsh_nodes(fem_file,tet_entity)
+    tn_tag, tn_coord, _ = gl.load_gmsh_nodes(fem_file,tet_entity)
     te_tag, _, te_param = gl.load_gmsh_elems(fem_file,tet_entity)
     gmn_tag, gmn_coord, _ = gl.load_gmsh_nodes(fem_file,gm_entity)
     wmn_tag, wmn_coord, _ = gl.load_gmsh_nodes(fem_file,wm_entity)
 
     #Pull ribbon data
-    ribbon = nib.load(vol_file).get_data()
+    ribbon = img.get_data()
+    affine = img.affine
     x,y,z = np.where(ribbon > 0)
 
     #Formulate lists as arrays
-    tn_param = np.array(tn_param[0])
     tn_tag = np.array(tn_tag)
     gmn_tag = np.array(gmn_tag)
     wmn_tag = np.array(wmn_tag)
 
     #Set up inputs
-    tn_list = te_param.reshape( (-1,4) )
+    tn_list = te_param[0].reshape( (-1,4) )
 
     #First concatenate nodes
     min_t, max_t, len_t = np.min(tn_tag), np.max(tn_tag), np.size(tn_tag)
@@ -86,8 +89,7 @@ def main():
         ])
 
     #Map nodes to contiguous indexing
-    out = np.zeros_like(tn_list, dtype=np.int64)
-    node_list = tp.map_nodes(tn_list, prop_arr, out)
+    node_list = tp.map_nodes(tn_list, prop_arr)
 
     #Coordinate array matching indexing
     coord_arr = np.concatenate( (tn_coord, gmn_coord, wmn_coord) )
