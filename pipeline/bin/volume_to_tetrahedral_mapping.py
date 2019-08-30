@@ -95,8 +95,14 @@ def main():
     coord_arr = np.concatenate( (tn_coord, gmn_coord, wmn_coord) )
     coords = coord_arr.reshape((-1,3))
 
+    #Determine whether the file is parcellation-based (integer encoded) or weight-based
+    float_encoding = np.any(np.mod(ribbon,1))
+
     #Project
-    n_out_arr = tp.tetrahedral_projection(node_list, coord_arr, ribbon, affine)
+    if not float_encoding:
+        n_out_arr = tp.tetrahedral_parcel_projection(node_list, coord_arr, ribbon, affine)
+    else:
+        n_out_arr = tp.tetrahedral_weight_projection(node_list, coord_arr, ribbon, affine)
     n_out_arr.tofile(out)
 
 

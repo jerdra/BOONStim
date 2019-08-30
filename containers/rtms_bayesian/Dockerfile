@@ -44,8 +44,10 @@ RUN	cd /Cornell-MOE && python ./setup.py install \
 
 
 #Set up Field Optimization package
-RUN	mkdir -p /field_pkgs/ \
-	&& git clone https://github.com/jerdra/fieldopt /field_pkgs/fieldopt
+#Force a git clcocne
+RUN	mkdir -p /field_pkgs/ 
+ADD	https://api.github.com/repos/jerdra/fieldopt/git/refs/heads/master version.json
+RUN	git clone -b master https://github.com/jerdra/fieldopt.git /field_pkgs/fieldopt
 
 ENV	PYTHONPATH=$PYTHONPATH:/Cornell-MOE:/gmsh-sdk/lib/:/field_pkgs
 
