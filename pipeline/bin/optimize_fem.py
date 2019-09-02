@@ -20,6 +20,7 @@ Options:
                                             [Default: 8]
     -t,--tmp-dir                            Directory to perform FEM experiments in
                                             [Default: $TMPDIR]
+                                            [Fallback: /tmp/]
     -n,--n-iters                            Number of iterations to perform
                                             [Default: 50]
 '''
@@ -68,7 +69,7 @@ def main():
     R           =   np.load(args['<affine>'])
     coil        =   args['<coil>']
     cpus        =   args['--cpus'] or 8
-    tmpdir      =   args['--tmp-dir'] or os.getenv('TMPDIR')
+    tmpdir      =   args['--tmp-dir'] or os.getenv('TMPDIR') or "/tmp/"
     num_iters   =   args['--n-iters'] or 50
 
 
