@@ -182,7 +182,7 @@ process extract_affine {
     set val(sub), file("t1fs.nii.gz") from affine_extract_input
 
     output:
-    set val(sub), file("affine") into affines
+    set val(sub), file("affine.npy") into affines
     
 
     shell:
@@ -196,7 +196,7 @@ process extract_affine {
 
     img = nib.load("t1fs.nii.gz")
     affine = img.affine    
-    affine.tofile("affine")
+    np.save("affine.npy",affine)
     '''
 }
 
@@ -216,13 +216,13 @@ surface_patch_input = com_out
 process make_surface_patch {
 
     input:
-    set val(sub), file("coordinate.txt"), file("data.msh"), file("affine") from surface_patch_input
+    set val(sub), file("coordinate.txt"), file("data.msh"), file("affine.npy") from surface_patch_input
 
     output:
-    set val(sub), file("patch_dilated_coords"), file("patch_mean_norm") into surface_patch
+    set val(sub), file("patch_dilated_coords.npy"), file("patch_mean_norm.npy") into surface_patch
 
     """
-    $params.rtms_bin/extract_surface_patch.py "data.msh" "affine" "coordinate.txt" "patch" 
+    $params.rtms_bin/extract_surface_patch.py "data.msh" "affine.npy" "coordinate.txt" "patch" 
     """
 
 }
@@ -231,13 +231,13 @@ process make_surface_patch {
 process parameterize_surface {
 
     input:
-    set val(sub), file("patch"), file("norm") from surface_patch
+    set val(sub), file("patch.npy"), file("norm.npy") from surface_patch
 
     output:
-    set val(sub), file("surf_C"), file("surf_R"), file("surf_bounds") into param_surf
+    set val(sub), file("surf_C.npy"), file("surf_R.npy"), file("surf_bounds.npy") into param_surf
 
     """
-    $params.rtms_bin/parameterize_surface_patch.py "patch" "norm" "surf"
+    $params.rtms_bin/parameterize_surface_patch.py "patch.npy" "norm.npy" "surf"
     """
 
 }
@@ -307,11 +307,11 @@ process tetrahedral_projection {
     set val(sub), file("ribbon.nii.gz"), file("data.msh") from tetra_input
 
     output:
-    set val(sub), file("tetraweights") into tetra_out
+    set val(sub), file("tetraweights.npy") into tetra_out
 
     shell:
     """
-    $params.rtms_bin/volume_to_tetrahedral_mapping.py ribbon.nii.gz data.msh tetraweights
+    $params.rtms_bin/volume_to_tetrahedral_mapping.py ribbon.nii.gz data.msh tetraweights.npy
     """
 
 }

@@ -91,10 +91,8 @@ def main():
     dil_coords = vert_coords + distance*v_norm
 
     #Write dilated vertices and mean normal to file
-    dil_coords.tofile(out + '_dilated_coords')
-    v_norm.tofile(out + '_mean_norm')
-
-    #Debugging images (optional outputs - do later!)
+    np.save(out+"_dilated_coords.npy",dil_coords)
+    np.save(out+"_mean_norm.npy",v_norm)
 
 if __name__ == '__main__':
     main()

@@ -103,7 +103,7 @@ def main():
         n_out_arr = tp.tetrahedral_parcel_projection(node_list, coord_arr, ribbon, affine)
     else:
         n_out_arr = tp.tetrahedral_weight_projection(node_list, coord_arr, ribbon, affine)
-    n_out_arr.tofile(out)
+    np.save(out,n_out_arr)
 
 
 if __name__ == '__main__':

@@ -26,8 +26,8 @@ def main():
     out_prefix      =   args['<out_prefix>']
 
     #Load input files
-    patch = np.fromfile(patch_file).reshape((-1,3))
-    vnorm = np.fromfile(norm_file).reshape((-1,3))
+    patch = np.load(patch_file)
+    vnorm = np.load(norm_file)
     vnorm = vnorm/np.linalg.norm(vnorm)
 
     #Rotate patch into standard space
@@ -47,9 +47,9 @@ def main():
     bounds = np.c_[minarr.T,maxarr.T]
 
     #Save files
-    C.tofile(out_prefix + "_C")
-    inv_R.tofile(out_prefix + "_R")
-    bounds.tofile(out_prefix + "_bounds")
+    np.save(out_prefix + "_C",C)
+    np.save(out_prefix + "_R",inv_R)
+    np.save(out_prefix + "_bounds",bounds)
 
 if __name__ == '__main__':
     main()
