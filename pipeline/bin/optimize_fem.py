@@ -148,5 +148,8 @@ def main():
 
         best_point_history.append(min_val)
 
+    #Once sampling is done take the best point 
+    np.savetxt('optimal_input.txt',best_coord)
+
 if __name__ == '__main__':
 main()
