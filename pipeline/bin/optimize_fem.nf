@@ -31,7 +31,7 @@ input_subs = Channel.fromPath(fem_subs, type: 'dir')
                             }
                     .map    { n,p-> [
                                         n,
-                                        file("$p/${n}_surf_tetraweights.npy"),
+                                        file("$p/${n}_tetraweights.npy"),
                                         file("$p/${n}_surf_C.npy"),
                                         file("$p/${n}_surf_R.npy"),
                                         file("$p/${n}_surf_bounds.npy"),
@@ -56,6 +56,7 @@ process fem_optimize{
     '''
     !{params.rtms_bin}/optimize_fem.py !{msh} \
                         !{W} !{C} !{b} !{R} \
+                        !{params.coil} \
                         optimal_coords.txt
     '''
 

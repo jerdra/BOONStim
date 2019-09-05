@@ -4,7 +4,7 @@
 Given a full head model, description of quadratic input domain, and cost weights use Bayesian Optimization from Cornell-MOE to find the optimal input (position and rotation). 
 
 Usage:
-    optimize_fem.py [optionss] <mesh> <weightfile> <quad_const> <bounds> <affine> <coil>
+    optimize_fem.py [options] <mesh> <weightfile> <quad_const> <bounds> <affine> <coil> <out>
 
 Arguments:
     <mesh>                                  GMSH mesh file (v2 or v4)
@@ -64,13 +64,13 @@ def main():
 
     #Parse arguments
     mesh        =   args['<mesh>']
-    weights     =   np.load(args['<weightfile'])
+    weights     =   np.load(args['<weightfile>'])
     C           =   np.load(args['<quad_const>'])
     b           =   np.load(args['<bounds>'])
     R           =   np.load(args['<affine>'])
     coil        =   args['<coil>']
     out         =   args['<out>']
-    cpus        =   args['--cpus'] or 8
+    cpus        =   int(args['--cpus']) or 8
     tmpdir      =   args['--tmp-dir'] or os.getenv('TMPDIR') or "/tmp/"
     num_iters   =   args['--n-iters'] or 50
 
@@ -89,9 +89,9 @@ def main():
             ])
 
     #Make objective function
-    f = FieldFunc(mesh_file=mesh_file, quad_surf_consts=C,
+    f = FieldFunc(mesh_file=mesh, quad_surf_consts=C,
                   surf_to_mesh_matrix=R, tet_weights=weights,
-                  field_dir=testing_dir, coil=coil, cpus=cpus)
+                  field_dir=tmpdir, coil=coil, cpus=cpus)
 
 
     #Generate historical points
