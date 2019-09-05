@@ -14,6 +14,7 @@ Arguments:
     <affine>                                Affine matrix that takes you from canonical orientation
                                             to surface RAS used in mesh
     <coil>                                  Coil magnetization field (.nii.gz) from SimNIBS
+    <out>                                   Output file name
 
 Options:
     -c,--cpus N_CPUS                        Number of CPUS to use to calculate objective func
@@ -68,6 +69,7 @@ def main():
     b           =   np.load(args['<bounds>'])
     R           =   np.load(args['<affine>'])
     coil        =   args['<coil>']
+    out         =   args['<out>']
     cpus        =   args['--cpus'] or 8
     tmpdir      =   args['--tmp-dir'] or os.getenv('TMPDIR') or "/tmp/"
     num_iters   =   args['--n-iters'] or 50
@@ -149,7 +151,7 @@ def main():
         best_point_history.append(min_val)
 
     #Once sampling is done take the best point 
-    np.savetxt('optimal_input.txt',best_coord)
+    np.savetxt(out,best_coord)
 
 if __name__ == '__main__':
-main()
+    main()
