@@ -200,47 +200,6 @@ process extract_affine {
     '''
 }
 
-// Make a channel with mesh, affine, and centroid inputs
-surface_patch_input = com_out
-                        .map { s,c ->   [
-                                            s,
-                                            c,
-                                            file("$params.out/sim_mesh/$s/${s}.msh")
-                                        ]
-                             }
-                        .join ( affines )
-//                        .subscribe { log.info("$it") }
-
-
-// Make a surface patch 
-process make_surface_patch {
-
-    input:
-    set val(sub), file("coordinate.txt"), file("data.msh"), file("affine.npy") from surface_patch_input
-
-    output:
-    set val(sub), file("patch_dilated_coords.npy"), file("patch_mean_norm.npy") into surface_patch
-
-    """
-    $params.rtms_bin/extract_surface_patch.py "data.msh" "affine.npy" "coordinate.txt" "patch" 
-    """
-
-}
-
-// Parameterize the surface patch using quadratic fit
-process parameterize_surface {
-
-    input:
-    set val(sub), file("patch.npy"), file("norm.npy") from surface_patch
-
-    output:
-    set val(sub), file("surf_C.npy"), file("surf_R.npy"), file("surf_bounds.npy") into param_surf
-
-    """
-    $params.rtms_bin/parameterize_surface_patch.py "patch.npy" "norm.npy" "surf"
-    """
-
-}
 
 process ribbon_projection { 
     
@@ -301,7 +260,13 @@ tetra_input = ribbon_out
                                         file("$params.out/sim_mesh/$n/${n}.msh")
                                     ]
                          }
+
+//Should output data.msh, tetraweights
 process tetrahedral_projection {
+
+    publishDir "$params.out/fem_optimization/$sub/", \
+                saveAs: { "${sub}_$it" }, \
+                mode: 'copy'
 
     input:
     set val(sub), file("ribbon.nii.gz"), file("data.msh") from tetra_input
@@ -315,3 +280,54 @@ process tetrahedral_projection {
     """
 
 }
+
+// Make a channel with mesh, affine, and centroid inputs
+surface_patch_input = com_out
+                        .map { s,c ->   [
+                                            s,
+                                            c,
+                                            file("$params.out/sim_mesh/$s/${s}.msh")
+                                        ]
+                             }
+                        .join ( affines )
+//                        .subscribe { log.info("$it") }
+
+
+// Make a surface patch 
+process make_surface_patch {
+
+    input:
+    set val(sub), file("coordinate.txt"), file("data.msh"), file("affine.npy") from surface_patch_input
+
+    output:
+    set val(sub), file("patch_dilated_coords.npy"), file("patch_mean_norm.npy") into surface_patch
+
+    """
+    $params.rtms_bin/extract_surface_patch.py "data.msh" "affine.npy" "coordinate.txt" "patch" 
+    """
+
+}
+
+// Parameterize the surface patch using quadratic fit
+//
+process parameterize_surface {
+
+    publishDir "$params.out/fem_optimization/$sub/", \
+                saveAs: { "${sub}_$it" }, \
+                mode: 'copy'
+
+    input:
+    set val(sub), file("patch.npy"), file("norm.npy") from surface_patch
+
+    output:
+    set val(sub), file("surf_C.npy"), file("surf_R.npy"), file("surf_bounds.npy") into param_surf
+
+    """
+    $params.rtms_bin/parameterize_surface_patch.py "patch.npy" "norm.npy" "surf"
+    """
+
+}
+
+//FINAL RELEVANT OUTPUTS FOR OPTIMIZATION....
+// PARAM_SURF
+// TETRA_OUT
