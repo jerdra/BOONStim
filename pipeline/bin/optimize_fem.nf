@@ -50,16 +50,14 @@ process fem_optimize{
         file(msh) \
     from input_subs
     
-    echo true
 
     shell:
     '''
     !{params.rtms_bin}/optimize_fem.py !{msh} \
                         !{W} !{C} !{b} !{R} \
                         !{params.coil} \
-                        optimal_coords.txt
+                        loc.txt rot.txt
     '''
 
 }
 
-//Need to translate back into usuable coordinates

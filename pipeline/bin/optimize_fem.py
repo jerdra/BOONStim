@@ -4,7 +4,7 @@
 Given a full head model, description of quadratic input domain, and cost weights use Bayesian Optimization from Cornell-MOE to find the optimal input (position and rotation). 
 
 Usage:
-    optimize_fem.py [options] <mesh> <weightfile> <quad_const> <bounds> <affine> <coil> <out>
+    optimize_fem.py [options] <mesh> <weightfile> <quad_const> <bounds> <affine> <coil> <loc_out> <rot_out>
 
 Arguments:
     <mesh>                                  GMSH mesh file (v2 or v4)
@@ -14,7 +14,8 @@ Arguments:
     <affine>                                Affine matrix that takes you from canonical orientation
                                             to surface RAS used in mesh
     <coil>                                  Coil magnetization field (.nii.gz) from SimNIBS
-    <out>                                   Output file name
+    <loc_out>                               Output position vector in RAS
+    <rot_out>                               Output rotation vector to smoothed head surface
 
 Options:
     -c,--cpus N_CPUS                        Number of CPUS to use to calculate objective func
@@ -69,7 +70,8 @@ def main():
     b           =   np.load(args['<bounds>'])
     R           =   np.load(args['<affine>'])
     coil        =   args['<coil>']
-    out         =   args['<out>']
+    loc_out     =   args['<loc_out>']
+    rot_out     =   args['<rot_out>']
     cpus        =   int(args['--cpus']) or 8
     tmpdir      =   args['--tmp-dir'] or os.getenv('TMPDIR') or "/tmp/"
     num_iters   =   args['--n-iters'] or 50
@@ -117,7 +119,7 @@ def main():
                            gamma=0.7, pre_mult=1.0, max_relative_change=0.5,
                            tolerance=1.0e-10)
 
-    num_samples = int(ncpus*1.3)
+    num_samples = int(cpus*1.3)
     best_point_history = []
     for i in np.arange(0,num_iters):
             
@@ -140,7 +142,6 @@ def main():
         min_val = np.min(gp._points_sampled_value)
         best_coord = gp.get_historical_data_copy().points_sampled[min_point]
 
-        clear_output()
         print('Recommended Points:')
         print(points_to_sample)
         print('Expected Improvement: {}'.format(ei))
@@ -150,8 +151,13 @@ def main():
 
         best_point_history.append(min_val)
 
-    #Once sampling is done take the best point 
-    np.savetxt(out,best_coord)
+    #Once sampling is done take the best point and transform it back into native space
+    preaff_loc = geolib.map_param_2_surf(best_coord[0],best_coord[1],C)
+    preaff_rot,_ = geolib.map_rot_2_surf(best_coord[0],best_coord[1],best_coord[2],C)
+    loc = np.matmul(R,preaff_loc)
+    rot = np.matmul(R,preaff_rot)
+    np.savetxt(loc_out,loc)
+    np.savetxt(rot_out,rot)
 
 if __name__ == '__main__':
     main()
