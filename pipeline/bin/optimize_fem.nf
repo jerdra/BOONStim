@@ -38,7 +38,6 @@ input_subs = Channel.fromPath(fem_subs, type: 'dir')
                                         file("$params.out/sim_mesh/${n}/${n}.msh")
                                     ]
                             }
-                    .take(1)
 
 //Run optimization routine
 process fem_optimize{
