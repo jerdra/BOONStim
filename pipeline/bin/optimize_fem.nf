@@ -55,7 +55,8 @@ process fem_optimize{
     !{params.rtms_bin}/optimize_fem.py !{msh} \
                         !{W} !{C} !{b} !{R} \
                         !{params.coil} \
-                        loc.txt rot.txt
+                        loc.txt rot.txt \
+                        --cpus !{params.cpus}
     '''
 
 }
