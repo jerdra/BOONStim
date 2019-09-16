@@ -104,7 +104,7 @@ process run_anat_fmriprep{
     !{params.anat_descriptor} $(pwd)/!{sub_input} \
     --imagepath !{params.simg} -x --stream
 
-    #Make available to executation working directory to run MRI2MESH
+    #Make available to execution working directory to run MRI2MESH
     cp !{params.out}/fmriprep/!{sub}/anat/*preproc_T1w.nii.gz $(pwd)
 
     '''
