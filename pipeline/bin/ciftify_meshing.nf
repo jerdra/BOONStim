@@ -34,7 +34,6 @@ println("Using Invocation Files: $params.anat_invocation and $params.ciftify_inv
 
 // Main Processes
 
-
 all_dirs = file(params.bids)
 bids_channel = Channel
                     .from(all_dirs.list())
@@ -181,8 +180,8 @@ process run_mri2mesh{
     publishDir "${params.out}/sim_mesh/${sub}/", mode: 'move', \
                 pattern: "sub*!(.geo)"
 
-    publishDir "${params.out}/sim_mesh/${sub}/", mode: 'copy', \
-                pattern: "sub*.geo"
+//    publishDir "${params.out}/sim_mesh/${sub}/", mode: 'copy', \
+//                pattern: "sub*.geo"
 
     containerOptions "-B ${params.license}:/license"
 
@@ -217,7 +216,7 @@ process update_msh{
 
     beforeScript "source /etc/profile"
     echo true
-    publishDir "${params.out}/sim_mesh/${sub}/${sub}.msh, mode: 'move'
+    publishDir "${params.out}/sim_mesh/${sub}/${sub}.msh", mode: 'move'
 
     input:
     set val(sub), file("sub.geo") from mesh_files

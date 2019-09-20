@@ -98,7 +98,7 @@ process invert_sulcal_add_struct {
 
     label 'connectome'
 
-    publishDir "$params.out/registration/${sub}/", \
+    publishDir "$params.out/sim_mesh/${sub}/registration/", \
                 saveAs: { "${sub}.$it" }, \
                 mode: 'copy'
 
@@ -156,7 +156,7 @@ process assign_surface_properties {
     label 'connectome'
     stageInMode 'copy'
 
-    publishDir "${params.out}/registration/$sub/", \
+    publishDir "${params.out}/sim_mesh/$sub/registration/", \
                 mode: 'copy', \
                 saveAs: { "${sub}.${sphere}" }
     
@@ -208,7 +208,7 @@ process spherical_deformation {
     
     containerOptions "-B ${params.atlasdir}:/atlas"
 
-    publishDir "$params.out/registration/${sub}/", \
+    publishDir "$params.out/sim_mesh/${sub}/registration/", \
                 saveAs: { "${sub}.$it" }, \
                 mode: 'copy'
     input:
@@ -270,7 +270,7 @@ process normalize_rotation {
     label 'optimize'
     stageInMode 'copy'
 
-    publishDir "$params.out/registration/${sub}/", \
+    publishDir "$params.out/sim_mesh/${sub}/registration/", \
                 saveAs: { "${sub}.${hemi}.affine.mat" }, \
                 mode: 'copy'
 
@@ -305,7 +305,7 @@ rotation_inputs = spheres2rot
 process apply_affine {
 
     label 'connectome'
-    publishDir "$params.out/registration/${sub}/", \
+    publishDir "$params.out/sim_mesh/${sub}/registration/", \
                 saveAs: { "${sub}.$it" }, \
                 mode: 'copy'
 
@@ -352,7 +352,7 @@ process msm_sulc {
     stageInMode 'copy'
     containerOptions "-B ${params.atlasdir}:/atlas -B ${params.msm_conf}:/msm_conf"
 
-    publishDir "$params.out/registration/${sub}/", \
+    publishDir "$params.out/sim_mesh/${sub}/registration/", \
                 saveAs: { "${sub}.$it" }, \
                 mode: 'copy'
 
@@ -387,7 +387,7 @@ process calc_areal_distortion {
     label 'connectome'
     stageInMode 'copy'
 
-    publishDir "$params.out/registration/${sub}/", \
+    publishDir "$params.out/sim_mesh/${sub}/registration/", \
                 saveAs: { "${sub}.$it" }, \
                 mode: 'copy'
     

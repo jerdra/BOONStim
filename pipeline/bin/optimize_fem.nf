@@ -19,13 +19,13 @@ if (!params.out){
 
 
 // Get a list of subjects with the required output
-fem_subs = "$params.out/fem_optimization/sub-*"
+fem_subs = "$params.out/sim_mesh/sub-*/fem_optimization"
 
 //Get full input requirements
 input_subs = Channel.fromPath(fem_subs, type: 'dir')
                     //.subscribe{ log.info("$it") }
                     .map    { n ->  [
-                                        n.getBaseName(),
+                                        n.getParent().getBaseName(),
                                         n
                                     ]
                             }
@@ -38,6 +38,7 @@ input_subs = Channel.fromPath(fem_subs, type: 'dir')
                                         file("$params.out/sim_mesh/${n}/${n}.msh")
                                     ]
                             }
+                    .subscribe { log.info("$it") }
 
 //Run optimization routine
 process fem_optimize{
