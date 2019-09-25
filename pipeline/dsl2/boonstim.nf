@@ -30,7 +30,7 @@ log.info("Using Invocation Files: $params.anat_invocation and $params.ciftify_in
 ///////////////////////////////////////////////////////////////////////////////
 
 // IMPORT WORKFLOWS
-include cifti_meshing from './modules/cifti_mesh_wf.nf'
+include cifti_meshing from './modules/cifti_mesh_wf.nf' params(params)
 
 ///////////////////////////////////////////////////////////////////////////////
 

@@ -9,6 +9,8 @@ process fmriprep_invocation{
     
     output:
     tuple val("$sub"), path("${sub}.json"), emit: json
+
+    echo "true"
     
     """
 
@@ -20,6 +22,8 @@ process fmriprep_invocation{
     out_file = '${sub}.json'
     invoke_file = '${params.anat_invocation}'
     x = '${sub}'.replace('sub-','')
+
+    print(invoke_file)
 
     with open(invoke_file,'r') as f:
         j_dict = json.load(f)
@@ -168,12 +172,16 @@ workflow cifti_meshing {
     fmriprep_invocation(subs)
     ciftify_invocation(subs)
 
-    fmriprep_anat(fmriprep_invocation.out.json)
-    ciftify(ciftify_invocation.out.json)
+    fmriprep_anat(fmriprep_invocation.out.json)[1].view()
 
-    mri2mesh(fmriprep_anat.out.preproc_t1)
-    update_msh(mri2mesh.out.geo)
+    //// Join
+    //ciftify_inp = fmriprep_anat.out.fmriprep
 
-    //Organize channels for output
+    //ciftify(ciftify_invocation.out.json)
+
+    //mri2mesh(fmriprep_anat.out.preproc_t1)
+    //update_msh(mri2mesh.out.geo)
+
+    ////Organize channels for output
 
 }
