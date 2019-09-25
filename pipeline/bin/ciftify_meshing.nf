@@ -82,7 +82,6 @@ process run_anat_fmriprep{
     beforeScript "source /etc/profile"
     scratch true
     module 'slurm'
-    echo true
     
     input:
     file sub_input from invoke_anat_json
@@ -153,7 +152,6 @@ process run_ciftify{
     beforeScript "source /etc/profile"
     scratch true
     module 'slurm'
-    echo true
 
     input:
     file sub_input from invoke_ciftify_json
@@ -175,7 +173,6 @@ process run_mri2mesh{
 
     beforeScript "source /etc/profile"
     module 'slurm'
-    echo true
 
     publishDir "${params.out}/sim_mesh/${sub}/", mode: 'move', \
                 pattern: "sub*!(.geo)"
@@ -215,7 +212,6 @@ process run_mri2mesh{
 process update_msh{
 
     beforeScript "source /etc/profile"
-    echo true
     publishDir "${params.out}/sim_mesh/${sub}/${sub}.msh", mode: 'move'
 
     input:
@@ -228,7 +224,7 @@ process update_msh{
     '''
     set +u
     
-    /gmsh-sdk/bin/gmsh -3 -bin -format msh2 -o sub.msh sub.geo
+    /gmsh-sdk/bin/gmsh -3 -bin -format msh2 -o sub.msh sub.geo || true
     
     '''
 
