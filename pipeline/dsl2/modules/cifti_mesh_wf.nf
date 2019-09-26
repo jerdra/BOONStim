@@ -59,9 +59,6 @@ process fmriprep_anat{
     !{params.anat_descriptor} $(pwd)/!{json} \
     --imagepath !{params.simg} -x --stream
 
-    #Make available to execution working directory to run MRI2MESH
-    cp !{params.out}/fmriprep/!{sub}/anat/*preproc_T1w.nii.gz $(pwd)
-
     '''
 }
 

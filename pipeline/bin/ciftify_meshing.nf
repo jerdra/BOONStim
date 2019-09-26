@@ -202,7 +202,6 @@ process run_mri2mesh{
     mri2mesh --all !{sub} !{t1}
     rm !{t1}
 
-    #GMSH3 .msh is bad
     rm !{sub}.msh
     '''
 }
@@ -212,7 +211,7 @@ process run_mri2mesh{
 process update_msh{
 
     beforeScript "source /etc/profile"
-    publishDir "${params.out}/sim_mesh/${sub}/${sub}.msh", mode: 'move'
+    publishDir "${params.out}/sim_mesh/${sub}/", mode: 'move'
 
     input:
     set val(sub), file("sub.geo") from mesh_files
