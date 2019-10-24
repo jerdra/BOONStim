@@ -174,8 +174,12 @@ process run_mri2mesh{
     beforeScript "source /etc/profile"
     module 'slurm'
 
+    publishDir "${params.out}/sim_mesh/${sub}/", mode: 'copy', \
+                pattern: "m2m_sub*"
     publishDir "${params.out}/sim_mesh/${sub}/", mode: 'move', \
-                pattern: "sub*!(.geo)"
+                pattern: "fs_sub*"
+    publishDir "${params.out}/sim_mesh/${sub}/", mode: 'move', \
+                pattern: "*T1fs_conform.nii.gz"
 
 //    publishDir "${params.out}/sim_mesh/${sub}/", mode: 'copy', \
 //                pattern: "sub*.geo"
@@ -211,7 +215,9 @@ process run_mri2mesh{
 process update_msh{
 
     beforeScript "source /etc/profile"
-    publishDir "${params.out}/sim_mesh/${sub}/", mode: 'move'
+    publishDir "${params.out}/sim_mesh/${sub}/", mode: 'move', \
+                pattern: "sub.msh", \
+                saveAs: { "${sub}.msh" }
 
     input:
     set val(sub), file("sub.geo") from mesh_files
@@ -223,6 +229,8 @@ process update_msh{
     '''
     set +u
     
+    #Apply some sed rules to deal with this appropriately
+    sed 's/Merge.*m2m/Merge "m2m/g' sub.geo -i
     /gmsh-sdk/bin/gmsh -3 -bin -format msh2 -o sub.msh sub.geo || true
     
     '''
