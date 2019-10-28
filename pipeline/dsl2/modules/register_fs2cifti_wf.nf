@@ -214,6 +214,13 @@ process areal_distortion{
     output:
     path("${hemi}.areal_distortion_shape.gii"), emit: areal
 
+    """
+    wb_command -surface-distortion \
+                ${sphere} \
+                ${msm_sphere} \
+                ${hemi}.areal_distortion.shape.gii
+    """
+
     
 
 
