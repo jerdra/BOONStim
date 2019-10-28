@@ -36,11 +36,12 @@ process assign_structure {
     tuple val(sub), val(hemi), val(structure), path(gifti)
 
     output:
-    tuple val(sub), val(hemi), path(gifti), emit: gifti
+    tuple val(sub), val(hemi), path("assigned_$gifti"), emit: gifti
 
     shell:
     '''
-    wb_command -set-structure !{gifti} !{structure}
+    cp -L !{gifti} assigned_!{gifti}
+    wb_command -set-structure assigned_!{gifti} !{structure}
     '''
 
 }

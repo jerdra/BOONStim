@@ -27,10 +27,11 @@ process assign_sulcal{
     tuple val(sub), val(hemi), val(structure), path(sulc)
 
     output:
-    tuple val(sub), val(hemi), path(sulc)
+    tuple val(sub), val(hemi), path("assigned_$sulc")
 
     """
-    wb_command -set-structure $sulc $structure
+    cp -L $sulc assigned_$sulc
+    wb_command -set-structure assigned_$sulc $structure
     """
 
 
@@ -44,10 +45,10 @@ process invert_sulcal{
     tuple val(sub), val(hemi), path(sulc)
 
     output:
-    tuple val(sub), val(hemi), path(sulc)
+    tuple val(sub), val(hemi), path("inverted_sulc.${hemi}.shape.gii")
 
     """
-    wb_command -metric-math 'a*(-1)' -var 'a' $sulc $sulc
+    wb_command -metric-math 'a*(-1)' -var 'a' $sulc "inverted_sulc.${hemi}.shape.gii"
     """
 }
 
@@ -75,13 +76,14 @@ process assign_sphere{
     label 'connectome'
 
     input:
-    tuple val(sub), val(structure), path(sphere)
+    tuple val(sub), val(hemi), val(structure), path(sphere)
 
     output:
-    tuple val(sub), path(sphere)
+    tuple val(sub), val(hemi), path("assigned_${sphere}")
 
     """
-    wb_command -set-structure ${sphere} ${structure} -surface-type "SPHERICAL"
+    cp -L ${sphere} assigned_${sphere}
+    wb_command -set-structure assigned_${sphere} ${structure} -surface-type "SPHERICAL"
     """
 
 }
@@ -116,7 +118,7 @@ process spherical_affine{
     tuple val(sub), val(hemi), path(sphere), path(reg_LR_sphere)
 
     output:
-    tuple val(sub), val(hemi), path(sphere), path("${hemi}_affine.mat")
+    tuple val(sub), val(hemi), path("${hemi}_affine.mat")
 
     """
     wb_command -surface-affine-regression \
@@ -275,7 +277,7 @@ workflow registration_wf {
         convert_sphere(registration_spheres)
         assign_sphere_input = convert_sphere.out
                                         .map{ s,h,sph ->[
-                                                            s,
+                                                            s,h,
                                                             structure_map[h],
                                                             sph
                                                         ]
@@ -283,37 +285,23 @@ workflow registration_wf {
         assign_sphere(assign_sphere_input)
 
         //Pull reg spheres and perform spherical deformation
-        reg_sphere = assign_sphere.out
-                        .filter { it[1].name.contains('reg') }
-                        .map{ s,sph ->  [
-                                            s,
-                                            sph.name.take(1),
-                                            sph
-                                        ]
-                            }
-        deform_sphere(reg_sphere)
+        deform_sphere_input = assign_sphere.out
+                                    .filter { it[2].name.contains('reg') }
+        deform_sphere(deform_sphere_input)
 
         // Merge with native sphere and compute affine
         affine_input = assign_sphere.out
-                                    .filter { !(it[1].name.contains('reg')) }
-                                    .map{ s,sph ->  [
-                                                        s,
-                                                        sph.name.take(1),
-                                                        sph
-                                                    ]
-                                        }
-                                     .join(deform_sphere.out, by : [0,1])
+                                    .filter { !(it[2].name.contains('reg')) }
+                                    .join(deform_sphere.out, by : [0,1])
         spherical_affine(affine_input)
 
         // Normalize affine transformation
-        normalization_input = spherical_affine.out
-                                        .map { s,h,sph,aff-> [s,h,aff] }
-        normalize_rotation(normalization_input)
+        normalize_rotation(spherical_affine.out)
 
         // Apply affine transformation to sphere
-        rotation_input = spherical_affine.out
-                                .map { s,h,sph,aff -> [s,h,sph] } 
+        rotation_input = assign_sphere.out
                                 .join(normalize_rotation.out, by: [0,1])
+
         apply_affine(rotation_input)
 
 
