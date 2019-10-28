@@ -4,6 +4,7 @@ nextflow.preview.dsl=2
 process convert_sulcal{
 
     label 'freesurfer'
+    containerOptions "-B ${params.license}:/license"
 
     input:
     tuple val(sub), val(hemi), path(sulc), path(white)
@@ -53,6 +54,7 @@ process invert_sulcal{
 process convert_sphere{
     
     label 'freesurfer'
+    containerOptions "-B ${params.license}:/license"
 
     input:
     tuple val(sub), val(hemi), path(sphere), val(output)
@@ -60,6 +62,7 @@ process convert_sphere{
     output:
     tuple val(sub), val(hemi), path("${output}.surf.gii")
 
+    shell:
     '''
     export FS_LICENSE=/license/license.txt
     mris_convert !{sphere} !{sphere}.surf.gii
@@ -94,11 +97,12 @@ process deform_sphere{
     output:
     tuple val(sub), val(hemi), file("${hemi}.sphere.reg.reg_LR.native.surf.gii")
 
+    shell:
     '''
     wb_command -surface-sphere-project-unproject \
                 !{sphere} \
                 /atlas/fsaverage.!{hemi}.sphere.164k_fs_!{hemi}.surf.gii \
-                /atlas/fs_!{hemi}-to-fs_LR_fsasverage.!{hemi}_LR.spherical_std.164k_fs_!{hemi}.surf.gii \
+                /atlas/fs_!{hemi}-to-fs_LR_fsaverage.!{hemi}_LR.spherical_std.164k_fs_!{hemi}.surf.gii \
                 !{hemi}.sphere.reg.reg_LR.native.surf.gii
     '''
 
@@ -143,7 +147,7 @@ process normalize_rotation{
     M[3,3] = 1
 
     linear_map = M[:3,:3]
-    U,S,V = np.linalg.svg(linear_map)
+    U,S,V = np.linalg.svd(linear_map)
     M[:3,:3] = np.matmul(U,V)
     np.savetxt("norm_affine.mat",M)
     '''
@@ -177,7 +181,7 @@ process apply_affine{
 process msm_sulc {
 
     label 'connectome'
-    containerOptions "-B ${params.atlasdir}:/atlas -B ${params.msm_conf}:/msm_conf"
+    containerOptions "-B ${params.atlas}:/atlas -B ${params.msm}:/msm_conf"
     
     input:
     tuple val(sub), val(hemi), path(sphere), path(sulc), val(structure)
@@ -212,7 +216,7 @@ process areal_distortion{
     tuple val(sub), val(hemi), path(sphere), path(msm_sphere)
 
     output:
-    path("${hemi}.areal_distortion_shape.gii"), emit: areal
+    tuple val(sub), val(hemi), path("${hemi}.areal_distortion_shape.gii"), emit: areal
 
     """
     wb_command -surface-distortion \
@@ -240,17 +244,17 @@ workflow registration_wf {
                             .map{s,f,h ->   [
                                                 s,
                                                 h,
-                                                "${f}/surf/${h[2].toLowerCase()}h.sulc",
-                                                "${f}/surf/${h[2].toLowerCase()}h.white"
+                                                "${f}/surf/${h.toLowerCase()}h.sulc",
+                                                "${f}/surf/${h.toLowerCase()}h.white"
                                             ]
                                 }
         convert_sulcal(sulcal_input)
 
         // Assign structure to sulcal map then invert
         structure_map = ['L' : 'CORTEX_LEFT', 'R' : 'CORTEX_RIGHT' ]
-        assign_input = convert.sulcal.out
+        assign_input = convert_sulcal.out
                                     .map{ s,h,g ->  [
-                                                        s,h
+                                                        s,h,
                                                         structure_map[h],
                                                         g
                                                     ]
@@ -263,13 +267,12 @@ workflow registration_wf {
                                     .spread( ['L','R'] )
                                     .spread( ['sphere','sphere.reg'] )
                                     .map{ s,f,h,sph ->  [
-                                                            s,sph,
+                                                            s,h,
                                                             "${f}/surf/${h.toLowerCase()}h.${sph}",
                                                             "${h}.${sph}"
                                                         ]
                                         }
         convert_sphere(registration_spheres)
-        
         assign_sphere_input = convert_sphere.out
                                         .map{ s,h,sph ->[
                                                             s,
@@ -281,25 +284,25 @@ workflow registration_wf {
 
         //Pull reg spheres and perform spherical deformation
         reg_sphere = assign_sphere.out
-                        .filter { it.sph.name.contains('reg') }
+                        .filter { it[1].name.contains('reg') }
                         .map{ s,sph ->  [
                                             s,
                                             sph.name.take(1),
                                             sph
                                         ]
                             }
-        deform_sphere(reg_sphere.out)
+        deform_sphere(reg_sphere)
 
         // Merge with native sphere and compute affine
         affine_input = assign_sphere.out
-                                    .filter { !(it.sph.name.contains('reg')) }
+                                    .filter { !(it[1].name.contains('reg')) }
                                     .map{ s,sph ->  [
                                                         s,
                                                         sph.name.take(1),
                                                         sph
                                                     ]
                                         }
-                                    .join(deform_sphere, by : [0,1])
+                                     .join(deform_sphere.out, by : [0,1])
         spherical_affine(affine_input)
 
         // Normalize affine transformation
@@ -308,7 +311,8 @@ workflow registration_wf {
         normalize_rotation(normalization_input)
 
         // Apply affine transformation to sphere
-        rotation_input = affine_input
+        rotation_input = spherical_affine.out
+                                .map { s,h,sph,aff -> [s,h,sph] } 
                                 .join(normalize_rotation.out, by: [0,1])
         apply_affine(rotation_input)
 
@@ -324,7 +328,7 @@ workflow registration_wf {
         msm_sulc(msm_input)
 
         // Make areal distortion map
-        areal_distortion(msm_input.out)
+        areal_distortion(msm_sulc.out)
                                                     
                             
 }
