@@ -114,6 +114,7 @@ process fmriprep_anat{
 
     '''
 }
+
 process mri2mesh {
     
     beforeScript 'source /etc/profile'
@@ -166,17 +167,22 @@ workflow cifti_meshing {
     //Subject list as inputs with implicit input/output dir params
     get: subs 
     main:
+        // Ciftify full pipeline
+        ciftify_invocation(subs)
+        ciftify(ciftify_invocation.out.json)
 
-    // Ciftify full pipeline
-    ciftify_invocation(subs)
-    ciftify(ciftify_invocation.out.json)
-
-    // Merge and preprocess T1 then feed into mri2mesh
-    fmriprep_invocation(subs)
-    fmriprep_anat(fmriprep_invocation.out.json)
-    mri2mesh(fmriprep_anat.out.preproc_t1)
-    update_msh(mri2mesh.out.geo)
+        // Merge and preprocess T1 then feed into mri2mesh
+        fmriprep_invocation(subs)
+        fmriprep_anat(fmriprep_invocation.out.json)
+        mri2mesh(fmriprep_anat.out.preproc_t1)
+        update_msh(mri2mesh.out.geo)
 
     //Organize channels for output
-
+    emit:
+        cifti = ciftify.out.ciftify
+        freesurfer = ciftify.out.freesurfer
+        fmriprep = ciftify.out.fmriprep
+        mesh_fs = mri2mesh.out.freesurfer
+        mesh_m2m = mri2mesh.out.mri2mesh
+        msh = update_msh.out.mesh
 }

@@ -31,6 +31,8 @@ log.info("Using Invocation Files: $params.anat_invocation and $params.ciftify_in
 
 // IMPORT WORKFLOWS
 include cifti_meshing from './modules/cifti_mesh_wf.nf' params(params)
+include make_giftis from './modules/fs2gifti.nf' params(params)
+include registration_wf from './modules/register_fs2cifti_wf.nf' params(params)
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -46,6 +48,13 @@ bids_channel = Channel
 
 workflow {
 
-    cifti_meshing(bids_channel)
+    main:
+        
+        // Main preprocessing routine
+        cifti_mesh_result = cifti_meshing(bids_channel)
+
+        // Space registration
+        make_giftis_result = make_giftis(cifti_mesh_result.mesh_fs)
+        registration_wf(cifti_mesh_result.mesh_fs)
 
 }
