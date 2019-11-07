@@ -102,10 +102,14 @@ workflow make_giftis {
                                                             ]
                                             }
         compute_midthickness(midthickness_input)
+        
+        pial_out = midthickness_input.map { n,h,p,w -> [n,h,p] }
+        white_out = midthickness_input.map { n,h,p,w -> [n,h,w] }
 
         emit:
             midthickness = compute_midthickness.out.midthickness
-            surfaces = midthickness_input
+            pial = pial_out
+            white = white_out
             
             
 }

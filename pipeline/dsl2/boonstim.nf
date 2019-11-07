@@ -33,6 +33,7 @@ log.info("Using Invocation Files: $params.anat_invocation and $params.ciftify_in
 include cifti_meshing from './modules/cifti_mesh_wf.nf' params(params)
 include make_giftis from './modules/fs2gifti.nf' params(params)
 include registration_wf from './modules/register_fs2cifti_wf.nf' params(params)
+include weightfunc_wf from "${params.weightworkflow}" params(params)
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -56,5 +57,23 @@ workflow {
         // Space registration
         make_giftis_result = make_giftis(cifti_mesh_result.mesh_fs)
         registration_wf(cifti_mesh_result.mesh_fs)
+
+        // Calculation of custom weightfunction and centroid
+        weightfunc_input = cifti_mesh_result.fmriprep
+                                            .join( cifti_mesh_result.cifti, by : 0 )
+        weightfunc_wf(weightfunc_input)
+
+        // Resample the data into native space
+
+
+        //Check outputs for debugging
+        weightfunc_wf.out.weightfunc | view
+        weightfunc_wf.out.mask | view
+        make_giftis_result.pial | view
+        make_giftis_result.white | view
+        make_giftis_result.midthickness | view
+
+        
+
 
 }

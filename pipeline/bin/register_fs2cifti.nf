@@ -141,8 +141,6 @@ process convert_spheres2gifti {
 
 }
 
-
-
 //OUTPUT: [sub, surf.gii, structure]
 spheres_2_assign = fs_derived_spheres
                         .map{ n -> [ n[0],

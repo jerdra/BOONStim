@@ -128,6 +128,7 @@ process mri2mesh {
     tuple val(sub), path('fs_sub*'), emit: freesurfer
     tuple val(sub), path('m2m_sub*'), emit: mri2mesh
     tuple val(sub), path('sub*.geo'), emit: geo
+    tuple val(sub), path('sub*_T1fs_conform.nii.gz'), emit: T1
 
     // Within container run command
     shell:
@@ -185,4 +186,5 @@ workflow cifti_meshing {
         mesh_fs = mri2mesh.out.freesurfer
         mesh_m2m = mri2mesh.out.mri2mesh
         msh = update_msh.out.mesh
+        t1fs_conform = mri2mesh.out.T1
 }

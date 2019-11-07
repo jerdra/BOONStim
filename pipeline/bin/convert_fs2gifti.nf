@@ -4,8 +4,6 @@
 //INPUTS:
 //out               Output directory containing mri2mesh outputs
 
-
-
 //OUTPUTS:
 //Script will output to output_dir/sim_mesh/sub/surfaces
 

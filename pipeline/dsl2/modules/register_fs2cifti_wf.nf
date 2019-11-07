@@ -201,8 +201,8 @@ process msm_sulc {
              --out=!{hemi}. \
              --verbose
 
-    mv "${hemi}.sphere.reg.surf.gii" \
-       "${hemi}.sphere.reg_msm.surf.gii"
+    mv "!{hemi}.sphere.reg.surf.gii" \
+       "!{hemi}.sphere.reg_msm.surf.gii"
 
     wb_command -set-structure !{hemi}.sphere.reg_msm.surf.gii \
                                 !{structure}
@@ -218,7 +218,7 @@ process areal_distortion{
     tuple val(sub), val(hemi), path(sphere), path(msm_sphere)
 
     output:
-    tuple val(sub), val(hemi), path("${hemi}.areal_distortion_shape.gii"), emit: areal
+    tuple val(sub), val(hemi), path("${hemi}.areal_distortion.shape.gii"), emit: areal
 
     """
     wb_command -surface-distortion \
@@ -317,6 +317,17 @@ workflow registration_wf {
 
         // Make areal distortion map
         areal_distortion(msm_sulc.out)
+
+        // Make outputs
+        msm_sphere_out = msm_sulc.out
+                                .map{ s,h,sph,msm -> [s,h,msm] }
+        nat_sphere_out = msm_sulc.out
+                                .map{ s,h,sph,msm -> [s,h,sph] }
+
+        emit:
+            msm_sphere = msm_sphere_out
+            native_sphere = nat_sphere_out
+            
                                                     
                             
 }
