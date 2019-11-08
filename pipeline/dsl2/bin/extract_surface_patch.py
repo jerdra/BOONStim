@@ -5,11 +5,10 @@
 Given a .msh file of a tetrahedral head reconstruction and a centroid coordinate in 3D space, generate a patch of surface of scalp that is closest to the centroid coordinate. 
 
 Usage:
-    extract_surface_patch.py [options] <msh> <affine> <centroid> <out_prefix> 
+    extract_surface_patch.py [options] <msh> <centroid> <out_prefix> 
 
 Arguments:
     <msh>                       Subject .msh file
-    <affine>                    Affine transformation
     <centroid>                  Textfile containing centroid coordinates in RAS space (readable by numpy)
     <out_prefix>                Output binary files prefix containing coordinates for parametric surface
                                 

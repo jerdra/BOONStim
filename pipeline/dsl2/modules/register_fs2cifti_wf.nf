@@ -321,12 +321,9 @@ workflow registration_wf {
         // Make outputs
         msm_sphere_out = msm_sulc.out
                                 .map{ s,h,sph,msm -> [s,h,msm] }
-        nat_sphere_out = msm_sulc.out
-                                .map{ s,h,sph,msm -> [s,h,sph] }
 
         emit:
             msm_sphere = msm_sphere_out
-            native_sphere = nat_sphere_out
             
                                                     
                             

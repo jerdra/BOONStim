@@ -148,10 +148,10 @@ process update_msh{
     container "/projects/jjeyachandra/BOONStim/containers/rtms_bayesian/rtms_bayesian_v0.4-2019-09-09-e99bae9f511b.simg"
     
     input:
-    tuple val(sub), path('sub.geo')
+    tuple val(sub), path('sub.geo'), path(m2m)
     
     output:
-    path 'sub.msh', emit: mesh
+    tuple val(sub), path('sub.msh'), emit: mesh
 
     shell:
     '''
@@ -176,7 +176,10 @@ workflow cifti_meshing {
         fmriprep_invocation(subs)
         fmriprep_anat(fmriprep_invocation.out.json)
         mri2mesh(fmriprep_anat.out.preproc_t1)
-        update_msh(mri2mesh.out.geo)
+    
+        // Add m2m
+        update_msh_input = mri2mesh.out.geo.join(mri2mesh.out.mri2mesh)
+        update_msh(update_msh_input)
 
     //Organize channels for output
     emit:
