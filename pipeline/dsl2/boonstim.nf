@@ -60,16 +60,14 @@ process optimize_coil {
     tuple val(sub), path(msh), path(weights), path(C), path(R), path(bounds), path(coil)
 
     output:
-    tuple val(sub), path('coil_position.npy'), path('coil_orientation.npy')
+    tuple val(sub), path('coil_position'), path('coil_orientation')
 
     shell:
     ''' 
     /scripts/optimize_fem.py !{msh} !{weights} !{C} !{bounds} !{R} !{coil} \
-                             coil_position.npy coil_orientation.npy
+                             coil_position coil_orientation
     '''
     
-
-
 }
 
 workflow {
@@ -109,6 +107,10 @@ workflow {
                                     .join(parameterization_wf.out.C, by: 0)
                                     .join(parameterization_wf.out.R, by: 0)
                                     .join(parameterization_wf.out.bounds, by: 0)
-                                    .map{ m,w,C,R,b -> [ m,w,C,R,b,"$params.coil" ] }
+                                    .map{ s,m,w,C,R,b -> [ s,m,w,C,R,b,"$params.coil" ] }
         optimize_coil(optimize_inputs)
 }
+
+// TODO LIST:
+// TODO BUILD QC OUTPUTS
+// TODO INSPECT AND MODIFY INPUT FILES IF NEEDED?
