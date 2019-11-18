@@ -23,8 +23,10 @@ Options:
     -t,--tmp-dir                            Directory to perform FEM experiments in
                                             [Default: $TMPDIR]
                                             [Fallback: /tmp/]
-    -n,--n-iters                            Number of iterations to perform
+    -n,--n-iters ITERS                      Maximum number of iterations to perform
                                             [Default: 50]
+    -c,--convergence TOL                    Convergence threshold for shifts in input space (decimal number)
+                                            [Default: 1e-3]
 '''
 
 #Base package loading
@@ -75,6 +77,7 @@ def main():
     cpus        =   int(args['--cpus']) or 8
     tmpdir      =   args['--tmp-dir'] or os.getenv('TMPDIR') or "/tmp/"
     num_iters   =   args['--n-iters'] or 50
+    tol         =   args['--convergence'] or 1e-3
 
 
     #Make search domain
@@ -121,6 +124,9 @@ def main():
 
     num_samples = int(cpus*1.3)
     best_point_history = []
+
+    #Fixed number that should never be reached
+    prev_min = -9999
     for i in np.arange(0,num_iters):
             
         #Optimize qEI and pick samples
@@ -150,6 +156,14 @@ def main():
         print('Coord:', best_coord)
 
         best_point_history.append(min_val)
+
+        #Check convergence criterion
+        if np.abs(prev_min - min_val) < tol:
+            print('Convergence reached!')
+            print('Previous minimum: {}'.format(prev_min))
+            print('Current minimum: {}'.format(min_val))
+            print('Tolerance: {}'.format(tol))
+            break
 
     #Once sampling is done take the best point and transform it back into native space
     preaff_loc = geolib.map_param_2_surf(best_coord[0],best_coord[1],C)
