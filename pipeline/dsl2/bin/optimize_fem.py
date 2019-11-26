@@ -23,7 +23,7 @@ Options:
     -t,--tmp-dir                            Directory to perform FEM experiments in
                                             [Default: $TMPDIR]
                                             [Fallback: /tmp/]
-    -n,--n-iters ITERS                      Maximum number of iterations to perform
+    -n, --n-iters ITERS                     Maximum number of iterations to perform
                                             [Default: 50]
     -c,--convergence TOL                    Convergence threshold for shifts in input space (decimal number)
                                             [Default: 1e-3]
@@ -76,8 +76,8 @@ def main():
     rot_out     =   args['<rot_out>']
     cpus        =   int(args['--cpus']) or 8
     tmpdir      =   args['--tmp-dir'] or os.getenv('TMPDIR') or "/tmp/"
-    num_iters   =   args['--n-iters'] or 50
-    tol         =   args['--convergence'] or 1e-3
+    num_iters   =   int(args['--n-iters']) or 50
+    tol         =   float(args['--convergence']) or 0.001
 
 
     #Make search domain

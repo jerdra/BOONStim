@@ -99,18 +99,32 @@ workflow {
         resampleweightfunc_wf(weightfunc_wf.out.weightfunc, registration_wf.out.msm_sphere)
         
         // Project weightfunc into tetrahedral mesh space
-        tet_project_wf(resampleweightfunc_wf.out.resampled, make_giftis_result.pial, make_giftis_result.white, make_giftis_result.midthickness, cifti_mesh_result.t1fs_conform, cifti_mesh_result.msh)
+        //tet_project_wf(resampleweightfunc_wf.out.resampled, make_giftis_result.pial, make_giftis_result.white, make_giftis_result.midthickness, cifti_mesh_result.t1fs_conform, cifti_mesh_result.msh)
 
-        // Gather inputs for optimization
-        optimize_inputs = cifti_mesh_result.msh
-                                    .join(tet_project_wf.out.fem_weights, by: 0)
-                                    .join(parameterization_wf.out.C, by: 0)
-                                    .join(parameterization_wf.out.R, by: 0)
-                                    .join(parameterization_wf.out.bounds, by: 0)
-                                    .map{ s,m,w,C,R,b -> [ s,m,w,C,R,b,"$params.coil" ] }
-        optimize_coil(optimize_inputs)
+        //// Gather inputs for optimization
+        //optimize_inputs = cifti_mesh_result.msh
+        //                            .join(tet_project_wf.out.fem_weights, by: 0)
+        //                            .join(parameterization_wf.out.C, by: 0)
+        //                            .join(parameterization_wf.out.R, by: 0)
+        //                            .join(parameterization_wf.out.bounds, by: 0)
+        //                            .map{ s,m,w,C,R,b -> [ s,m,w,C,R,b,"$params.coil" ] }
+        //optimize_coil(optimize_inputs)
+
+        // Formulate outputs for ciftify
+
+        publish:
+            
+            // Ciftify pipeline outputs
+            cifti_mesh_result.cifti   to: "$params.out", mode: 'copy', pattern: {"./ciftify/*"}
+            cifti_mesh_result.fmriprep to: "$params.out", mode: 'copy', pattern: {"./fmriprep/*"}
+            cifti_mesh_result.freesurfer to: "$params.out", mode: 'copy', pattern: {"./freesurfer/*"}
+
+            // Meshing outptus
+            
+
 }
 
 // TODO LIST:
 // TODO BUILD QC OUTPUTS
 // TODO INSPECT AND MODIFY INPUT FILES IF NEEDED?
+// TODO PUBLISH OUTPUTS
