@@ -165,9 +165,9 @@ workflow calculate_weightfunc_wf {
         surfs = derivatives
                         .map{s,f,c ->   [
                                             s,
-                                            "${c}/${s}/MNINonLinear/fsaverage_LR32k/${s}.L.midthickness.32k_fs_LR.surf.gii",
-                                            "${c}/${s}/MNINonLinear/fsaverage_LR32k/${s}.L.white.32k_fs_LR.surf.gii",
-                                            "${c}/${s}/MNINonLinear/fsaverage_LR32k/${s}.L.pial.32k_fs_LR.surf.gii",
+                                            "${s}/MNINonLinear/fsaverage_LR32k/${s}.L.midthickness.32k_fs_LR.surf.gii",
+                                            "${s}/MNINonLinear/fsaverage_LR32k/${s}.L.white.32k_fs_LR.surf.gii",
+                                            "${s}/MNINonLinear/fsaverage_LR32k/${s}.L.pial.32k_fs_LR.surf.gii",
                                             "${params.inverse_mask}"
                                         ]
                             }
@@ -178,7 +178,7 @@ workflow calculate_weightfunc_wf {
                             .map{s,f,c ->   [
                                                 s,
                                                 f,
-                                                new FileNameByRegexFinder().getFileNames("${c}/${s}",".*MNINonLinear/Results/.*(REST|rest).*/.*dtseries.nii")
+                                                new FileNameByRegexFinder().getFileNames("${s}",".*MNINonLinear/Results/.*(REST|rest).*/.*dtseries.nii")
                                                 
                                             ]
                                 }
@@ -191,7 +191,7 @@ workflow calculate_weightfunc_wf {
                                 }
                             .map{ s,f,d,ses,ident ->    [
                                                             s,d,
-                                                            new FileNameByRegexFinder().getFileNames("$f/$s/$ses/func", ".*${ident}.*confound.*tsv")[0],
+                                                            new FileNameByRegexFinder().getFileNames("$s/$ses/func", ".*${ident}.*confound.*tsv")[0],
                                                             "${params.clean_config}"
                                                         ]
                                 }
@@ -204,8 +204,8 @@ workflow calculate_weightfunc_wf {
         smooth_input = clean_img.out.clean_dtseries.join(cifti_buffer, by:0)
                                 .map{ s,i,c ->  [
                                                     s,i,
-                                                    "${c}/${s}/MNINonLinear/fsaverage_LR32k/${s}.L.midthickness.32k_fs_LR.surf.gii",
-                                                    "${c}/${s}/MNINonLinear/fsaverage_LR32k/${s}.R.midthickness.32k_fs_LR.surf.gii"
+                                                    "${s}/MNINonLinear/fsaverage_LR32k/${s}.L.midthickness.32k_fs_LR.surf.gii",
+                                                    "${s}/MNINonLinear/fsaverage_LR32k/${s}.R.midthickness.32k_fs_LR.surf.gii"
                                                 ]
                                     }
         smooth_img(smooth_input)

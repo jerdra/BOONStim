@@ -93,8 +93,7 @@ workflow {
         centroid_wf(resamplemask_wf.out.resampled,make_giftis_result.pial, make_giftis_result.white, make_giftis_result.midthickness, cifti_mesh_result.t1fs_conform)
 
         // Parameterize the surface
-        parameterization_wf(cifti_mesh_result.msh, centroid_wf.out.centroid)
-
+        parameterization_wf(cifti_mesh_result.msh, centroid_wf.out.centroid) 
         // Resample the weightfunc
         resampleweightfunc_wf(weightfunc_wf.out.weightfunc, registration_wf.out.msm_sphere)
         
@@ -118,7 +117,7 @@ workflow {
             cifti_mesh_result.cifti   to: "$params.out", mode: 'copy', pattern: {"./ciftify/*"}
             cifti_mesh_result.fmriprep to: "$params.out", mode: 'copy', pattern: {"./fmriprep/*"}
             cifti_mesh_result.freesurfer to: "$params.out", mode: 'copy', pattern: {"./freesurfer/*"}
-
+            cifti_mesh_result.freesurfer to: "$params.out", mode: 'copy', pattern: {"./freesurfer/${it[0]}"}
             // Meshing outptus
             
 

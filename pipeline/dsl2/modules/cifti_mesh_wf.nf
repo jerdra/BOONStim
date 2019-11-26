@@ -37,9 +37,9 @@ process ciftify{
     tuple val(sub), path(json)
 
     output:
-    tuple val(sub), path('fmriprep'), emit: fmriprep
-    tuple val(sub), path('ciftify'), emit: ciftify
-    tuple val(sub), path('freesurfer'), emit: freesurfer
+    tuple val(sub), path("fmriprep/${sub}"), emit: fmriprep
+    tuple val(sub), path("ciftify/${sub}"), emit: ciftify
+    tuple val(sub), path("freesurfer/${sub}"), emit: freesurfer
 
     shell:
     '''
