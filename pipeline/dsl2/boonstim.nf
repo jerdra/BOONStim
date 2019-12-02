@@ -60,7 +60,8 @@ process optimize_coil {
     tuple val(sub), path(msh), path(weights), path(C), path(R), path(bounds), path(coil)
 
     output:
-    tuple val(sub), path('coil_position'), path('coil_orientation')
+    tuple val(sub), path('coil_position'), emit: position
+    tuple val(sub), path('coil_orientation'), emit: orientation
 
     shell:
     ''' 
@@ -69,6 +70,38 @@ process optimize_coil {
     '''
     
 }
+
+process construct_boonstim_outputs{
+
+    input:
+        tuple val(sub), \
+        path(msh), path(t1fs), path(m2m), path(fs), \
+        path(pial), path(white), path(thick), path(msm), \
+        path(weightfunc), path(mask), \
+        path(loc), path(rot)
+
+    output:
+        tuple val(sub), path("$sub"), emit: subject
+    
+    shell:
+    '''
+    #!/usr/bin/bash
+    
+    mkdir !{sub}
+    mkdir surfaces
+    mkdir optimization
+    mv !{pial} !{white} !{thick} !{msm} !{weightfunc} !{mask} surfaces
+    mv !{loc} !{rot} optimization
+    mv * !{sub}
+    '''
+}
+
+def lr_branch = branchCriteria {
+                left: it[1] == 'L'
+                    return [it[0],it[2]]
+                right: it[1] == 'R'
+                    return [it[0],it[2]]
+            }
 
 workflow {
 
@@ -84,6 +117,7 @@ workflow {
         // Calculation of custom weightfunction and centroid
         weightfunc_input = cifti_mesh_result.fmriprep
                                             .join( cifti_mesh_result.cifti, by : 0 )
+        weightfunc_input | view
         weightfunc_wf(weightfunc_input)
 
         // Resample the mask
@@ -98,28 +132,50 @@ workflow {
         resampleweightfunc_wf(weightfunc_wf.out.weightfunc, registration_wf.out.msm_sphere)
         
         // Project weightfunc into tetrahedral mesh space
-        //tet_project_wf(resampleweightfunc_wf.out.resampled, make_giftis_result.pial, make_giftis_result.white, make_giftis_result.midthickness, cifti_mesh_result.t1fs_conform, cifti_mesh_result.msh)
+        tet_project_wf(resampleweightfunc_wf.out.resampled, make_giftis_result.pial, make_giftis_result.white, make_giftis_result.midthickness, cifti_mesh_result.t1fs_conform, cifti_mesh_result.msh)
 
         //// Gather inputs for optimization
-        //optimize_inputs = cifti_mesh_result.msh
-        //                            .join(tet_project_wf.out.fem_weights, by: 0)
-        //                            .join(parameterization_wf.out.C, by: 0)
-        //                            .join(parameterization_wf.out.R, by: 0)
-        //                            .join(parameterization_wf.out.bounds, by: 0)
-        //                            .map{ s,m,w,C,R,b -> [ s,m,w,C,R,b,"$params.coil" ] }
-        //optimize_coil(optimize_inputs)
+        optimize_inputs = cifti_mesh_result.msh
+                                    .join(tet_project_wf.out.fem_weights, by: 0)
+                                    .join(parameterization_wf.out.C, by: 0)
+                                    .join(parameterization_wf.out.R, by: 0)
+                                    .join(parameterization_wf.out.bounds, by: 0)
+                                    .map{ s,m,w,C,R,b -> [ s,m,w,C,R,b,"$params.coil" ] }
+        optimize_coil(optimize_inputs)
 
-        // Formulate outputs for ciftify
 
+        // Set up outputs
+        registration_wf.out.msm_sphere.branch(lr_branch).set { msm }
+        make_giftis_result.pial.branch(lr_branch).set { pial }
+        make_giftis_result.white.branch(lr_branch).set { white }
+        make_giftis_result.midthickness.branch(lr_branch).set { midthick }
+        construct_output_input = cifti_mesh_result.msh
+                                    .join(cifti_mesh_result.t1fs_conform, by: 0)
+                                    .join(cifti_mesh_result.mesh_m2m, by: 0)
+                                    .join(cifti_mesh_result.mesh_fs, by: 0)
+                                    .join(pial.left, by:0)
+                                    .join(pial.right, by:0)
+                                    .join(white.left, by:0)
+                                    .join(white.right, by:0)
+                                    .join(midthick.left, by:0)
+                                    .join(midthick.right, by:0)
+                                    .join(msm.left, by:0)
+                                    .join(msm.right, by:0)
+                                    .join(weightfunc_wf.out.weightfunc, by: 0)
+                                    .join(weightfunc_wf.out.mask, by: 0)
+                                    .join(optimize_coil.out.position, by: 0)
+                                    .join(optimize_coil.out.orientation, by: 0) | view
+        construct_boonstim_outputs(construct_output_input)
+        construct_boonstim_outputs.out.subject | view
+
+
+        // ISSUE: SAVEAS NOT AVAILABLE!
         publish:
             
             // Ciftify pipeline outputs
-            cifti_mesh_result.cifti   to: "$params.out", mode: 'copy', pattern: {"./ciftify/*"}
-            cifti_mesh_result.fmriprep to: "$params.out", mode: 'copy', pattern: {"./fmriprep/*"}
-            cifti_mesh_result.freesurfer to: "$params.out", mode: 'copy', pattern: {"./freesurfer/*"}
-            cifti_mesh_result.freesurfer to: "$params.out", mode: 'copy', pattern: {"./freesurfer/${it[0]}"}
-            // Meshing outptus
-            
+            cifti_mesh_result.cifti   to: "$params.out/ciftify", mode: 'copy' 
+            cifti_mesh_result.fmriprep to: "$params.out/fmriprep", mode: 'copy'
+            cifti_mesh_result.freesurfer to: "$params.out/freesurfer", mode: 'copy'
 
 }
 
@@ -127,3 +183,5 @@ workflow {
 // TODO BUILD QC OUTPUTS
 // TODO INSPECT AND MODIFY INPUT FILES IF NEEDED?
 // TODO PUBLISH OUTPUTS
+// TODO BUILD INPUT SUBSTITUTEABLE VERSION
+// TODO LOGGING

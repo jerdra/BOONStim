@@ -1,0 +1,590 @@
+digraph "boonstim" {
+p0 [shape=point,label="",fixedsize=true,width=0.1,xlabel="Channel.from"];
+p1 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="filter"];
+p0 -> p1;
+
+p1 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="filter"];
+p2 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="take"];
+p1 -> p2;
+
+p2 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="take"];
+p3 [label="cifti_meshing:ciftify_invocation"];
+p2 -> p3 [label="subs"];
+
+p3 [label="cifti_meshing:ciftify_invocation"];
+p4 [label="cifti_meshing:ciftify"];
+p3 -> p4;
+
+p4 [label="cifti_meshing:ciftify"];
+p63 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p4 -> p63 [label="$out1"];
+
+p4 [label="cifti_meshing:ciftify"];
+p6 [shape=point];
+p4 -> p6 [label="$out0"];
+
+p4 [label="cifti_meshing:ciftify"];
+p5 [shape=point];
+p4 -> p5 [label="$out3"];
+
+p2 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="take"];
+p7 [label="cifti_meshing:fmriprep_invocation"];
+p2 -> p7 [label="subs"];
+
+p7 [label="cifti_meshing:fmriprep_invocation"];
+p8 [label="cifti_meshing:fmriprep_anat"];
+p7 -> p8;
+
+p8 [label="cifti_meshing:fmriprep_anat"];
+p9 [label="cifti_meshing:mri2mesh"];
+p8 -> p9;
+
+p9 [label="cifti_meshing:mri2mesh"];
+p15 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="spread"];
+p9 -> p15 [label="fs_dirs"];
+
+p9 [label="cifti_meshing:mri2mesh"];
+p11 [shape=point];
+p9 -> p11 [label="mesh_m2m"];
+
+p9 [label="cifti_meshing:mri2mesh"];
+p12 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p9 -> p12;
+
+p9 [label="cifti_meshing:mri2mesh"];
+p10 [shape=point];
+p9 -> p10 [label="t1"];
+
+p12 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p13 [label="cifti_meshing:update_msh"];
+p12 -> p13 [label="update_msh_input"];
+
+p13 [label="cifti_meshing:update_msh"];
+p127 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p13 -> p127 [label="msh"];
+
+p14 [shape=point,label="",fixedsize=true,width=0.1];
+p15 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="spread"];
+p14 -> p15;
+
+p15 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="spread"];
+p17 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="spread"];
+p15 -> p17;
+
+p16 [shape=point,label="",fixedsize=true,width=0.1];
+p17 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="spread"];
+p16 -> p17;
+
+p17 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="spread"];
+p18 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p17 -> p18;
+
+p18 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p19 [label="make_giftis:convert_fs2gifti"];
+p18 -> p19 [label="sub_surfaces"];
+
+p19 [label="make_giftis:convert_fs2gifti"];
+p20 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p19 -> p20;
+
+p20 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p21 [label="make_giftis:assign_structure"];
+p20 -> p21 [label="assign_structure_input"];
+
+p21 [label="make_giftis:assign_structure"];
+p22 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="groupTuple"];
+p21 -> p22;
+
+p22 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="groupTuple"];
+p23 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p22 -> p23;
+
+p23 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p24 [label="make_giftis:compute_midthickness"];
+p23 -> p24 [label="midthickness_input"];
+
+p24 [label="make_giftis:compute_midthickness"];
+p25 [shape=point];
+p24 -> p25 [label="midthick"];
+
+p23 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p26 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p23 -> p26 [label="midthickness_input"];
+
+p26 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p27 [shape=point];
+p26 -> p27 [label="pial"];
+
+p23 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p28 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p23 -> p28 [label="midthickness_input"];
+
+p28 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p29 [shape=point];
+p28 -> p29 [label="white"];
+
+p30 [shape=point,label="",fixedsize=true,width=0.1];
+p31 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="spread"];
+p30 -> p31;
+
+p9 [label="cifti_meshing:mri2mesh"];
+p31 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="spread"];
+p9 -> p31 [label="fs_dirs"];
+
+p31 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="spread"];
+p32 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p31 -> p32;
+
+p32 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p33 [label="registration_wf:convert_sulcal"];
+p32 -> p33 [label="sulcal_input"];
+
+p33 [label="registration_wf:convert_sulcal"];
+p34 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p33 -> p34;
+
+p34 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p35 [label="registration_wf:assign_sulcal"];
+p34 -> p35 [label="assign_input"];
+
+p35 [label="registration_wf:assign_sulcal"];
+p36 [label="registration_wf:invert_sulcal"];
+p35 -> p36;
+
+p36 [label="registration_wf:invert_sulcal"];
+p37 [shape=point];
+p36 -> p37;
+
+p38 [shape=point,label="",fixedsize=true,width=0.1];
+p39 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="spread"];
+p38 -> p39;
+
+p9 [label="cifti_meshing:mri2mesh"];
+p39 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="spread"];
+p9 -> p39 [label="fs_dirs"];
+
+p39 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="spread"];
+p41 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="spread"];
+p39 -> p41;
+
+p40 [shape=point,label="",fixedsize=true,width=0.1];
+p41 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="spread"];
+p40 -> p41;
+
+p41 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="spread"];
+p42 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p41 -> p42;
+
+p42 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p43 [label="registration_wf:convert_sphere"];
+p42 -> p43 [label="registration_spheres"];
+
+p43 [label="registration_wf:convert_sphere"];
+p44 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p43 -> p44;
+
+p44 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p45 [label="registration_wf:assign_sphere"];
+p44 -> p45 [label="assign_sphere_input"];
+
+p45 [label="registration_wf:assign_sphere"];
+p46 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="filter"];
+p45 -> p46;
+
+p46 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="filter"];
+p47 [label="registration_wf:deform_sphere"];
+p46 -> p47 [label="deform_sphere_input"];
+
+p47 [label="registration_wf:deform_sphere"];
+p48 [shape=point];
+p47 -> p48;
+
+p45 [label="registration_wf:assign_sphere"];
+p49 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="filter"];
+p45 -> p49;
+
+p49 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="filter"];
+p50 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p49 -> p50;
+
+p50 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p51 [label="registration_wf:spherical_affine"];
+p50 -> p51 [label="affine_input"];
+
+p51 [label="registration_wf:spherical_affine"];
+p52 [label="registration_wf:normalize_rotation"];
+p51 -> p52;
+
+p52 [label="registration_wf:normalize_rotation"];
+p53 [shape=point];
+p52 -> p53;
+
+p45 [label="registration_wf:assign_sphere"];
+p54 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p45 -> p54;
+
+p54 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p55 [label="registration_wf:apply_affine"];
+p54 -> p55 [label="rotation_input"];
+
+p55 [label="registration_wf:apply_affine"];
+p56 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p55 -> p56;
+
+p56 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p57 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p56 -> p57;
+
+p57 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p58 [label="registration_wf:msm_sulc"];
+p57 -> p58 [label="msm_input"];
+
+p58 [label="registration_wf:msm_sulc"];
+p59 [label="registration_wf:areal_distortion"];
+p58 -> p59;
+
+p59 [label="registration_wf:areal_distortion"];
+p60 [shape=point];
+p59 -> p60;
+
+p58 [label="registration_wf:msm_sulc"];
+p61 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p58 -> p61;
+
+p61 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p62 [shape=point];
+p61 -> p62 [label="msm_sphere"];
+
+p63 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p64 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p63 -> p64 [label="derivatives"];
+
+p64 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p85 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p64 -> p85 [label="cifti"];
+
+p63 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p65 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p63 -> p65 [label="derivatives"];
+
+p65 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p66 [label="weightfunc_wf:calculate_weightfunc_wf:project_mask2surf"];
+p65 -> p66 [label="surfs"];
+
+p66 [label="weightfunc_wf:calculate_weightfunc_wf:project_mask2surf"];
+p67 [shape=point];
+p66 -> p67;
+
+p63 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p68 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p63 -> p68 [label="derivatives"];
+
+p68 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p69 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="transpose"];
+p68 -> p69;
+
+p69 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="transpose"];
+p70 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p69 -> p70;
+
+p70 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p71 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p70 -> p71;
+
+p71 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p72 [label="weightfunc_wf:calculate_weightfunc_wf:clean_img"];
+p71 -> p72 [label="cleaned_input"];
+
+p72 [label="weightfunc_wf:calculate_weightfunc_wf:clean_img"];
+p75 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p72 -> p75;
+
+p63 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p73 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p63 -> p73 [label="derivatives"];
+
+p73 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p74 [shape=point];
+p73 -> p74 [label="cifti_buffer"];
+
+p75 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p76 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p75 -> p76;
+
+p76 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p77 [label="weightfunc_wf:calculate_weightfunc_wf:smooth_img"];
+p76 -> p77 [label="smooth_input"];
+
+p77 [label="weightfunc_wf:calculate_weightfunc_wf:smooth_img"];
+p78 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p77 -> p78;
+
+p78 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p79 [label="weightfunc_wf:calculate_weightfunc_wf:calculate_roi_correlation"];
+p78 -> p79 [label="correlation_input"];
+
+p79 [label="weightfunc_wf:calculate_weightfunc_wf:calculate_roi_correlation"];
+p80 [label="weightfunc_wf:calculate_weightfunc_wf:split_cifti"];
+p79 -> p80;
+
+p80 [label="weightfunc_wf:calculate_weightfunc_wf:split_cifti"];
+p83 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p80 -> p83;
+
+p80 [label="weightfunc_wf:calculate_weightfunc_wf:split_cifti"];
+p81 [label="weightfunc_wf:calculate_weightfunc_wf:mask_cortex"];
+p80 -> p81;
+
+p81 [label="weightfunc_wf:calculate_weightfunc_wf:mask_cortex"];
+p82 [shape=point];
+p81 -> p82;
+
+p83 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p84 [label="weightfunc_wf:calculate_weightfunc_wf:create_dense"];
+p83 -> p84 [label="create_dense_input"];
+
+p84 [label="weightfunc_wf:calculate_weightfunc_wf:create_dense"];
+p92 [label="weightfunc_wf:mask_wf:split_weightfunc"];
+p84 -> p92 [label="dscalar"];
+
+p85 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p86 [label="weightfunc_wf:mask_wf:project_mask2surf"];
+p85 -> p86 [label="project_mask_inputs"];
+
+p86 [label="weightfunc_wf:mask_wf:project_mask2surf"];
+p87 [label="weightfunc_wf:mask_wf:binarize_mask"];
+p86 -> p87;
+
+p87 [label="weightfunc_wf:mask_wf:binarize_mask"];
+p88 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p87 -> p88;
+
+p88 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p89 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p88 -> p89;
+
+p89 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p90 [label="weightfunc_wf:mask_wf:dilate_mask"];
+p89 -> p90 [label="dilate_mask_input"];
+
+p90 [label="weightfunc_wf:mask_wf:dilate_mask"];
+p91 [shape=point];
+p90 -> p91;
+
+p92 [label="weightfunc_wf:mask_wf:split_weightfunc"];
+p94 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p92 -> p94;
+
+p92 [label="weightfunc_wf:mask_wf:split_weightfunc"];
+p93 [shape=point];
+p92 -> p93;
+
+p94 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p95 [label="weightfunc_wf:mask_wf:apply_mask"];
+p94 -> p95 [label="apply_mask_inputs"];
+
+p95 [label="weightfunc_wf:mask_wf:apply_mask"];
+p96 [label="weightfunc_wf:mask_wf:threshold_weightfunc"];
+p95 -> p96;
+
+p96 [label="weightfunc_wf:mask_wf:threshold_weightfunc"];
+p97 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p96 -> p97;
+
+p97 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p98 [label="weightfunc_wf:mask_wf:recombine_weightfunc"];
+p97 -> p98 [label="recombine_inputs"];
+
+p98 [label="weightfunc_wf:mask_wf:recombine_weightfunc"];
+p99 [label="resamplemask_wf:split_dscalar"];
+p98 -> p99 [label="dscalar"];
+
+p99 [label="resamplemask_wf:split_dscalar"];
+p100 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p99 -> p100;
+
+p99 [label="resamplemask_wf:split_dscalar"];
+p102 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p99 -> p102;
+
+p100 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p101 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p100 -> p101;
+
+p101 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p104 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="mix"];
+p101 -> p104 [label="left_resample_input"];
+
+p102 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p103 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p102 -> p103;
+
+p103 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p104 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="mix"];
+p103 -> p104 [label="right_resample_input"];
+
+p104 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="mix"];
+p105 [label="resamplemask_wf:resample_surf"];
+p104 -> p105 [label="resample_input"];
+
+p105 [label="resamplemask_wf:resample_surf"];
+p106 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p105 -> p106;
+
+p106 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p107 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="groupTuple"];
+p106 -> p107;
+
+p107 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="groupTuple"];
+p108 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p107 -> p108;
+
+p108 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p109 [label="resamplemask_wf:recombine"];
+p108 -> p109 [label="recombine_input"];
+
+p109 [label="resamplemask_wf:recombine"];
+p110 [label="centroid_wf:split_dscalar"];
+p109 -> p110 [label="dscalar"];
+
+p110 [label="centroid_wf:split_dscalar"];
+p111 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p110 -> p111;
+
+p110 [label="centroid_wf:split_dscalar"];
+p115 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p110 -> p115;
+
+p111 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p112 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p111 -> p112;
+
+p112 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p113 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p112 -> p113;
+
+p113 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p114 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p113 -> p114;
+
+p114 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p119 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="mix"];
+p114 -> p119 [label="left_project_input"];
+
+p115 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p116 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p115 -> p116;
+
+p116 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p117 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p116 -> p117;
+
+p117 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p118 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p117 -> p118;
+
+p118 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p119 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="mix"];
+p118 -> p119 [label="right_project_input"];
+
+p119 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="mix"];
+p120 [label="centroid_wf:project2vol"];
+p119 -> p120 [label="project_input"];
+
+p120 [label="centroid_wf:project2vol"];
+p121 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="groupTuple"];
+p120 -> p121;
+
+p121 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="groupTuple"];
+p122 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p121 -> p122;
+
+p122 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p123 [label="centroid_wf:add_niftis"];
+p122 -> p123 [label="add_niftis_input"];
+
+p123 [label="centroid_wf:add_niftis"];
+p124 [label="centroid_wf:normalize_vol"];
+p123 -> p124;
+
+p124 [label="centroid_wf:normalize_vol"];
+p125 [label="centroid_wf:compute_weighted_centroid"];
+p124 -> p125;
+
+p125 [label="centroid_wf:compute_weighted_centroid"];
+p126 [shape=point];
+p125 -> p126 [label="centroid"];
+
+p127 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p128 [label="parameterization_wf:extract_surf_patch"];
+p127 -> p128 [label="surf_patch_input"];
+
+p128 [label="parameterization_wf:extract_surf_patch"];
+p129 [label="parameterization_wf:parameterize_surf"];
+p128 -> p129;
+
+p129 [label="parameterization_wf:parameterize_surf"];
+p132 [shape=point];
+p129 -> p132 [label="C"];
+
+p129 [label="parameterization_wf:parameterize_surf"];
+p131 [shape=point];
+p129 -> p131 [label="R"];
+
+p129 [label="parameterization_wf:parameterize_surf"];
+p130 [shape=point];
+p129 -> p130 [label="bounds"];
+
+p84 [label="weightfunc_wf:calculate_weightfunc_wf:create_dense"];
+p133 [label="resampleweightfunc_wf:split_dscalar"];
+p84 -> p133 [label="dscalar"];
+
+p133 [label="resampleweightfunc_wf:split_dscalar"];
+p134 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p133 -> p134;
+
+p133 [label="resampleweightfunc_wf:split_dscalar"];
+p136 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p133 -> p136;
+
+p134 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p135 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p134 -> p135;
+
+p135 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p138 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="mix"];
+p135 -> p138 [label="left_resample_input"];
+
+p136 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="join"];
+p137 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p136 -> p137;
+
+p137 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p138 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="mix"];
+p137 -> p138 [label="right_resample_input"];
+
+p138 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="mix"];
+p139 [label="resampleweightfunc_wf:resample_surf"];
+p138 -> p139 [label="resample_input"];
+
+p139 [label="resampleweightfunc_wf:resample_surf"];
+p140 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p139 -> p140;
+
+p140 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p141 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="groupTuple"];
+p140 -> p141;
+
+p141 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="groupTuple"];
+p142 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p141 -> p142;
+
+p142 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+p143 [label="resampleweightfunc_wf:recombine"];
+p142 -> p143 [label="recombine_input"];
+
+p143 [label="resampleweightfunc_wf:recombine"];
+p144 [shape=point];
+p143 -> p144 [label="resampled"];
+
+}

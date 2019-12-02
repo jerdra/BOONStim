@@ -2,30 +2,6 @@ nextflow.preview.dsl=2
 import groovy.util.FileNameByRegexFinder
 
 
-process project_mask2surf{
-
-    label 'connectome'
-
-    input:
-    tuple val(sub), path(midthickness), path(white), path(pial), path(mask)
-
-    output:
-    tuple val(sub), path("surfmask.L.shape.gii"), emit: surfmask
-
-    shell:
-    '''
-    #!/bin/bash
-
-    wb_command -volume-to-surface-mapping \
-                !{mask} \
-                !{midthickness} \
-                -ribbon-constrained \
-                !{white} \
-                !{pial} \
-                "surfmask.L.shape.gii"
-    '''
-
-}
 
 process clean_img{
 
@@ -140,12 +116,12 @@ process create_dense{
     tuple val(sub), path(left_shape), path(right_shape)
 
     output:
-    tuple val(sub), path('weightfunc.dscalar.nii'), emit: weightfunc
+    tuple val(sub), path("${sub}.weightfunc.dscalar.nii"), emit: weightfunc
 
     shell:
     '''
     wb_command -cifti-create-dense-scalar \
-                weightfunc.dscalar.nii \
+                !{sub}.weightfunc.dscalar.nii \
                 -left-metric !{left_shape} \
                 -right-metric !{right_shape}
     '''
@@ -153,6 +129,30 @@ process create_dense{
 
 }
 
+process project_mask2surf{
+
+    label 'connectome'
+
+    input:
+    tuple val(sub), path(midthickness), path(white), path(pial), path(mask)
+
+    output:
+    tuple val(sub), path("surfmask.L.shape.gii"), emit: surfmask
+
+    shell:
+    '''
+    #!/bin/bash
+
+    wb_command -volume-to-surface-mapping \
+                !{mask} \
+                !{midthickness} \
+                -ribbon-constrained \
+                !{white} \
+                !{pial} \
+                "surfmask.L.shape.gii"
+    '''
+
+}
 
 workflow calculate_weightfunc_wf {
 
@@ -162,15 +162,20 @@ workflow calculate_weightfunc_wf {
     main:
         
         // Project mask into surface space for the particular subject
+        derivatives | view
+
+
+
         surfs = derivatives
                         .map{s,f,c ->   [
                                             s,
-                                            "${s}/MNINonLinear/fsaverage_LR32k/${s}.L.midthickness.32k_fs_LR.surf.gii",
-                                            "${s}/MNINonLinear/fsaverage_LR32k/${s}.L.white.32k_fs_LR.surf.gii",
-                                            "${s}/MNINonLinear/fsaverage_LR32k/${s}.L.pial.32k_fs_LR.surf.gii",
+                                            "${c}/MNINonLinear/fsaverage_LR32k/${s}.L.midthickness.32k_fs_LR.surf.gii",
+                                            "${c}/MNINonLinear/fsaverage_LR32k/${s}.L.white.32k_fs_LR.surf.gii",
+                                            "${c}/MNINonLinear/fsaverage_LR32k/${s}.L.pial.32k_fs_LR.surf.gii",
                                             "${params.inverse_mask}"
                                         ]
                             }
+        surfs | view
         project_mask2surf(surfs)
 
         // Get both dtseries files, split, get confounds and apply
@@ -178,7 +183,7 @@ workflow calculate_weightfunc_wf {
                             .map{s,f,c ->   [
                                                 s,
                                                 f,
-                                                new FileNameByRegexFinder().getFileNames("${s}",".*MNINonLinear/Results/.*(REST|rest).*/.*dtseries.nii")
+                                                new FileNameByRegexFinder().getFileNames("${c}",".*MNINonLinear/Results/.*(REST|rest).*/.*dtseries.nii")
                                                 
                                             ]
                                 }
@@ -191,7 +196,7 @@ workflow calculate_weightfunc_wf {
                                 }
                             .map{ s,f,d,ses,ident ->    [
                                                             s,d,
-                                                            new FileNameByRegexFinder().getFileNames("$s/$ses/func", ".*${ident}.*confound.*tsv")[0],
+                                                            new FileNameByRegexFinder().getFileNames("$f/$ses/func", ".*${ident}.*confound.*tsv")[0],
                                                             "${params.clean_config}"
                                                         ]
                                 }
@@ -204,8 +209,8 @@ workflow calculate_weightfunc_wf {
         smooth_input = clean_img.out.clean_dtseries.join(cifti_buffer, by:0)
                                 .map{ s,i,c ->  [
                                                     s,i,
-                                                    "${s}/MNINonLinear/fsaverage_LR32k/${s}.L.midthickness.32k_fs_LR.surf.gii",
-                                                    "${s}/MNINonLinear/fsaverage_LR32k/${s}.R.midthickness.32k_fs_LR.surf.gii"
+                                                    "${c}/MNINonLinear/fsaverage_LR32k/${s}.L.midthickness.32k_fs_LR.surf.gii",
+                                                    "${c}/MNINonLinear/fsaverage_LR32k/${s}.R.midthickness.32k_fs_LR.surf.gii"
                                                 ]
                                     }
         smooth_img(smooth_input)
