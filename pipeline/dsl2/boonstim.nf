@@ -76,7 +76,10 @@ process construct_boonstim_outputs{
     input:
         tuple val(sub), \
         path(msh), path(t1fs), path(m2m), path(fs), \
-        path(pial), path(white), path(thick), path(msm), \
+        path(l_pial), path(r_pial), \
+        path(l_white), path(r_white), \
+        path(l_thick), path(r_thick), \
+        path(l_msm), path(r_msm), \
         path(weightfunc), path(mask), \
         path(loc), path(rot)
 
@@ -85,14 +88,16 @@ process construct_boonstim_outputs{
     
     shell:
     '''
-    #!/usr/bin/bash
+    #!/bin/bash
     
     mkdir !{sub}
     mkdir surfaces
     mkdir optimization
-    mv !{pial} !{white} !{thick} !{msm} !{weightfunc} !{mask} surfaces
+    mv \
+        !{l_pial} !{r_pial} !{l_white} !{r_white} !{l_thick} !{r_thick} \
+        !{l_msm} !{r_msm} !{weightfunc} !{mask} surfaces
     mv !{loc} !{rot} optimization
-    mv * !{sub}
+    mv * !{sub} || true
     '''
 }
 
@@ -117,7 +122,7 @@ workflow {
         // Calculation of custom weightfunction and centroid
         weightfunc_input = cifti_mesh_result.fmriprep
                                             .join( cifti_mesh_result.cifti, by : 0 )
-        weightfunc_input | view
+        weightfunc_input
         weightfunc_wf(weightfunc_input)
 
         // Resample the mask
@@ -164,18 +169,15 @@ workflow {
                                     .join(weightfunc_wf.out.weightfunc, by: 0)
                                     .join(weightfunc_wf.out.mask, by: 0)
                                     .join(optimize_coil.out.position, by: 0)
-                                    .join(optimize_coil.out.orientation, by: 0) | view
+                                    .join(optimize_coil.out.orientation, by: 0)
         construct_boonstim_outputs(construct_output_input)
-        construct_boonstim_outputs.out.subject | view
+        construct_boonstim_outputs.out.subject
 
-
-        // ISSUE: SAVEAS NOT AVAILABLE!
         publish:
-            
-            // Ciftify pipeline outputs
             cifti_mesh_result.cifti   to: "$params.out/ciftify", mode: 'copy' 
             cifti_mesh_result.fmriprep to: "$params.out/fmriprep", mode: 'copy'
             cifti_mesh_result.freesurfer to: "$params.out/freesurfer", mode: 'copy'
+            construct_boonstim_outputs.out.subject to: "$params.out/boonstim", mode: 'copy'
 
 }
 
