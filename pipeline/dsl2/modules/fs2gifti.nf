@@ -12,17 +12,17 @@ process convert_fs2gifti{
     tuple val(sub), val(hemi), val(surf), path(fs_surf)
 
     output:
-    tuple val(sub), val(hemi), path("${hemi}.${surf}.surf.gii"), emit: hemi_surf
+    tuple val(sub), val(hemi), path("${surf}.surf.gii"), emit: hemi_surf
 
     shell:
     '''
     export FS_LICENSE=/license/license.txt
 
-    mris_convert !{fs_surf} !{hemi}.!{surf}.surf.gii
+    mris_convert !{fs_surf} !{surf}.surf.gii
     
     hemi="!{hemi}"
-    mv ${hemi,,}h.!{hemi}.!{surf}.surf.gii \
-        !{hemi}.!{surf}.surf.gii
+    mv ${hemi,,}h.!{surf}.surf.gii \
+        !{surf}.surf.gii
     '''
 
 }
@@ -36,12 +36,12 @@ process assign_structure {
     tuple val(sub), val(hemi), val(structure), path(gifti)
 
     output:
-    tuple val(sub), val(hemi), path("assigned_$gifti"), emit: gifti
+    tuple val(sub), val(hemi), path("${sub}.${hemi}.${gifti}"), emit: gifti
 
     shell:
     '''
-    cp -L !{gifti} assigned_!{gifti}
-    wb_command -set-structure assigned_!{gifti} !{structure}
+    cp -L !{gifti} !{sub}.!{hemi}.!{gifti}
+    wb_command -set-structure !{sub}.!{hemi}.!{gifti} !{structure}
     '''
 
 }
@@ -54,12 +54,12 @@ process compute_midthickness {
     tuple val(sub), val(hemi), path(pial), path(white)
 
     output:
-    tuple val(sub), val(hemi), path("${hemi}.midthickness.surf.gii"), emit: midthickness
+    tuple val(sub), val(hemi), path("${sub}.${hemi}.midthickness.surf.gii"), emit: midthickness
 
     """
     wb_command -surface-average -surf ${pial} \
                                 -surf ${white} \
-                                ${hemi}.midthickness.surf.gii
+                                ${sub}.${hemi}.midthickness.surf.gii
     """
 
 }

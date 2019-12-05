@@ -125,12 +125,12 @@ process recombine_weightfunc{
     tuple val(sub), path(left_shape), path(right_shape)
 
     output:
-    tuple val(sub), path('masked_weightfunc.dscalar.nii'), emit: weighted_mask
+    tuple val(sub), path("${sub}.weightfuncmask.dscalar.nii"), emit: weighted_mask
     
     shell:
     '''
     wb_command -cifti-create-dense-scalar \
-                masked_weightfunc.dscalar.nii \
+                !{sub}.weightfuncmask.dscalar.nii \
                 -left-metric !{left_shape} \
                 -right-metric !{right_shape}
     '''
@@ -149,9 +149,9 @@ workflow mask_wf {
         project_mask_inputs = cifti
                                 .map{ s,c ->    [
                                                     s,
-                                                    "${c}/${s}/MNINonLinear/fsaverage_LR32k/${s}.L.white.32k_fs_LR.surf.gii",
-                                                    "${c}/${s}/MNINonLinear/fsaverage_LR32k/${s}.L.pial.32k_fs_LR.surf.gii",
-                                                            "${c}/${s}/MNINonLinear/fsaverage_LR32k/${s}.L.midthickness.32k_fs_LR.surf.gii",
+                                                    "${c}/MNINonLinear/fsaverage_LR32k/${s}.L.white.32k_fs_LR.surf.gii",
+                                                    "${c}/MNINonLinear/fsaverage_LR32k/${s}.L.pial.32k_fs_LR.surf.gii",
+                                                            "${c}/MNINonLinear/fsaverage_LR32k/${s}.L.midthickness.32k_fs_LR.surf.gii",
                                                     "${params.mask}"
                                                 ]
                                     }
@@ -165,7 +165,7 @@ workflow mask_wf {
                                         .join(cifti, by: 0)
                                         .map{ s,b,c ->  [   
                                                             s,b,
-                                                            "${c}/${s}/MNINonLinear/fsaverage_LR32k/${s}.L.midthickness.32k_fs_LR.surf.gii"
+                                                            "${c}/MNINonLinear/fsaverage_LR32k/${s}.L.midthickness.32k_fs_LR.surf.gii"
                                                         ]
                                             }
         dilate_mask(dilate_mask_input)

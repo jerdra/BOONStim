@@ -37,9 +37,9 @@ process ciftify{
     tuple val(sub), path(json)
 
     output:
-    tuple val(sub), path('fmriprep'), emit: fmriprep
-    tuple val(sub), path('ciftify'), emit: ciftify
-    tuple val(sub), path('freesurfer'), emit: freesurfer
+    tuple val(sub), path("fmriprep/${sub}"), emit: fmriprep
+    tuple val(sub), path("ciftify/${sub}"), emit: ciftify
+    tuple val(sub), path("freesurfer/${sub}"), emit: freesurfer
 
     shell:
     '''
@@ -145,7 +145,7 @@ process mri2mesh {
 process update_msh{
 
     beforeScript 'source /etc/profile'
-    container "/projects/jjeyachandra/BOONStim/containers/rtms_bayesian/rtms_bayesian_v0.4-2019-09-09-e99bae9f511b.simg"
+    label 'numpy'
     
     input:
     tuple val(sub), path('sub.geo'), path(m2m)
