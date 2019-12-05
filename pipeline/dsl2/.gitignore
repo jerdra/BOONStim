@@ -1,2 +1,4 @@
 *.nfs*
 *.sw*
+*_trace.txt
+*.html
