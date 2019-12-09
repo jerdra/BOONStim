@@ -68,7 +68,7 @@ process add_niftis {
 
 process tetrahedral_projection {
 
-    label 'numpy'
+    label 'rtms'
     containerOptions "-B ${params.bin}:/scripts"
     
     input:

@@ -53,7 +53,7 @@ bids_channel = Channel
 // Process definitions
 process optimize_coil {
 
-    label 'numpy'
+    label 'rtms'
     containerOptions "-B ${params.bin}:/scripts"
 
     input:

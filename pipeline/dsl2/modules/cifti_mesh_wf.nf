@@ -118,8 +118,6 @@ process fmriprep_anat{
 process mri2mesh {
     
     beforeScript 'source /etc/profile'
-    container "/projects/jjeyachandra/BOONStim/containers/simnibs_3.0/mri2mesh_v3.0_v0.2-2019-06-24-1dfbbefb361d.simg"
-    containerOptions "-B ${params.license}:/license"
     
     input:
     tuple val(sub), path(t1)
@@ -145,7 +143,7 @@ process mri2mesh {
 process update_msh{
 
     beforeScript 'source /etc/profile'
-    label 'numpy'
+    label 'gmsh4'
     
     input:
     tuple val(sub), path('sub.geo'), path(m2m)
