@@ -29,10 +29,8 @@ if (params.subjects) {
                                .splitText() { it.strip() }
 } else{
     bids_channel = Channel.from(all_dirs)
+                          .filter { it.contains('sub-') }
 }
-
-bids_channel = bids_channel.take(3)
-
 
 process run_boonstim_subject{
 
