@@ -91,7 +91,7 @@ process normalize_vol {
 
 process compute_weighted_centroid{
 
-    label 'numpy'
+    label 'rtms'
 
     input:
     tuple val(sub), path(vol)

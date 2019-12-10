@@ -130,7 +130,7 @@ process spherical_affine{
 
 process normalize_rotation{
     
-    label 'numpy'
+    label 'rtms'
     
     input:
     tuple val(sub), val(hemi), path(affine)

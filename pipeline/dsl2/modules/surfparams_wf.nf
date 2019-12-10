@@ -2,7 +2,7 @@ nextflow.preview.dsl=2
 
 process extract_surf_patch {
 
-    label 'numpy'
+    label 'rtms'
     containerOptions "-B ${params.bin}:/scripts"
     
     input:
@@ -19,7 +19,7 @@ process extract_surf_patch {
 
 process parameterize_surf {
 
-    label 'numpy'
+    label 'rtms'
     containerOptions "-B ${params.bin}:/scripts"
     
     input:
