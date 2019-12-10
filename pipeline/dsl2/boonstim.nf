@@ -24,13 +24,12 @@ if (!params.anat_invocation || !params.ciftify_invocation || !params.ciftify_des
 }
 
 //Subject list flag
-if (params.subjects) {
-    log.info ("Subject file provided: $params.subjects")
+if (params.subject) {
+    log.info ("Subject to run: $params.subject")
 }
 
 log.info("Using Descriptor Files: $params.anat_descriptor and $params.ciftify_descriptor")
 log.info("Using Invocation Files: $params.anat_invocation and $params.ciftify_invocation")
-
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -46,24 +45,6 @@ include parameterization_wf from './modules/surfparams_wf.nf' params(params)
 include tet_project_wf from './modules/tetrahedral_wf.nf' params(params)
 
 ///////////////////////////////////////////////////////////////////////////////
-
-// Main Workflow
-
-all_dirs = file(params.bids).list()
-input_dirs = new File(params.bids).list()
-output_dirs = new File(params.out).list()
-
-if (!params.rewrite){
-
-    to_run = input_dirs.findAll { !(output_dirs.contains(it)) }
-
-}else{
-
-    to_run = input_dirs
-
-}
-
-bids_channel = Channel.from(to_run)
 
 // Process definitions
 process optimize_coil {
@@ -128,7 +109,7 @@ workflow {
     main:
         
         // Main preprocessing routine
-        cifti_mesh_result = cifti_meshing(bids_channel)
+        cifti_mesh_result = cifti_meshing(params.subject)
 
         // Space registration
         make_giftis_result = make_giftis(cifti_mesh_result.mesh_fs)
