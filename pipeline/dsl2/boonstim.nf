@@ -48,7 +48,6 @@ all_dirs = file(params.bids)
 bids_channel = Channel
                     .from(all_dirs.list())
                     .filter { it.contains('sub-CMH') }
-                    .take(1)
 
 // Process definitions
 process optimize_coil {
