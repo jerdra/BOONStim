@@ -58,11 +58,12 @@ process optimize_coil {
     output:
     tuple val(sub), path('coil_position'), emit: position
     tuple val(sub), path('coil_orientation'), emit: orientation
+    tuple val(sub), path('history'), emit: history
 
     shell:
     ''' 
     /scripts/optimize_fem.py !{msh} !{weights} !{C} !{bounds} !{R} !{coil} \
-                             coil_position coil_orientation
+                             coil_position coil_orientation history
     '''
     
 }
@@ -77,7 +78,7 @@ process construct_boonstim_outputs{
         path(l_thick), path(r_thick), \
         path(l_msm), path(r_msm), \
         path(weightfunc), path(mask), \
-        path(loc), path(rot)
+        path(loc), path(rot), path(hist)
 
     output:
         tuple val(sub), path("$sub"), emit: subject
@@ -92,7 +93,7 @@ process construct_boonstim_outputs{
     mv \
         !{l_pial} !{r_pial} !{l_white} !{r_white} !{l_thick} !{r_thick} \
         !{l_msm} !{r_msm} !{weightfunc} !{mask} surfaces
-    mv !{loc} !{rot} optimization
+    mv !{loc} !{rot} !{hist} optimization
     mv * !{sub} || true
     '''
 }
@@ -166,8 +167,8 @@ workflow {
                                     .join(weightfunc_wf.out.mask, by: 0)
                                     .join(optimize_coil.out.position, by: 0)
                                     .join(optimize_coil.out.orientation, by: 0)
+                                    .join(optimize_coil.out.history, by: 0)
         construct_boonstim_outputs(construct_output_input)
-        construct_boonstim_outputs.out.subject
 
         publish:
             cifti_mesh_result.cifti   to: "$params.out/ciftify", mode: 'copy' 
@@ -180,6 +181,5 @@ workflow {
 // TODO LIST:
 // TODO BUILD QC OUTPUTS
 // TODO INSPECT AND MODIFY INPUT FILES IF NEEDED?
-// TODO PUBLISH OUTPUTS
 // TODO BUILD INPUT SUBSTITUTEABLE VERSION
 // TODO LOGGING
