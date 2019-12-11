@@ -31,6 +31,8 @@ Options:
                                             [Default: 1e-3]
     -h,--history FILE                       Save best point history
                                             [Default: disabled]
+    -s,--skip-convergence                   Do not use convergence criterion, instead use n-iters only
+                                            [Default: disabled]
 '''
 
 #Base package loading
@@ -84,7 +86,8 @@ def main():
     num_iters   =   int(args['--n-iters']) or 50
     min_samps   =   int(args['--min-var-samps']) or 10
     tol         =   float(args['--convergence']) or 0.001
-    history     =   args['--history'] or None
+    history     =   args['--history']
+    skip_convergence        =   args['--skip-convergence']
 
     #Make search domain
     search_domain = TensorProductDomain([
@@ -131,9 +134,6 @@ def main():
     num_samples = int(cpus*1.3)
     best_point_history = []
 
-    #Fixed number that should never be reached
-    prev_min = 9999
-
     # Sum of errors buffer
     var_buffer = deque(maxlen=min_samps)
     for i in np.arange(0,num_iters):
@@ -166,7 +166,7 @@ def main():
         best_point_history.append(min_val)
 
         # Convergence check
-        if len(var_buffer) == var_buffer.maxlen:
+        if (len(var_buffer) == var_buffer.maxlen) and not skip_convergence:
             deviation = sum([abs(x - min_val) for x in var_buffer])
             if deviation < tol:
                 print('Convergence reached!')

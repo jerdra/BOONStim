@@ -63,7 +63,10 @@ process optimize_coil {
     shell:
     ''' 
     /scripts/optimize_fem.py !{msh} !{weights} !{C} !{bounds} !{R} !{coil} \
-                             coil_position coil_orientation history
+                             coil_position coil_orientation \
+                             --history history \
+                             --n-iters 30 \
+                             --skip-convergence
     '''
     
 }
