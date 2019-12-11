@@ -170,8 +170,8 @@ def main():
             deviation = sum([abs(x - min_val) for x in var_buffer])
             if deviation < tol:
                 print('Convergence reached!')
-                print('Previous minimum: {}'.format(prev_min))
-                print('Current minimum: {}'.format(min_val))
+                print('Deviation: {}'.format(deviation))
+                print('History length: {}'.format(var_buffer.maxlen))
                 print('Tolerance: {}'.format(tol))
                 break
         var_buffer.append(min_val)
