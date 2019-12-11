@@ -29,6 +29,8 @@ Options:
                                             [Default: 10]
     -c,--convergence TOL                    Convergence threshold for shifts in input space (decimal number)
                                             [Default: 1e-3]
+    -h,--history FILE                       Save best point history
+                                            [Default: disabled]
 '''
 
 #Base package loading
@@ -82,6 +84,7 @@ def main():
     num_iters   =   int(args['--n-iters']) or 50
     min_samps   =   int(args['--min-var-samps']) or 10
     tol         =   float(args['--convergence']) or 0.001
+    history     =   args['--history'] or None
 
     #Make search domain
     search_domain = TensorProductDomain([
@@ -181,6 +184,9 @@ def main():
     rot = np.matmul(R,preaff_rot)
     np.savetxt(loc_out,loc)
     np.savetxt(rot_out,rot)
+
+    if history:
+        np.savetxt(np.array(best_point_history), history)
 
 if __name__ == '__main__':
     main()
