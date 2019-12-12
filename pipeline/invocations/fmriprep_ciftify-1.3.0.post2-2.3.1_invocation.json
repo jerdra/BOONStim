@@ -5,6 +5,7 @@
 	"analysis_level":"participant",
 	"n_cpus":4,
 	"freesurfer_license":"/license/license.txt",
-	"verbose":true
+	"verbose":true,
+	"resample_to_T1w32k": true
 
 }
