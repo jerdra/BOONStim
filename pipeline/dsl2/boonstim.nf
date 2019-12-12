@@ -66,7 +66,8 @@ process optimize_coil {
                              coil_position coil_orientation \
                              --history history \
                              --n-iters 30 \
-                             --skip-convergence
+                             --skip-convergence \
+                             --cpus 8
     '''
     
 }

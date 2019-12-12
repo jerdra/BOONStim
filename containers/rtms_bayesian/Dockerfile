@@ -38,8 +38,8 @@ ENV	MOE_CC_PATH=/usr/bin/gcc \
 	#PYTHONPATH=$PYTHONPATH:/simnibs/Python_modules/src/:/gmsh-sdk/lib/
 
 #Set up SimNIBS python package and compile Cornell-MOE
-RUN	pip install -f https://github.com/simnibs/simnibs/releases/latest simnibs 
-RUN	cd /Cornell-MOE && python ./setup.py install \
+RUN	pip install -f https://github.com/simnibs/simnibs/releases/tag/v3.0 simnibs 
+RUN	pip install future && cd /Cornell-MOE && pip install -r requirements.txt && python ./setup.py install \
 	&& pip install jupyter numba matplotlib docopt
 
 
