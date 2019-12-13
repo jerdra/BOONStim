@@ -38,6 +38,7 @@ include tet_project_wf from './modules/tetrahedral_wf.nf' params(params)
 
 process optimize_coil {
 
+    stageInMode 'copy'
     label 'rtms'
     containerOptions "-B ${params.bin}:/scripts"
 
