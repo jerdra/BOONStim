@@ -19,22 +19,31 @@ if (!params.anat_invocation || !params.ciftify_invocation || !params.ciftify_des
     System.exit(1)
 }
 
-if (!params.subject){
-    log.info("Missing subject argument!")
-    log.info("Exiting...")
-    System.exit(1)
-}
 
 log.info("Using Descriptor Files: $params.anat_descriptor and $params.ciftify_descriptor")
 log.info("Using Invocation Files: $params.anat_invocation and $params.ciftify_invocation")
 log.info("Using containers: $params.fmriprep_img and $params.ciftify_img")
-log.info("Subject to run: $params.subject")
+log.info("Subjects file provided: $params.subjects")
 
 include cifti_meshing from './modules/cifti_mesh_2_wf.nf' params(params)
 include weightfunc_wf from "${params.weightworkflow}" params(params)
 include centroid_wf from './modules/centroid_wf.nf' params(params)
 include parameterization_wf from './modules/surfparams_wf.nf' params(params)
 include tet_project_wf from './modules/tetrahedral_wf.nf' params(params)
+
+//// Extract subjects to run
+all_dirs = file(params.bids).list()
+input_dirs = new File(params.bids).list()
+output_dirs = new File(params.out).list()
+
+if (params.subjects) {
+    sublist = file(params.subjects)
+    bids_channel = Channel.from(sublist)
+                               .splitText() { it.strip() }
+} else{
+    bids_channel = Channel.from(all_dirs)
+                          .filter { it.contains('sub-') }
+}
 
 process optimize_coil {
 
@@ -97,7 +106,7 @@ workflow {
     main:
 
         //Main preprocessing
-        cifti_meshing(params.subject)
+        cifti_meshing(bids_channel)
 
         //Weightfunc calculation
         weightfunc_input = cifti_meshing.fmriprep.join(cifti_meshing.cifti)
