@@ -146,13 +146,13 @@ process update_msh{
     tuple val(sub), path('sub.geo'), path(m2m)
 
     output:
-    tuple val(sub), path('sub.msh'), emit: mesh
+    tuple val(sub), path("${sub}.msh"), emit: mesh
 
     shell:
     '''
     set +u
     sed 's/Merge.*m2m/Merge "m2m/g' sub.geo -i
-    /gmsh-sdk/bin/gmsh -3 -bin -format msh2 -o sub.msh sub.geo || true
+    /gmsh-sdk/bin/gmsh -3 -bin -format msh2 -o !{sub}.msh sub.geo || true
     '''
 }
 
