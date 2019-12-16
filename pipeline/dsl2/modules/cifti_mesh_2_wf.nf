@@ -22,7 +22,7 @@ process fmriprep_invocation{
     with open(invoke_file,'r') as f:
         j_dict = json.load(f)
 
-    j_dict.upate({'participant_label' : [x]})
+    j_dict.update({'participant_label' : [x]})
 
     with open(out_file,'w') as f:
         json.dump(j_dict,f,indent=4)
@@ -90,7 +90,7 @@ process ciftify_invocation{
     with open(invoke_file,'r') as f:
         j_dict = json.load(f)
 
-    j_dict.upate({'participant_label' : [x]})
+    j_dict.update({'participant_label' : [x]})
 
     with open(out_file,'w') as f:
         json.dump(j_dict,f,indent=4)
@@ -124,7 +124,7 @@ process mri2mesh{
     tuple val(sub), path(t1), path(t1fs), path(freesurfer), path(m2m)
 
     output:
-    tuple val(sub), path('m2m_sub*'), emit: mri2mesh
+    tuple val(sub), path('m2m_sub*'), emit: m2m
     tuple val(sub), path('sub*.geo'), emit: geo
 
     shell:
