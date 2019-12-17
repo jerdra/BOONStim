@@ -186,7 +186,7 @@ def main():
     np.savetxt(rot_out,rot)
 
     if history:
-        np.savetxt(np.array(best_point_history), history)
+        np.savetxt(history,np.array(best_point_history))
 
 if __name__ == '__main__':
     main()
