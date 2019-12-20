@@ -31,7 +31,7 @@ process smooth_img{
     tuple val(sub), path(dtseries), path(left), path(right)
     
     output:
-    tuple val(sub), path("smooth.dtseries.nii"), emit: smooth_dtseries
+    tuple val(sub), path("${sub}_smooth.dtseries.nii"), emit: smooth_dtseries
 
     shell:
     '''
@@ -40,7 +40,7 @@ process smooth_img{
                 6 6 COLUMN \
                 -left-surface !{left} \
                 -right-surface !{right} \
-                "smooth.dtseries.nii" 
+                "!{sub}_smooth.dtseries.nii" 
     '''
 
 
@@ -175,7 +175,7 @@ workflow calculate_weightfunc_wf {
                                             "${params.inverse_mask}"
                                         ]
                             }
-        surfs | view
+        surfs
         project_mask2surf(surfs)
 
         // Get both dtseries files, split, get confounds and apply
