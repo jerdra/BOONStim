@@ -75,12 +75,12 @@ process tetrahedral_projection {
     tuple val(sub), path(vol), path(msh)
     
     output:
-    tuple val(sub), path('femfunc.npy'), emit: fem_weights
+    tuple val(sub), path("${sub}_femfunc.npy"), emit: fem_weights
     
     
     shell:
     '''
-    /scripts/volume_to_tetrahedral_mapping.py !{vol} !{msh} "femfunc.npy" 
+    /scripts/volume_to_tetrahedral_mapping.py !{vol} !{msh} "!{sub}_femfunc.npy" 
     '''
 
 
