@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-
 '''
-Given a full head model, description of quadratic input domain, and cost weights use Bayesian Optimization from Cornell-MOE to find the optimal input (position and rotation). 
+Given a full head model, description of quadratic input domain, and cost weights use Bayesian Optimization from Cornell-MOE to find the optimal input (position and rotation).
 
 Usage:
     optimize_fem.py [options] <mesh> <weightfile> <quad_const> <bounds> <affine> <coil> <loc_out> <rot_out>
@@ -33,6 +32,8 @@ Options:
                                             [Default: disabled]
     -s,--skip-convergence                   Do not use convergence criterion, instead use n-iters only
                                             [Default: disabled]
+    -r,--retries RETRIES                    Number of retries if bad condition number is reached
+                                            [Default: 5]
 '''
 
 #Base package loading
@@ -41,7 +42,7 @@ import numpy as np
 from fieldopt import geolib
 from fieldopt.objective import FieldFunc
 from docopt import docopt
-from collections import  deque
+from collections import deque
 
 #Cornell package loading
 from moe.optimal_learning.python.cpp_wrappers.domain import TensorProductDomain as cTensorProductDomain
@@ -57,95 +58,131 @@ from moe.optimal_learning.python.cpp_wrappers.optimization import GradientDescen
 from moe.optimal_learning.python.cpp_wrappers.optimization import GradientDescentParameters as cGDParams
 
 
+def gen_sample_from_qei(gp,
+                        search_domain,
+                        sgd_params,
+                        num_samples,
+                        num_mc=1e4,
+                        lhc_iter=2e4):
 
-def gen_sample_from_qei(gp,search_domain,sgd_params,num_samples, num_mc=1e4, lhc_iter=2e4):
-        
-    qEI = ExpectedImprovement(gaussian_process=gp, num_mc_iterations=int(num_mc))
+    qEI = ExpectedImprovement(gaussian_process=gp,
+                              num_mc_iterations=int(num_mc))
     optimizer = cGDOpt(search_domain, qEI, sgd_params, int(lhc_iter))
-    points_to_sample = meio(optimizer, None, num_samples, use_gpu=False, which_gpu=0,
+    points_to_sample = meio(optimizer,
+                            None,
+                            num_samples,
+                            use_gpu=False,
+                            which_gpu=0,
                             max_num_threads=8)
     qEI.set_current_point(points_to_sample[0])
-            
+
     return points_to_sample, qEI.compute_expected_improvement()
+
 
 def main():
 
     args = docopt(__doc__)
 
     #Parse arguments
-    mesh        =   args['<mesh>']
-    weights     =   np.load(args['<weightfile>'])
-    C           =   np.load(args['<quad_const>'])
-    b           =   np.load(args['<bounds>'])
-    R           =   np.load(args['<affine>'])
-    coil        =   args['<coil>']
-    loc_out     =   args['<loc_out>']
-    rot_out     =   args['<rot_out>']
-    cpus        =   int(args['--cpus']) or 8
-    tmpdir      =   args['--tmp-dir'] or os.getenv('TMPDIR') or "/tmp/"
-    num_iters   =   int(args['--n-iters']) or 50
-    min_samps   =   int(args['--min-var-samps']) or 10
-    tol         =   float(args['--convergence']) or 0.001
-    history     =   args['--history']
-    skip_convergence        =   args['--skip-convergence']
+    mesh = args['<mesh>']
+    weights = np.load(args['<weightfile>'])
+    C = np.load(args['<quad_const>'])
+    b = np.load(args['<bounds>'])
+    R = np.load(args['<affine>'])
+    coil = args['<coil>']
+    loc_out = args['<loc_out>']
+    rot_out = args['<rot_out>']
+    cpus = int(args['--cpus']) or 8
+    tmpdir = args['--tmp-dir'] or os.getenv('TMPDIR') or "/tmp/"
+    num_iters = int(args['--n-iters']) or 50
+    min_samps = int(args['--min-var-samps']) or 10
+    tol = float(args['--convergence']) or 0.001
+    history = args['--history']
+    skip_convergence = args['--skip-convergence']
+    retries = int(args['--retries']) or 5
 
     #Make search domain
     search_domain = TensorProductDomain([
-            ClosedInterval(b[0,0],b[0,1]), #X coord on quadratic surface
-            ClosedInterval(b[1,0],b[1,1]), #Y coord on quadratic surface
-            ClosedInterval(0,180) #Rotational angle
-            ])
+        ClosedInterval(b[0, 0], b[0, 1]),  #X coord on quadratic surface
+        ClosedInterval(b[1, 0], b[1, 1]),  #Y coord on quadratic surface
+        ClosedInterval(0, 180)  #Rotational angle
+    ])
 
     c_search_domain = cTensorProductDomain([
-            ClosedInterval(b[0,0],b[0,1]), 
-            ClosedInterval(b[1,0],b[1,1]),
-            ClosedInterval(0,180)
-            ])
+        ClosedInterval(b[0, 0], b[0, 1]),
+        ClosedInterval(b[1, 0], b[1, 1]),
+        ClosedInterval(0, 180)
+    ])
 
     #Make objective function
-    f = FieldFunc(mesh_file=mesh, quad_surf_consts=C,
-                  surf_to_mesh_matrix=R, tet_weights=weights,
-                  field_dir=tmpdir, coil=coil, cpus=cpus)
-
+    f = FieldFunc(mesh_file=mesh,
+                  quad_surf_consts=C,
+                  surf_to_mesh_matrix=R,
+                  tet_weights=weights,
+                  field_dir=tmpdir,
+                  coil=coil,
+                  cpus=cpus)
 
     #Generate historical points
-    hist_pts = int(cpus * 1.5)
-    init_pts = search_domain.generate_uniform_random_points_in_domain(hist_pts)
-    observations = -f.evaluate(init_pts)
-    hist_data = HistoricalData(dim = 3, num_derivatives= 0)
-    hist_data.append_sample_points([SamplePoint(inp,o,0.0) 
-                                    for o,inp in 
-                                    zip(observations,init_pts)])
 
     #Set up model specifications
-    prior = DefaultPrior(n_dims = 3 + 2, num_noise=1)
-    gp_ll = GaussianProcessLogLikelihoodMCMC(historical_data=hist_data,
-                                             derivatives=[], prior=prior,
-                                             chain_length=1000, burnin_steps=2000,
-                                             n_hypers=2**4, noisy=False)
-    gp_ll.train()
+    prior = DefaultPrior(n_dims=3 + 2, num_noise=1)
+    hist_pts = 10
+    i = 0
+    while i < retries:
+        init_pts = search_domain.generate_uniform_random_points_in_domain(
+            hist_pts)
+        observations = -f.evaluate(init_pts)
+        hist_data = HistoricalData(dim=3, num_derivatives=0)
+        hist_data.append_sample_points([
+            SamplePoint(inp, o, 0.0) for o, inp in zip(observations, init_pts)
+        ])
+        try:
+            gp_ll = GaussianProcessLogLikelihoodMCMC(historical_data=hist_data,
+                                                     derivatives=[],
+                                                     prior=prior,
+                                                     chain_length=1000,
+                                                     burnin_steps=2000,
+                                                     n_hypers=2**4,
+                                                     noisy=False)
+            gp_ll.train()
+        except ValueError:
+            print('Ran into bad condition with initial samples')
+            print('Regenerating initial samples')
+            i = i + 1
+        else:
+            break
 
     #Initialize grad desc params
-    sgd_params = cGDParams(num_multistarts=200, max_num_steps=50,
-                           max_num_restarts=2, num_steps_averaged=4,
-                           gamma=0.7, pre_mult=1.0, max_relative_change=0.5,
+    sgd_params = cGDParams(num_multistarts=200,
+                           max_num_steps=50,
+                           max_num_restarts=5,
+                           num_steps_averaged=4,
+                           gamma=0.7,
+                           pre_mult=1.0,
+                           max_relative_change=0.5,
                            tolerance=1.0e-10)
 
-    num_samples = int(cpus*1.3)
+    num_samples = int(cpus * 1.3)
     best_point_history = []
 
     # Sum of errors buffer
     var_buffer = deque(maxlen=min_samps)
-    for i in np.arange(0,num_iters):
-            
+    for i in np.arange(0, num_iters):
+
         #Optimize qEI and pick samples
         points_to_sample, ei = gen_sample_from_qei(gp_ll.models[0],
-                                                   c_search_domain, sgd_params=sgd_params,
-                                                   num_samples=num_samples, num_mc=2**10)
+                                                   c_search_domain,
+                                                   sgd_params=sgd_params,
+                                                   num_samples=num_samples,
+                                                   num_mc=2**10)
 
         #Collect observations
         sampled_points = -f.evaluate(points_to_sample)
-        evidence = [SamplePoint(c,v,0.0) for c,v in zip(points_to_sample, sampled_points)]
+        evidence = [
+            SamplePoint(c, v, 0.0)
+            for c, v in zip(points_to_sample, sampled_points)
+        ]
 
         #Update model
         gp_ll.add_sampled_points(evidence)
@@ -157,13 +194,18 @@ def main():
         min_val = np.min(gp._points_sampled_value)
         best_coord = gp.get_historical_data_copy().points_sampled[min_point]
 
+        print('Iteration {} of {}'.format(i, num_iters))
         print('Recommended Points:')
         print(points_to_sample)
         print('Expected Improvement: {}'.format(ei))
         print('Current Best:')
-        print('f(x*)=',min_val)
+        print('f(x*)=', min_val)
         print('Coord:', best_coord)
         best_point_history.append(min_val)
+
+        if history:
+            with open(history, 'w') as f:
+                f.writelines(list(best_point_history))
 
         # Convergence check
         if (len(var_buffer) == var_buffer.maxlen) and not skip_convergence:
@@ -176,17 +218,18 @@ def main():
                 break
         var_buffer.append(min_val)
 
-
     #Once sampling is done take the best point and transform it back into native space
-    preaff_loc = geolib.map_param_2_surf(best_coord[0],best_coord[1],C)
-    preaff_rot,_ = geolib.map_rot_2_surf(best_coord[0],best_coord[1],best_coord[2],C)
-    loc = np.matmul(R,preaff_loc)
-    rot = np.matmul(R,preaff_rot)
-    np.savetxt(loc_out,loc)
-    np.savetxt(rot_out,rot)
+    preaff_loc = geolib.map_param_2_surf(best_coord[0], best_coord[1], C)
+    preaff_rot, _ = geolib.map_rot_2_surf(best_coord[0], best_coord[1],
+                                          best_coord[2], C)
+    loc = np.matmul(R, preaff_loc)
+    rot = np.matmul(R, preaff_rot)
+    np.savetxt(loc_out, loc)
+    np.savetxt(rot_out, rot)
 
     if history:
-        np.savetxt(history,np.array(best_point_history))
+        np.savetxt(history, np.array(best_point_history))
+
 
 if __name__ == '__main__':
     main()
