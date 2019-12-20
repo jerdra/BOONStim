@@ -93,6 +93,22 @@ def main():
     np.save(out+"_dilated_coords.npy",dil_coords)
     np.save(out+"_mean_norm.npy",v_norm)
 
+    #Generate param surf
+    dil_faces_ind = gl.get_subset_triangles(vert_list, t_rel)
+    dil_faces = t_rel[np.where(dil_faces_ind)].flatten(order='C') + vert_list.max()
+    dil_faces = list(dil_faces)
+    dil_verts = vert_list + vert_list.max()
+    dil_coords = dil_coords.flatten()
+    gmsh.initialize()
+    gmsh.model.add('param_surf')
+    tag = gmsh.model.addDiscreteEntity(2, 2001)
+    gmsh.model.mesh.setNodes(2, tag, nodeTags=dil_verts, coord=dil_coords)
+    gmsh.model.mesh.setElements(2, tag, [2],
+                                elementTags=[range(1, len(dil_faces)//3 + 1)],
+                                nodeTags=[dil_faces])
+    gmsh.write(out+"_param_surf.msh")
+    gmsh.finalize()
+
 if __name__ == '__main__':
     main()
 
