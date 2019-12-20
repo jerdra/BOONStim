@@ -77,13 +77,15 @@ process normalize_vol {
 
     shell:
     '''
+    wb_command -volume-math 'a' fixed.nii.gz -var a !{vol} -fixnan 0
+
     sum=$(wb_command -volume-stats \
-                !{vol} \
+                fixed.nii.gz \
                 -reduce SUM)
 
     wb_command -volume-math \
-                "x/$sum" \
-                -var x !{vol} \
+                "x/${sum}" \
+                -var x fixed.nii.gz \
                 normalized.nii.gz
     '''
 
