@@ -54,9 +54,9 @@ process mri2mesh_brain{
     tuple val(sub), path(t1)
 
     output:
-    tuple val(sub), path('fs_sub*'), emit: freesurfer
-    tuple val(sub), path('m2m_sub*'), emit: m2m
-    tuple val(sub), path('sub*_T1fs_conform.nii.gz'), emit: T1
+    tuple val(sub), path("fs_${sub}"), emit: freesurfer
+    tuple val(sub), path("m2m_${sub}"), emit: m2m
+    tuple val(sub), path("${sub}_T1fs_conform.nii.gz"), emit: T1
 
     shell:
     '''
@@ -98,6 +98,8 @@ process ciftify_invocation{
 }
 
 process ciftify{
+    
+    stageInMode 'copy'
 
     input:
     tuple val(sub), path("freesurfer/${sub}"), path(json)
@@ -120,12 +122,14 @@ process ciftify{
 
 process mri2mesh{
 
+    stageInMode 'copy'
+
     input:
     tuple val(sub), path(t1), path(t1fs), path(freesurfer), path(m2m)
 
     output:
-    tuple val(sub), path('m2m_sub*'), emit: m2m
-    tuple val(sub), path('sub*.geo'), emit: geo
+    tuple val(sub), path("m2m_${sub}"), emit: m2m
+    tuple val(sub), path("${sub}.geo"), emit: geo
 
     shell:
     '''
@@ -143,7 +147,7 @@ process update_msh{
     label 'gmsh4'
 
     input:
-    tuple val(sub), path('sub.geo'), path(m2m)
+    tuple val(sub), path("${sub}.geo"), path(m2m)
 
     output:
     tuple val(sub), path("${sub}.msh"), emit: mesh
@@ -151,8 +155,8 @@ process update_msh{
     shell:
     '''
     set +u
-    sed 's/Merge.*m2m/Merge "m2m/g' sub.geo -i
-    /gmsh-sdk/bin/gmsh -3 -bin -format msh2 -o !{sub}.msh sub.geo || true
+    sed 's/Merge.*m2m/Merge "m2m/g' !{sub}.geo -i
+    /gmsh-sdk/bin/gmsh -3 -bin -format msh2 -o !{sub}.msh !{sub}.geo || true
     '''
 }
 
@@ -180,8 +184,9 @@ workflow cifti_meshing {
                                         .join(mri2mesh_brain.out.freesurfer, by: 0)
                                         .join(mri2mesh_brain.out.m2m, by: 0)
         mri2mesh(mri2mesh_input)
-        update_msh(mri2mesh.out.geo)
-
+        mri2mesh.out.geo
+        update_msh(mri2mesh.out.geo.join(mri2mesh.out.m2m, by: 0))
+    
     emit:
        cifti = ciftify.out.ciftify 
        fmriprep = ciftify.out.fmriprep
