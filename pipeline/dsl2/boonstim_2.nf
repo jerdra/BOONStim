@@ -83,8 +83,8 @@ process construct_outputs{
     input:
         tuple val(sub), \
         path(msh), path(t1fs), path(m2m), \
-        path(wfunc), path(mask), \
-        path(loc), path(rot), path(hist)
+        path(wfunc), path(mask)
+//        path(loc), path(rot), path(hist)
 
     output:
         tuple val(sub), path("$sub"), emit: subject
@@ -94,7 +94,7 @@ process construct_outputs{
     #!/bin/bash
 
     mkdir optimization
-    mv !{loc} !{rot} !{hist} optimization
+    #mv !{loc} !{rot} !{hist} optimization
 
     mkdir !{sub}
     mv * !{sub} || true
@@ -134,24 +134,24 @@ workflow {
                        cifti_meshing.out.msh)
 
         //Optimization
-        optimize_inputs = cifti_meshing.out.msh
-                                           .join(tet_project_wf.out.fem_weights)
-                                           .join(parameterization_wf.out.C)
-                                           .join(parameterization_wf.out.R)
-                                           .join(parameterization_wf.out.bounds)
-                                           .map{s,m,w,C,R,b -> [s,m,w,C,R,b,"$params.coil"]}
-        optimize_coil(optimize_inputs)
-
-        //Output
+//        optimize_inputs = cifti_meshing.out.msh
+//                                           .join(tet_project_wf.out.fem_weights)
+//                                           .join(parameterization_wf.out.C)
+//                                           .join(parameterization_wf.out.R)
+//                                           .join(parameterization_wf.out.bounds)
+//                                           .map{s,m,w,C,R,b -> [s,m,w,C,R,b,"$params.coil"]}
+//        optimize_coil(optimize_inputs)
+//
+//        //Output
         construct_outputs_input = cifti_meshing.out.msh
                                                .join(cifti_meshing.out.t1fs_conform)
                                                .join(cifti_meshing.out.mesh_m2m)
                                                .join(cifti_meshing.out.mesh_fs)
                                                .join(weightfunc_wf.out.weightfunc)
                                                .join(weightfunc_wf.out.mask)
-                                               .join(optimize_coil.out.position)
-                                               .join(optimize_coil.out.orientation)
-                                               .join(optimize_coil.out.history)
+//                                               .join(optimize_coil.out.position)
+//                                               .join(optimize_coil.out.orientation)
+//                                               .join(optimize_coil.out.history)
         construct_outputs(construct_outputs_input)
 
     publish:

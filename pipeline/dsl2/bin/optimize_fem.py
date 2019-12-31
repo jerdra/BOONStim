@@ -201,11 +201,11 @@ def main():
         print('Current Best:')
         print('f(x*)=', min_val)
         print('Coord:', best_coord)
-        best_point_history.append(min_val)
+        best_point_history.append(str(min_val))
 
         if history:
-            with open(history, 'w') as f:
-                f.writelines(list(best_point_history))
+            with open(history, 'w') as buf:
+                buf.writelines(list(best_point_history))
 
         # Convergence check
         if (len(var_buffer) == var_buffer.maxlen) and not skip_convergence:
@@ -226,10 +226,6 @@ def main():
     rot = np.matmul(R, preaff_rot)
     np.savetxt(loc_out, loc)
     np.savetxt(rot_out, rot)
-
-    if history:
-        np.savetxt(history, np.array(best_point_history))
-
 
 if __name__ == '__main__':
     main()
