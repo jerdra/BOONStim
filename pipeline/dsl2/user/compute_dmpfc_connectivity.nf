@@ -47,7 +47,7 @@ process calculate_roi_correlation{
     label 'connectome'
 
     input:
-    tuple val(sub), path(dtseries), path(shape)
+    tuple val(sub), path(dtseries), path(left_shape), path(right_shape)
 
     output:
     tuple val(sub), path("${sub}_correlation.dscalar.nii"), emit: corr_dscalar
@@ -56,7 +56,8 @@ process calculate_roi_correlation{
     '''
     wb_command -cifti-average-roi-correlation \
                 !{sub}_correlation.dscalar.nii \
-                -left-roi !{shape} \
+                -left-roi !{left_shape} \
+                -right-roi !{right_shape} \
                 -cifti !{dtseries}
     '''
 
@@ -124,7 +125,7 @@ process create_dense{
 
 }
 
-process project_mask2surf{
+process project_left_mask2surf{
 
     label 'connectome'
 
@@ -149,6 +150,31 @@ process project_mask2surf{
 
 }
 
+process project_right_mask2surf{
+
+    label 'connectome'
+
+    input:
+    tuple val(sub), path(midthickness), path(white), path(pial), path(mask)
+
+    output:
+    tuple val(sub), path("${sub}_surfmask.R.shape.gii"), emit: surfmask
+
+    shell:
+    '''
+    #!/bin/bash
+
+    wb_command -volume-to-surface-mapping \
+                !{mask} \
+                !{midthickness} \
+                -ribbon-constrained \
+                !{white} \
+                !{pial} \
+                "!{sub}_surfmask.R.shape.gii"
+    '''
+
+}
+
 workflow calculate_weightfunc_wf {
 
     get:
@@ -157,7 +183,7 @@ workflow calculate_weightfunc_wf {
     main:
 
         // Project mask into surface space for the particular subject
-        surfs = derivatives
+        left_surfs = derivatives
                         .map{s,f,c ->   [
                                             s,
                                             "${c}/MNINonLinear/fsaverage_LR32k/${s}.L.midthickness.32k_fs_LR.surf.gii",
@@ -166,7 +192,18 @@ workflow calculate_weightfunc_wf {
                                             "${params.inverse_mask}"
                                         ]
                             }
-        project_mask2surf(surfs)
+        project_left_mask2surf(left_surfs)
+
+        right_surfs = derivatives
+                        .map{s,f,c ->   [
+                                            s,
+                                            "${c}/MNINonLinear/fsaverage_LR32k/${s}.R.midthickness.32k_fs_LR.surf.gii",
+                                            "${c}/MNINonLinear/fsaverage_LR32k/${s}.R.white.32k_fs_LR.surf.gii",
+                                            "${c}/MNINonLinear/fsaverage_LR32k/${s}.R.pial.32k_fs_LR.surf.gii",
+                                            "${params.inverse_mask}"
+                                        ]
+                            }
+        project_right_mask2surf(right_surfs)
 
         // Get both dtseries files, split, get confounds and apply
         cleaned_input = derivatives
@@ -206,21 +243,25 @@ workflow calculate_weightfunc_wf {
         smooth_img(smooth_input)
 
         //Compute correlation
-        correlation_input = smooth_img.out.smooth_dtseries.join(project_mask2surf.out.surfmask, by:0 )
+        correlation_input = smooth_img.out.smooth_dtseries
+                                        .join(project_left_mask2surf.out.surfmask, by:0 )
+                                        .join(project_right_mask2surf.out.surfmask, by:0 )
         calculate_roi_correlation(correlation_input)
 
-        //Separate out cifti file
-        split_cifti(calculate_roi_correlation.out.corr_dscalar)
+        // CURRENTLY COMMENTED OUT SINCE WE'RE GOING TO BE USING BOTH HEMISPHERES FOR TESTING
+        ////Separate out cifti file
+        //split_cifti(calculate_roi_correlation.out.corr_dscalar)
 
-        //Mask the right cortex entirely
-        mask_cortex(split_cifti.out.right_shape)
+        ////Mask the right cortex entirely (don't!)
+        //mask_cortex(split_cifti.out.right_shape)
 
-        //Recombine to make final dscalar containing only left cortex
-        create_dense_input = split_cifti.out.left_shape
-                                        .join(mask_cortex.out.masked_shape, by: 0)
-        create_dense(create_dense_input)
+        ////Recombine to make final dscalar containing only left cortex
+        //create_dense_input = split_cifti.out.left_shape
+        //                                .join(mask_cortex.out.masked_shape, by: 0)
+        //create_dense(create_dense_input)
 
         emit:
-            weightfunc = create_dense.out.weightfunc
+        //    weightfunc = create_dense.out.weightfunc
+        weightfunc = calculate_roi_correlation.out.corr_dscalar
 
 }
