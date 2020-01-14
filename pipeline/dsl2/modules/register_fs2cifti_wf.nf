@@ -10,50 +10,50 @@ process convert_sulcal{
     tuple val(sub), val(hemi), path(sulc), path(white)
 
     output:
-    tuple val(sub), val(hemi), path("${hemi}.sulc.native.shape.gii")
-    
+    tuple val(sub), val(hemi), path("${sub}.${hemi}.sulc.native.shape.gii")
+
     """
     export FS_LICENSE=/license/license.txt
-    mris_convert -c $sulc $white ${hemi}.sulc.native.shape.gii
+    mris_convert -c $sulc $white ${sub}.${hemi}.sulc.native.shape.gii
     """
 
 }
 
 process assign_sulcal{
-    
+
     label 'connectome'
 
     input:
     tuple val(sub), val(hemi), val(structure), path(sulc)
 
     output:
-    tuple val(sub), val(hemi), path("assigned_$sulc")
+    tuple val(sub), val(hemi), path("${sub}.${hemi}.assigned_sulc.native.shape.gii")
 
     """
-    cp -L $sulc assigned_$sulc
-    wb_command -set-structure assigned_$sulc $structure
+    cp -L $sulc ${sub}.${hemi}.assigned_sulc.native.shape.gii
+    wb_command -set-structure ${sub}.${hemi}.assigned_sulc.native.shape.gii $structure
     """
 
 
 }
 
 process invert_sulcal{
-    
+
     label 'connectome'
 
     input:
     tuple val(sub), val(hemi), path(sulc)
 
     output:
-    tuple val(sub), val(hemi), path("inverted_sulc.${hemi}.shape.gii")
+    tuple val(sub), val(hemi), path("${sub}.inverted_sulc.${hemi}.shape.gii")
 
     """
-    wb_command -metric-math 'a*(-1)' -var 'a' $sulc "inverted_sulc.${hemi}.shape.gii"
+    wb_command -metric-math 'a*(-1)' -var 'a' $sulc "${sub}.inverted_sulc.${hemi}.shape.gii"
     """
 }
 
 process convert_sphere{
-    
+
     label 'freesurfer'
     containerOptions "-B ${params.license}:/license"
 
@@ -61,29 +61,29 @@ process convert_sphere{
     tuple val(sub), val(hemi), path(sphere), val(output)
 
     output:
-    tuple val(sub), val(hemi), path("${output}.surf.gii")
+    tuple val(sub), val(hemi), path("${sub}.${output}.surf.gii")
 
     shell:
     '''
     export FS_LICENSE=/license/license.txt
     mris_convert !{sphere} !{sphere}.surf.gii
-    mv !{sphere}.surf.gii !{output}.surf.gii
+    mv !{sphere}.surf.gii !{sub}.!{output}.surf.gii
     '''
 }
 
 process assign_sphere{
-    
+
     label 'connectome'
 
     input:
     tuple val(sub), val(hemi), val(structure), path(sphere)
 
     output:
-    tuple val(sub), val(hemi), path("assigned_${sphere}")
+    tuple val(sub), val(hemi), path("${sub}.assigned_${sphere}")
 
     """
-    cp -L ${sphere} assigned_${sphere}
-    wb_command -set-structure assigned_${sphere} ${structure} -surface-type "SPHERICAL"
+    cp -L ${sphere} ${sub}.assigned_${sphere}
+    wb_command -set-structure ${sub}.assigned_${sphere} ${structure} -surface-type "SPHERICAL"
     """
 
 }
@@ -97,7 +97,7 @@ process deform_sphere{
     tuple val(sub), val(hemi), path(sphere)
 
     output:
-    tuple val(sub), val(hemi), file("${hemi}.sphere.reg.reg_LR.native.surf.gii")
+    tuple val(sub), val(hemi), file("${sub}.${hemi}.sphere.reg.reg_LR.native.surf.gii")
 
     shell:
     '''
@@ -105,38 +105,38 @@ process deform_sphere{
                 !{sphere} \
                 /atlas/fsaverage.!{hemi}.sphere.164k_fs_!{hemi}.surf.gii \
                 /atlas/fs_!{hemi}-to-fs_LR_fsaverage.!{hemi}_LR.spherical_std.164k_fs_!{hemi}.surf.gii \
-                !{hemi}.sphere.reg.reg_LR.native.surf.gii
+                !{sub}.!{hemi}.sphere.reg.reg_LR.native.surf.gii
     '''
 
 }
 
 process spherical_affine{
-    
+
     label 'connectome'
-    
+
     input:
     tuple val(sub), val(hemi), path(sphere), path(reg_LR_sphere)
 
     output:
-    tuple val(sub), val(hemi), path("${hemi}_affine.mat")
+    tuple val(sub), val(hemi), path("${sub}_${hemi}_affine.mat")
 
     """
     wb_command -surface-affine-regression \
                 ${sphere} \
                 ${reg_LR_sphere} \
-                ${hemi}_affine.mat
+                ${sub}_${hemi}_affine.mat
     """
 }
 
 process normalize_rotation{
-    
+
     label 'rtms'
-    
+
     input:
     tuple val(sub), val(hemi), path(affine)
-    
+
     output:
-    tuple val(sub), val(hemi), path("norm_affine.mat")
+    tuple val(sub), val(hemi), path("${sub}_norm_affine.mat")
 
     shell:
     '''
@@ -151,7 +151,7 @@ process normalize_rotation{
     linear_map = M[:3,:3]
     U,S,V = np.linalg.svd(linear_map)
     M[:3,:3] = np.matmul(U,V)
-    np.savetxt("norm_affine.mat",M)
+    np.savetxt("!{sub}_norm_affine.mat",M)
     '''
 
 }
@@ -159,32 +159,31 @@ process normalize_rotation{
 process apply_affine{
 
     label 'connectome'
-    
+
     input:
     tuple val(sub), val(hemi), path(sphere), path(affine)
 
     output:
-    tuple val(sub), val(hemi), path("${hemi}.sphere_rot.surf.gii")
+    tuple val(sub), val(hemi), path("${sub}.${hemi}.sphere_rot.surf.gii")
 
     """
     wb_command -surface-apply-affine \
                 $sphere \
                 $affine \
-                ${hemi}.sphere_rot.surf.gii
+                ${sub}.${hemi}.sphere_rot.surf.gii
 
     wb_command -surface-modify-sphere \
-                ${hemi}.sphere_rot.surf.gii \
+                ${sub}.${hemi}.sphere_rot.surf.gii \
                 100 \
-                ${hemi}.sphere_rot.surf.gii
+                ${sub}.${hemi}.sphere_rot.surf.gii
     """
 
 }
 
-process msm_sulc {
+process msm_sulc{
 
     label 'connectome'
-    containerOptions "-B ${params.atlas}:/atlas -B ${params.msm}:/msm_conf"
-    
+
     input:
     tuple val(sub), val(hemi), path(sphere), path(sulc), val(structure)
 
@@ -227,7 +226,7 @@ process areal_distortion{
                 ${sub}.${hemi}.areal_distortion.shape.gii
     """
 
-    
+
 
 
 }
@@ -238,7 +237,7 @@ workflow registration_wf {
         fs_dirs
 
     main:
-        
+
         // Might have to migrate this over fs2gifti
         // Convert sulcal information from freesurfer to connectome workbench
         sulcal_input = fs_dirs
@@ -264,7 +263,7 @@ workflow registration_wf {
         assign_sulcal(assign_input)
         invert_sulcal(assign_sulcal.out)
 
-        // Now convert spheres over, assign properties, 
+        // Now convert spheres over, assign properties,
         registration_spheres = fs_dirs
                                     .spread( ['L','R'] )
                                     .spread( ['sphere','sphere.reg'] )
@@ -324,5 +323,5 @@ workflow registration_wf {
 
         emit:
             msm_sphere = msm_sphere_out
-            
+
 }

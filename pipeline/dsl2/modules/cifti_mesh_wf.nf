@@ -21,23 +21,24 @@ process ciftify_invocation{
 
     with open(invoke_file,'r') as f:
         j_dict = json.load(f)
-    
+
     j_dict.update({'participant_label' : [x]})
 
     with open(out_file,'w') as f:
         json.dump(j_dict,f,indent=4)
 
-    """ 
+    """
 }
 
 
 process ciftify{
-    
+
     input:
     tuple val(sub), path(json)
 
     output:
     tuple val(sub), path("fmriprep/${sub}"), emit: fmriprep
+    tuple val(sub), path("fmriprep/${sub}.html"), emit: fmriprep_html
     tuple val(sub), path("ciftify/${sub}"), emit: ciftify
     tuple val(sub), path("freesurfer/${sub}"), emit: freesurfer
 
@@ -51,7 +52,7 @@ process ciftify{
     --imagepath !{params.simg} -x --stream
     '''
 
-    
+
 
 }
 
@@ -60,12 +61,12 @@ process fmriprep_invocation{
 
     input:
     val sub
-    
+
     output:
     tuple val("$sub"), path("${sub}.json"), emit: json
 
     echo "true"
-    
+
     """
 
     #!/usr/bin/env python
@@ -81,13 +82,13 @@ process fmriprep_invocation{
 
     with open(invoke_file,'r') as f:
         j_dict = json.load(f)
-    
+
     j_dict.update({'participant_label' : [x]})
 
     with open(out_file,'w') as f:
         json.dump(j_dict,f,indent=4)
 
-    """ 
+    """
 
 }
 
@@ -96,12 +97,12 @@ process fmriprep_anat{
 
     beforeScript "source /etc/profile"
     module 'slurm'
-    
+
     input:
     tuple val(sub), path(json)
 
     output:
-    tuple val(sub), path("fmriprep/$sub/anat/*preproc_T1w.nii.gz"), emit: preproc_t1
+    tuple val(sub), path("fmriprep/$sub/anat/${sub}_desc-preproc_T1w.nii.gz"), emit: preproc_t1
 
     shell:
     '''
@@ -116,17 +117,17 @@ process fmriprep_anat{
 }
 
 process mri2mesh {
-    
+
     beforeScript 'source /etc/profile'
-    
+
     input:
     tuple val(sub), path(t1)
 
     output:
-    tuple val(sub), path('fs_sub*'), emit: freesurfer
-    tuple val(sub), path('m2m_sub*'), emit: mri2mesh
-    tuple val(sub), path('sub*.geo'), emit: geo
-    tuple val(sub), path('sub*_T1fs_conform.nii.gz'), emit: T1
+    tuple val(sub), path("fs_${sub}"), emit: freesurfer
+    tuple val(sub), path("m2m_${sub}"), emit: mri2mesh
+    tuple val(sub), path("${sub}.geo"), emit: geo
+    tuple val(sub), path("${sub}_T1fs_conform.nii.gz"), emit: T1
 
     // Within container run command
     shell:
@@ -144,19 +145,19 @@ process update_msh{
 
     beforeScript 'source /etc/profile'
     label 'gmsh4'
-    
+
     input:
-    tuple val(sub), path('sub.geo'), path(m2m)
-    
+    tuple val(sub), path("${sub}.geo"), path(m2m)
+
     output:
-    tuple val(sub), path('sub.msh'), emit: mesh
+    tuple val(sub), path("${sub}.msh"), emit: mesh
 
     shell:
     '''
     set +u
-    
-    sed 's/Merge.*m2m/Merge "m2m/g' sub.geo -i
-    /gmsh-sdk/bin/gmsh -3 -bin -format msh2 -o sub.msh sub.geo || true
+
+    sed 's/Merge.*m2m/Merge "m2m/g' !{sub}.geo -i
+    /gmsh-sdk/bin/gmsh -3 -bin -format msh2 -o !{sub}.msh !{sub}.geo || true
     '''
 }
 
@@ -164,7 +165,7 @@ process update_msh{
 workflow cifti_meshing {
 
     //Subject list as inputs with implicit input/output dir params
-    get: subs 
+    get: subs
     main:
         // Ciftify full pipeline
         ciftify_invocation(subs)
@@ -174,7 +175,7 @@ workflow cifti_meshing {
         fmriprep_invocation(subs)
         fmriprep_anat(fmriprep_invocation.out.json)
         mri2mesh(fmriprep_anat.out.preproc_t1)
-    
+
         // Add m2m
         update_msh_input = mri2mesh.out.geo.join(mri2mesh.out.mri2mesh)
         update_msh(update_msh_input)
@@ -184,6 +185,7 @@ workflow cifti_meshing {
         cifti = ciftify.out.ciftify
         freesurfer = ciftify.out.freesurfer
         fmriprep = ciftify.out.fmriprep
+        fmriprep_html = ciftify.out.fmriprep_html
         mesh_fs = mri2mesh.out.freesurfer
         mesh_m2m = mri2mesh.out.mri2mesh
         msh = update_msh.out.mesh

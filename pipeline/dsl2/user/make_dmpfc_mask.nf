@@ -8,7 +8,7 @@ process project_mask2surf{
     tuple val(sub), path(white), path(pial), path(midthick), path(mask)
 
     output:
-    tuple val(sub), path('surfmask.shape.gii'), emit: mask_shape
+    tuple val(sub), path("${sub}_roi_groupmask.shape.gii"), emit: mask_shape
 
     shell:
     '''
@@ -17,7 +17,7 @@ process project_mask2surf{
                 !{midthick} \
                 -ribbon-constrained \
                     !{white} !{pial} \
-                surfmask.shape.gii
+                !{sub}_roi_groupmask.shape.gii
     '''
 
 }
@@ -27,7 +27,7 @@ process binarize_mask{
     label 'connectome'
     input:
     tuple val(sub), path(surfmask)
-    
+
     output:
     tuple val(sub), path('bin_mask.shape.gii'), emit:bin_mask
 
@@ -77,7 +77,7 @@ process split_weightfunc {
                 COLUMN \
                 -metric CORTEX_LEFT weightfunc.L.shape.gii \
                 -metric CORTEX_RIGHT weightfunc.R.shape.gii
-                
+
     '''
 
 }
@@ -87,7 +87,7 @@ process apply_mask {
     label 'connectome'
     input:
     tuple val(sub), path(weightfunc), path(mask)
-    
+
     output:
     tuple val(sub), path('masked_weightfunc.L.shape.gii'), emit:masked_weightfunc_shape
 
@@ -105,7 +105,7 @@ process threshold_weightfunc {
     label 'connectome'
     input:
     tuple val(sub), path(weightfunc)
-    
+
     output:
     tuple val(sub), path('thresholded_masked_weightfunc.L.shape.gii'), emit:thresholded_weightfunc_shape
 
@@ -126,7 +126,7 @@ process recombine_weightfunc{
 
     output:
     tuple val(sub), path("${sub}.weightfuncmask.dscalar.nii"), emit: weighted_mask
-    
+
     shell:
     '''
     wb_command -cifti-create-dense-scalar \
@@ -141,7 +141,7 @@ process recombine_weightfunc{
 
 workflow mask_wf {
 
-    get: 
+    get:
         cifti
         weightfile
 
@@ -163,7 +163,7 @@ workflow mask_wf {
         // Add midthickness file
         dilate_mask_input = binarize_mask.out.bin_mask
                                         .join(cifti, by: 0)
-                                        .map{ s,b,c ->  [   
+                                        .map{ s,b,c ->  [
                                                             s,b,
                                                             "${c}/MNINonLinear/fsaverage_LR32k/${s}.L.midthickness.32k_fs_LR.surf.gii"
                                                         ]

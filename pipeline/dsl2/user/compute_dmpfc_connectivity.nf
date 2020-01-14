@@ -1,8 +1,6 @@
 nextflow.preview.dsl=2
 import groovy.util.FileNameByRegexFinder
 
-
-
 process clean_img{
 
     label 'ciftify'
@@ -20,16 +18,16 @@ process clean_img{
                         !{dtseries} \
                         --output-file cleaned_img.dtseries.nii
     '''
-    
+
 }
 
 process smooth_img{
 
     label 'connectome'
-        
+
     input:
     tuple val(sub), path(dtseries), path(left), path(right)
-    
+
     output:
     tuple val(sub), path("${sub}_smooth.dtseries.nii"), emit: smooth_dtseries
 
@@ -40,10 +38,8 @@ process smooth_img{
                 6 6 COLUMN \
                 -left-surface !{left} \
                 -right-surface !{right} \
-                "!{sub}_smooth.dtseries.nii" 
+                "!{sub}_smooth.dtseries.nii"
     '''
-
-
 }
 
 process calculate_roi_correlation{
@@ -54,21 +50,22 @@ process calculate_roi_correlation{
     tuple val(sub), path(dtseries), path(shape)
 
     output:
-    tuple val(sub), path("correlation.dscalar.nii"), emit: corr_dscalar
+    tuple val(sub), path("${sub}_correlation.dscalar.nii"), emit: corr_dscalar
 
     shell:
     '''
     wb_command -cifti-average-roi-correlation \
-                correlation.dscalar.nii \
+                !{sub}_correlation.dscalar.nii \
                 -left-roi !{shape} \
                 -cifti !{dtseries}
     '''
+
 }
 
 process split_cifti{
-    
+
     label 'connectome'
-    
+
     input:
     tuple val(sub), path(dscalar)
 
@@ -85,16 +82,15 @@ process split_cifti{
                 -metric CORTEX_RIGHT R.shape.gii
     '''
 
-
 }
 
 process mask_cortex{
 
     label 'connectome'
-    
+
     input:
     tuple val(sub), path(shape)
-    
+
     output:
     tuple val(sub), path("masked.${shape}"), emit: masked_shape
 
@@ -111,7 +107,7 @@ process mask_cortex{
 process create_dense{
 
     label 'connectome'
-    
+
     input:
     tuple val(sub), path(left_shape), path(right_shape)
 
@@ -126,7 +122,6 @@ process create_dense{
                 -right-metric !{right_shape}
     '''
 
-
 }
 
 process project_mask2surf{
@@ -137,7 +132,7 @@ process project_mask2surf{
     tuple val(sub), path(midthickness), path(white), path(pial), path(mask)
 
     output:
-    tuple val(sub), path("surfmask.L.shape.gii"), emit: surfmask
+    tuple val(sub), path("${sub}_surfmask.L.shape.gii"), emit: surfmask
 
     shell:
     '''
@@ -149,7 +144,7 @@ process project_mask2surf{
                 -ribbon-constrained \
                 !{white} \
                 !{pial} \
-                "surfmask.L.shape.gii"
+                "!{sub}_surfmask.L.shape.gii"
     '''
 
 }
@@ -160,12 +155,8 @@ workflow calculate_weightfunc_wf {
         derivatives
 
     main:
-        
+
         // Project mask into surface space for the particular subject
-        derivatives | view
-
-
-
         surfs = derivatives
                         .map{s,f,c ->   [
                                             s,
@@ -175,7 +166,6 @@ workflow calculate_weightfunc_wf {
                                             "${params.inverse_mask}"
                                         ]
                             }
-        surfs
         project_mask2surf(surfs)
 
         // Get both dtseries files, split, get confounds and apply
@@ -184,7 +174,7 @@ workflow calculate_weightfunc_wf {
                                                 s,
                                                 f,
                                                 new FileNameByRegexFinder().getFileNames("${c}",".*MNINonLinear/Results/.*(REST|rest).*/.*dtseries.nii")
-                                                
+
                                             ]
                                 }
                             .transpose()
@@ -203,7 +193,7 @@ workflow calculate_weightfunc_wf {
 
         //Clean image
         clean_img(cleaned_input)
-        
+
         //Smooth image need cifti information
         cifti_buffer = derivatives.map{s,f,c -> [s,c]}
         smooth_input = clean_img.out.clean_dtseries.join(cifti_buffer, by:0)
@@ -229,8 +219,8 @@ workflow calculate_weightfunc_wf {
         create_dense_input = split_cifti.out.left_shape
                                         .join(mask_cortex.out.masked_shape, by: 0)
         create_dense(create_dense_input)
-    
+
         emit:
             weightfunc = create_dense.out.weightfunc
-        
+
 }

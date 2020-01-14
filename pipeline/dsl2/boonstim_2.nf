@@ -94,7 +94,7 @@ process construct_outputs{
     #!/bin/bash
 
     mkdir optimization
-    #mv !{loc} !{rot} !{hist} optimization
+    # mv {loc} {rot} {hist} optimization
 
     mkdir !{sub}
     mv * !{sub} || true
@@ -128,10 +128,10 @@ workflow {
                             centroid_wf.out.centroid)
 
         //FEM projection workflow
-        tet_project_wf(weightfunc_wf.out.weightfunc, \
-                       surfs.pial, surfs.white, surfs.midthick, \
-                       cifti_meshing.out.t1fs_conform, \
-                       cifti_meshing.out.msh)
+//        tet_project_wf(weightfunc_wf.out.weightfunc, \
+//                       surfs.pial, surfs.white, surfs.midthick, \
+//                       cifti_meshing.out.t1fs_conform, \
+//                       cifti_meshing.out.msh)
 
         //Optimization
 //        optimize_inputs = cifti_meshing.out.msh
@@ -157,5 +157,6 @@ workflow {
     publish:
         cifti_meshing.out.cifti to: "$params.out/ciftify", mode: 'copy'
         cifti_meshing.out.fmriprep to: "$params.out/fmriprep", mode: 'copy'
+        cifti_meshing.out.fmriprep_html to: "$params.out/fmriprep", mode: 'copy'
         construct_outputs.out.subject to: "$params.out/boonstim", mode: 'copy'
 }

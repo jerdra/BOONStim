@@ -4,7 +4,7 @@ process fmriprep_invocation{
 
     input:
     val(sub)
-        
+
     output:
     tuple val("$sub"), path("${sub}.json"), emit: json
 
@@ -72,7 +72,7 @@ process ciftify_invocation{
 
     input:
     val(sub)
-        
+
     output:
     tuple val("$sub"), path("${sub}.json"), emit: json
 
@@ -98,7 +98,7 @@ process ciftify_invocation{
 }
 
 process ciftify{
-    
+
     stageInMode 'copy'
 
     input:
@@ -108,6 +108,7 @@ process ciftify{
     tuple val(sub), path("fmriprep/${sub}"), emit: fmriprep
     tuple val(sub), path("ciftify/${sub}"), emit: ciftify
     tuple val(sub), path("freesurfer/${sub}"), emit: freesurfer
+    tuple val(sub), path("fmriprep/${sub}.html"), emit: fmriprep_html
 
     shell:
     '''
@@ -156,7 +157,7 @@ process update_msh{
     '''
     set +u
     sed 's/Merge.*m2m/Merge "m2m/g' !{sub}.geo -i
-    /gmsh-sdk/bin/gmsh -3 -bin -format msh2 -o !{sub}.msh !{sub}.geo || true
+    gmsh -3 -bin -format msh2 -o !{sub}.msh !{sub}.geo || true
     '''
 }
 
@@ -186,10 +187,11 @@ workflow cifti_meshing {
         mri2mesh(mri2mesh_input)
         mri2mesh.out.geo
         update_msh(mri2mesh.out.geo.join(mri2mesh.out.m2m, by: 0))
-    
+
     emit:
-       cifti = ciftify.out.ciftify 
+       cifti = ciftify.out.ciftify
        fmriprep = ciftify.out.fmriprep
+       fmriprep_html = ciftify.out.fmriprep_html
        mesh_fs = mri2mesh_brain.out.freesurfer
        mesh_m2m = mri2mesh.out.m2m
        msh = update_msh.out.mesh

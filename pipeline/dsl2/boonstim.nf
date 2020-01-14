@@ -24,11 +24,14 @@ if (!params.anat_invocation || !params.ciftify_invocation || !params.ciftify_des
 }
 
 //Subject list flag
-if (params.subject) {
-    log.info ("Subject to run: $params.subject")
+if (params.subjects) {
+    log.info ("Subject list file provided: $params.subjects")
 }
 
 log.info("Using Descriptor Files: $params.anat_descriptor and $params.ciftify_descriptor")
+log.info("Using Invocation Files: $params.anat_invocation and $params.ciftify_invocation")
+log.info("Using containers: $params.fmriprep_img and $params.ciftify_img")
+log.info("Using user-defined ROI workflow: $params.weightworkflow")
 log.info("Using Invocation Files: $params.anat_invocation and $params.ciftify_invocation")
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -46,6 +49,20 @@ include tet_project_wf from './modules/tetrahedral_wf.nf' params(params)
 
 ///////////////////////////////////////////////////////////////////////////////
 
+//// Extract subjects to run
+all_dirs = file(params.bids).list()
+input_dirs = new File(params.bids).list()
+output_dirs = new File(params.out).list()
+
+if (params.subjects) {
+    sublist = file(params.subjects)
+    bids_channel = Channel.from(sublist)
+                               .splitText() { it.strip() }
+} else{
+    bids_channel = Channel.from(all_dirs)
+                          .filter { it.contains('sub-') }
+}
+
 // Process definitions
 process optimize_coil {
 
@@ -62,7 +79,7 @@ process optimize_coil {
     tuple val(sub), path('history'), emit: history
 
     shell:
-    ''' 
+    '''
     /scripts/optimize_fem.py !{msh} !{weights} !{C} !{bounds} !{R} !{coil} \
                              coil_position coil_orientation \
                              --history history \
@@ -70,7 +87,7 @@ process optimize_coil {
                              --skip-convergence \
                              --cpus 8
     '''
-    
+
 }
 
 process construct_boonstim_outputs{
@@ -82,23 +99,23 @@ process construct_boonstim_outputs{
         path(l_white), path(r_white), \
         path(l_thick), path(r_thick), \
         path(l_msm), path(r_msm), \
-        path(weightfunc), path(mask), \
-        path(loc), path(rot), path(hist)
+        path(weightfunc), path(mask) //, \
+//        path(loc), path(rot), path(hist)
 
     output:
         tuple val(sub), path("$sub"), emit: subject
-    
+
     shell:
     '''
     #!/bin/bash
-    
+
     mkdir !{sub}
     mkdir surfaces
     mkdir optimization
     mv \
         !{l_pial} !{r_pial} !{l_white} !{r_white} !{l_thick} !{r_thick} \
         !{l_msm} !{r_msm} !{weightfunc} !{mask} surfaces
-    mv !{loc} !{rot} !{hist} optimization
+    #mv {loc} {rot} {hist} optimization
     mv * !{sub} || true
     '''
 }
@@ -113,9 +130,9 @@ def lr_branch = branchCriteria {
 workflow {
 
     main:
-        
+
         // Main preprocessing routine
-        cifti_mesh_result = cifti_meshing(params.subject)
+        cifti_mesh_result = cifti_meshing(bids_channel)
 
         // Space registration
         make_giftis_result = make_giftis(cifti_mesh_result.mesh_fs)
@@ -134,24 +151,25 @@ workflow {
         centroid_wf(resamplemask_wf.out.resampled,make_giftis_result.pial, make_giftis_result.white, make_giftis_result.midthickness, cifti_mesh_result.t1fs_conform)
 
         // Parameterize the surface
-        parameterization_wf(cifti_mesh_result.msh, centroid_wf.out.centroid) 
+        parameterization_wf(cifti_mesh_result.msh, centroid_wf.out.centroid)
+
         // Resample the weightfunc
         resampleweightfunc_wf(weightfunc_wf.out.weightfunc, registration_wf.out.msm_sphere)
-        
+
         // Project weightfunc into tetrahedral mesh space
         tet_project_wf(resampleweightfunc_wf.out.resampled, make_giftis_result.pial, make_giftis_result.white, make_giftis_result.midthickness, cifti_mesh_result.t1fs_conform, cifti_mesh_result.msh)
 
         //// Gather inputs for optimization
-        optimize_inputs = cifti_mesh_result.msh
-                                    .join(tet_project_wf.out.fem_weights, by: 0)
-                                    .join(parameterization_wf.out.C, by: 0)
-                                    .join(parameterization_wf.out.R, by: 0)
-                                    .join(parameterization_wf.out.bounds, by: 0)
-                                    .map{ s,m,w,C,R,b -> [ s,m,w,C,R,b,"$params.coil" ] }
-        optimize_coil(optimize_inputs)
+        //optimize_inputs = cifti_mesh_result.msh
+        //                            .join(tet_project_wf.out.fem_weights, by: 0)
+        //                            .join(parameterization_wf.out.C, by: 0)
+        //                            .join(parameterization_wf.out.R, by: 0)
+        //                            .join(parameterization_wf.out.bounds, by: 0)
+        //                            .map{ s,m,w,C,R,b -> [ s,m,w,C,R,b,"$params.coil" ] }
+        //optimize_coil(optimize_inputs)
 
 
-        // Set up outputs
+        //// Set up outputs
         registration_wf.out.msm_sphere.branch(lr_branch).set { msm }
         make_giftis_result.pial.branch(lr_branch).set { pial }
         make_giftis_result.white.branch(lr_branch).set { white }
@@ -170,20 +188,20 @@ workflow {
                                     .join(msm.right, by:0)
                                     .join(weightfunc_wf.out.weightfunc, by: 0)
                                     .join(weightfunc_wf.out.mask, by: 0)
-                                    .join(optimize_coil.out.position, by: 0)
-                                    .join(optimize_coil.out.orientation, by: 0)
-                                    .join(optimize_coil.out.history, by: 0)
+        //                            .join(optimize_coil.out.position, by: 0)
+        //                            .join(optimize_coil.out.orientation, by: 0)
+        //                            .join(optimize_coil.out.history, by: 0)
         construct_boonstim_outputs(construct_output_input)
 
         publish:
-            cifti_mesh_result.cifti   to: "$params.out/ciftify", mode: 'copy' 
+            cifti_mesh_result.cifti   to: "$params.out/ciftify", mode: 'copy'
             cifti_mesh_result.fmriprep to: "$params.out/fmriprep", mode: 'copy'
             cifti_mesh_result.freesurfer to: "$params.out/freesurfer", mode: 'copy'
+            cifti_mesh_result.fmriprep_html to: "$params.out/fmriprep", mode: 'copy'
             construct_boonstim_outputs.out.subject to: "$params.out/boonstim", mode: 'copy'
 
 }
 
-// TODO LIST:
 // TODO BUILD QC OUTPUTS
 // TODO INSPECT AND MODIFY INPUT FILES IF NEEDED?
 // TODO BUILD INPUT SUBSTITUTEABLE VERSION
