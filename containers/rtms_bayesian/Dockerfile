@@ -26,7 +26,7 @@ RUN apt-get update && \
 	&& python3.7 /get-pip.py && rm /get-pip.py \
 	&& rm /usr/bin/python3 /usr/bin/python \
 	&& ln -s /usr/bin/python3.7 /usr/bin/python3 \
-	&& ln -s /usr/bin/python3.7 /usr/bin/python 
+	&& ln -s /usr/bin/python3.7 /usr/bin/python
 
 #Get GMSH and Simnibs modules
 COPY ./gmsh-sdk /gmsh-sdk
@@ -34,24 +34,27 @@ COPY ./gmsh-sdk /gmsh-sdk
 #Set up environment for installing Cornell-MOE
 ENV	MOE_CC_PATH=/usr/bin/gcc \
 	MOE_CXX_PATH=/usr/bin/g++ \
-	MOE_CMAKE_OPTS="-D MOE_PYTHON_INCLUDE_DIR=/usr/include/python3.7 -D MOE_PYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.7m.so.1.0" 
+	MOE_CMAKE_OPTS="-D MOE_PYTHON_INCLUDE_DIR=/usr/include/python3.7 -D MOE_PYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.7m.so.1.0"
 	#PYTHONPATH=$PYTHONPATH:/simnibs/Python_modules/src/:/gmsh-sdk/lib/
 
 #Set up SimNIBS python package and compile Cornell-MOE
-RUN	pip install -f https://github.com/simnibs/simnibs/releases/tag/v3.0 simnibs 
-RUN	pip install future && cd /Cornell-MOE && pip install -r requirements.txt && python ./setup.py install \
-	&& pip install jupyter numba matplotlib docopt
+RUN	pip install -f https://github.com/simnibs/simnibs/releases/tag/v3.0 simnibs
+#RUN	pip install future && cd /Cornell-MOE && pip install -r requirements.txt && python ./setup.py install \
+#	&& pip install jupyter numba matplotlib docopt
+RUN	pip install jupyter numba matplotlib docopt sklearn
 
 
 #Set up Field Optimization package
 #Force a git clcocne
-RUN	mkdir -p /field_pkgs/ 
+RUN	mkdir -p /field_pkgs/
 ADD	https://api.github.com/repos/jerdra/fieldopt/git/refs/heads/master version.json
-RUN	git clone -b master https://github.com/jerdra/fieldopt.git /field_pkgs/fieldopt
+RUN	git clone -b fast_loop https://github.com/jerdra/fieldopt.git /field_pkgs/fieldopt
 
 ENV	PYTHONPATH=$PYTHONPATH:/Cornell-MOE:/gmsh-sdk/lib/:/field_pkgs
 
-RUN	apt-get update && apt-get install -y --no-install-recommends vim
-	
-ENTRYPOINT /bin/bash
 
+# DEBUGGING
+RUN	apt-get update && apt-get install -y --no-install-recommends vim \
+	&& pip install memory_profiler
+
+ENTRYPOINT /bin/bash
