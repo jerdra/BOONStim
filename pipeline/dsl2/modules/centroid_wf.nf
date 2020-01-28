@@ -164,7 +164,7 @@ workflow centroid_wf{
 
         //Gather together T1 outputs and sum to form full image
         add_niftis_input = project2vol.out.ribbon
-                                    .groupTuple(by: 0)
+                                    .groupTuple(by: 0, size: 2)
                                     .map{ s,h,n -> [ s,n[0],n[1] ] }
         add_niftis(add_niftis_input)
 

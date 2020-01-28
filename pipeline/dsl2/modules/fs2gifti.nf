@@ -19,7 +19,7 @@ process convert_fs2gifti{
     export FS_LICENSE=/license/license.txt
 
     mris_convert !{fs_surf} !{surf}.surf.gii
-    
+
     hemi="!{hemi}"
     mv ${hemi,,}h.!{surf}.surf.gii \
         !{surf}.surf.gii
@@ -66,7 +66,7 @@ process compute_midthickness {
 
 
 workflow make_giftis {
-    
+
     get: fs_dirs
 
     main:
@@ -80,7 +80,7 @@ workflow make_giftis {
                                                    ]
                                 }
         convert_fs2gifti(sub_surfaces)
-    
+
         // Map hemisphere over to structure
         structure_map = ['L' : 'CORTEX_LEFT', 'R' : 'CORTEX_RIGHT' ]
         assign_structure_input = convert_fs2gifti.out
@@ -95,14 +95,14 @@ workflow make_giftis {
 
         // Group together surfaces to subject/hemisphere
         midthickness_input = assign_structure.out
-                                        .groupTuple(by: [0,1], sort: {it.baseName})
+                                        .groupTuple(by: [0,1], sort: {it.baseName}, size: 2)
                                         .map{ n,h,surfs ->  [
                                                                 n,h,
                                                                 surfs[0],surfs[1]
                                                             ]
                                             }
         compute_midthickness(midthickness_input)
-        
+
         pial_out = midthickness_input.map { n,h,p,w -> [n,h,p] }
         white_out = midthickness_input.map { n,h,p,w -> [n,h,w] }
 
@@ -110,6 +110,6 @@ workflow make_giftis {
             midthickness = compute_midthickness.out.midthickness
             pial = pial_out
             white = white_out
-            
-            
+
+
 }

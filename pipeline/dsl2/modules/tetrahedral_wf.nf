@@ -12,7 +12,7 @@ process split_dscalar {
     tuple val(sub), val('R'), path('R.shape.gii'), emit: right
 
     shell:
-    ''' 
+    '''
     wb_command -cifti-separate \
                 !{dscalar} \
                 COLUMN \
@@ -26,10 +26,10 @@ process split_dscalar {
 process project2vol {
 
     label 'connectome'
-    
+
     input:
     tuple val(sub), val(hemi), path(shape), path(pial), path(white), path(midthick), path(t1)
-    
+
     output:
     tuple val(sub), val(hemi), path("${hemi}.ribbon.nii.gz"), emit: ribbon
 
@@ -49,10 +49,10 @@ process project2vol {
 process add_niftis {
 
     label 'connectome'
-    
+
     input:
     tuple val(sub), path(nifti1), path(nifti2)
-    
+
     output:
     tuple val(sub), path('combined.nii.gz'), emit: sumvol
 
@@ -70,17 +70,17 @@ process tetrahedral_projection {
 
     label 'rtms'
     containerOptions "-B ${params.bin}:/scripts"
-    
+
     input:
     tuple val(sub), path(vol), path(msh)
-    
+
     output:
     tuple val(sub), path("${sub}_femfunc.npy"), emit: fem_weights
-    
-    
+
+
     shell:
     '''
-    /scripts/volume_to_tetrahedral_mapping.py !{vol} !{msh} "!{sub}_femfunc.npy" 
+    /scripts/volume_to_tetrahedral_mapping.py !{vol} !{msh} "!{sub}_femfunc.npy"
     '''
 
 
@@ -94,10 +94,10 @@ workflow tet_project_wf{
         white
         midthick
         t1
-        msh  
+        msh
 
     main:
-        
+
         //Split into shapes
         split_dscalar(dscalar)
 
@@ -121,17 +121,17 @@ workflow tet_project_wf{
 
         //Gather together T1 outputs and sum to form full image
         add_niftis_input = project2vol.out.ribbon
-                                    .groupTuple(by: 0)
+                                    .groupTuple(by: 0, size: 2)
                                     .map{ s,h,n -> [ s,n[0],n[1] ] }
         add_niftis(add_niftis_input)
-    
+
         //Tetrahedral projection
         tet_inputs = add_niftis.out.sumvol.join(msh, by: 0)
         tetrahedral_projection(tet_inputs)
 
         emit:
             fem_weights = tetrahedral_projection.out.fem_weights
-        
-        
+
+
 
 }
