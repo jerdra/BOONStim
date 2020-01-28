@@ -35,7 +35,7 @@ process threshold_mask{
     '''
     wb_command -metric-math \
                 "(x>0.75)" \
-                -var "x" !{surfmask}
+                -var "x" !{surfmask} \
                 !{sub}.!{hemi}.thres_mask.shape.gii
     '''
 }
@@ -59,7 +59,7 @@ process pull_dmpfc_cluster{
                 !{sub}.!{hemi}.thres_mask_clust.shape.gii
 
     # Pull maximal cluster # which will be dorsal DMPFC
-    MAX_VAL=$(wb_command -metric-stats !{sub}.!{hemi}.thres_mask_clust.shape.gii)
+    MAX_VAL=$(wb_command -metric-stats -reduce MAX !{sub}.!{hemi}.thres_mask_clust.shape.gii)
 
     wb_command -metric-math \
                 "(x == round($MAX_VAL))" \
@@ -116,6 +116,7 @@ process make_symmetric_dscalar{
                 -left-metric !{sub}.L.dmpfc_symmetric.shape.gii \
                 -right-metric !{sub}.R.dmpfc_symmetric.shape.gii
     '''
+}
 
 process binarize_mask{
 
