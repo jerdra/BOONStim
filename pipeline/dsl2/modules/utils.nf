@@ -13,7 +13,7 @@ process apply_mask {
     '''
     wb_command -cifti-math \
                 "x * (mask > 0)" \
-                -var "x" !{weightfunc} \
+                -var "x" !{dscalar} \
                 -var "mask" !{mask} \
                 !{sub}.masked.dscalar.nii
     '''
@@ -32,9 +32,11 @@ process cifti_dilate {
     '''
     wb_command -cifti-dilate \
                 !{dscalar} \
-                ROW \
+                COLUMN \
                 6 6 \
-                !{sub}.dilated.scalar.nii
+                -left-surface !{left} \
+                -right-surface !{right} \
+                !{sub}.dilated.dscalar.nii
     '''
 
 }
