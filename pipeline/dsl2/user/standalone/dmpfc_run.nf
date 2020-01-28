@@ -14,7 +14,7 @@ if (params.subjects) {
 }
 
 // Import weightfunc workflow
-include weightfunc_wf from './calculate_mentalizing_weightfunc.nf' params(params)
+include weightfunc_wf from '../calculate_mentalizing_weightfunc.nf' params(params)
 
 if (params.subjects){
     sublist = file(params.subjects)

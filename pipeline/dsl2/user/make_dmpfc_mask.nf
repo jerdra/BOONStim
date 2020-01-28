@@ -132,7 +132,7 @@ process recombine_masks{
     '''
     wb_command -cifti-create-dense-scalar \
                 !{sub}.weightfunc_mask.dscalar.nii \
-                -left-metric !{left}
+                -left-metric !{left} \
                 -right-metric !{right}
     '''
 
@@ -176,10 +176,11 @@ workflow mask_wf {
 
         // Binarize masks on surface
         binarize_mask(project_mask2surf.out.mask_shape)
+        binarize_mask.out.bin_mask
 
         // Set up dilation input
         dilate_mask_input = binarize_mask.out.bin_mask
-                                        .join(cifti, by: 0)
+                                        .combine(cifti, by: 0)
                                         .map{ s,h,b,c ->  [
                                                             s,h,b,
                                                             "${c}/MNINonLinear/fsaverage_LR32k/${s}.${h}.midthickness.32k_fs_LR.surf.gii"
@@ -191,16 +192,18 @@ workflow mask_wf {
         recombine_input = dilate_mask.out.dilated_mask
                                         .map { s,h,d -> [s,d] }
                                         .groupTuple ( by: 0, sort: {it.baseName}, size: 2)
-                                        .map { s,f -> [s, f[0], f[1]] } | view
+                                        .map { s,f -> [s, f[0], f[1]] }
 
         recombine_masks(recombine_input)
+        recombine_masks.out.dscalar_mask
 
         // Apply bilateral mask
-        apply_mask(recombine_masks.out.dscalar_mask)
+        apply_mask_input = weightfile
+                                .join(recombine_masks.out.dscalar_mask, by:0)
+        apply_mask(apply_mask_input)
 
         // Threshold
         threshold_weightfunc(apply_mask.out.masked_weightfunc)
-
 
     emit:
         weighted_mask = threshold_weightfunc.out.thresholded_weightfunc

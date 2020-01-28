@@ -4,10 +4,10 @@ process extract_surf_patch {
 
     label 'rtms'
     containerOptions "-B ${params.bin}:/scripts"
-    
+
     input:
     tuple val(sub), path(msh), path(centroid)
-    
+
     output:
     tuple val(sub), path("${sub}_dilated_coords.npy"), path("${sub}_mean_norm.npy"), emit: surf_patch
     tuple val(sub), path("${sub}_param_surf.msh"), emit: qc_surf
@@ -22,7 +22,7 @@ process parameterize_surf {
 
     label 'rtms'
     containerOptions "-B ${params.bin}:/scripts"
-    
+
     input:
     tuple val(sub), path(patch), path(norm)
 
@@ -30,7 +30,7 @@ process parameterize_surf {
     tuple val(sub), path("${sub}_C.npy"), emit: C
     tuple val(sub), path("${sub}_R.npy"), emit: R
     tuple val(sub), path("${sub}_bounds.npy"), emit: bounds
-    
+
     shell:
     '''
     /scripts/parameterize_surface_patch.py !{patch} !{norm} !{sub}
@@ -58,11 +58,11 @@ process qc_parameterization {
 workflow parameterization_wf {
 
     get:
-        msh 
+        msh
         centroid
 
     main:
-        
+
         // Make surface patch for fitting
         surf_patch_input = msh.join(centroid, by: 0)
         extract_surf_patch(surf_patch_input)
@@ -80,5 +80,6 @@ workflow parameterization_wf {
         C = parameterize_surf.out.C
         R = parameterize_surf.out.R
         bounds = parameterize_surf.out.bounds
+        qc_param = qc_parameterization.out.qc_param
 
 }

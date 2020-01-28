@@ -6,17 +6,18 @@ process clean_img{
     label 'ciftify'
 
     input:
-    tuple val(sub), path(dtseries), path(confound), path(config)
+    tuple val(sub), val(run), path(dtseries), path(confound), path(config)
 
     output:
-    tuple val(sub), path("cleaned_img.dtseries.nii"), emit: clean_dtseries
+    tuple val(sub), val(run), path("${sub}_${run}_clean.dtseries.nii"), emit: clean_dtseries
 
     shell:
     '''
+
     ciftify_clean_img --clean-config=!{config} \
                         --confounds-tsv=!{confound} \
                         !{dtseries} \
-                        --output-file cleaned_img.dtseries.nii
+                        --output-file !{sub}_!{run}_clean.dtseries.nii
     '''
 
 }
@@ -26,20 +27,40 @@ process smooth_img{
     label 'connectome'
 
     input:
-    tuple val(sub), path(dtseries), path(left), path(right)
+    tuple val(sub), val(run), path(dtseries), path(left), path(right)
 
     output:
-    tuple val(sub), path("${sub}_smooth.dtseries.nii"), emit: smooth_dtseries
+    tuple val(sub), val(run), path("${sub}_${run}_clean_smooth.dtseries.nii"), emit: smooth_dtseries
 
     shell:
     '''
+
     wb_command -cifti-smoothing \
                 !{dtseries} \
                 6 6 COLUMN \
                 -left-surface !{left} \
                 -right-surface !{right} \
-                "!{sub}_smooth.dtseries.nii"
+                "!{sub}_!{run}_clean_smooth.dtseries.nii"
     '''
+}
+
+process merge_imgs{
+
+    label 'connectome'
+
+    input:
+    tuple val(sub), path("smooth_img*.dtseries.nii")
+
+    output:
+    tuple val(sub), path("${sub}_cleaned_smoothed_merged.dtseries.nii"), emit: merged_dtseries
+
+    shell:
+    '''
+    find . -mindepth 1 -maxdepth 1 -type l -name "*dtseries.nii" | sort | xargs -I {} \
+        echo -cifti {} | xargs \
+        wb_command -cifti-merge !{sub}_cleaned_smoothed_merged.dtseries.nii
+    '''
+
 }
 
 process calculate_roi_correlation{
@@ -175,6 +196,34 @@ process project_right_mask2surf{
 
 }
 
+process remove_subcortical{
+
+    label 'connectome'
+
+    input:
+    tuple val(sub), path(dscalar)
+
+    output:
+    tuple val(sub), path("${sub}.correlation_nosubcort.dscalar.nii"), emit: corr_dscalar
+
+    shell:
+    '''
+
+    # Split without volume
+    wb_command -cifti-separate !{dscalar} \
+                COLUMN \
+                -metric CORTEX_LEFT L.shape.gii \
+                -metric CORTEX_RIGHT R.shape.gii
+
+    # Join
+    wb_command -cifti-create-dense-scalar \
+                !{sub}.correlation_nosubcort.dscalar.nii \
+                -left-metric L.shape.gii \
+                -right-metric R.shape.gii
+    '''
+
+}
+
 workflow calculate_weightfunc_wf {
 
     get:
@@ -206,6 +255,7 @@ workflow calculate_weightfunc_wf {
         project_right_mask2surf(right_surfs)
 
         // Get both dtseries files, split, get confounds and apply
+        // Will also store run number!
         cleaned_input = derivatives
                             .map{s,f,c ->   [
                                                 s,
@@ -227,26 +277,44 @@ workflow calculate_weightfunc_wf {
                                                             "${params.clean_config}"
                                                         ]
                                 }
+                            .map{ s,d,conf,clean -> [
+                                                        s,
+                                                        ( d =~ /run-[^_]*/ )[0],
+                                                        d,conf,clean
+                                                    ]
+                                }
+
 
         //Clean image
         clean_img(cleaned_input)
 
         //Smooth image need cifti information
         cifti_buffer = derivatives.map{s,f,c -> [s,c]}
-        smooth_input = clean_img.out.clean_dtseries.join(cifti_buffer, by:0)
-                                .map{ s,i,c ->  [
-                                                    s,i,
+        smooth_input = clean_img.out.clean_dtseries.combine(cifti_buffer, by:0)
+                                .map{ s,r,i,c ->  [
+                                                    s,r,i,
                                                     "${c}/MNINonLinear/fsaverage_LR32k/${s}.L.midthickness.32k_fs_LR.surf.gii",
                                                     "${c}/MNINonLinear/fsaverage_LR32k/${s}.R.midthickness.32k_fs_LR.surf.gii"
                                                 ]
                                     }
+
         smooth_img(smooth_input)
 
+        //Combine smoothed images
+        //Will be a bottleneck here!
+        merge_img_input = smooth_img.out.smooth_dtseries
+                                    .groupTuple( by: 0 , sort: {it} )
+                                    .map{ s,r,sm -> [ s, sm ] }
+        merge_imgs(merge_img_input)
+
         //Compute correlation
-        correlation_input = smooth_img.out.smooth_dtseries
+        correlation_input = merge_imgs.out.merged_dtseries
                                         .join(project_left_mask2surf.out.surfmask, by:0 )
                                         .join(project_right_mask2surf.out.surfmask, by:0 )
         calculate_roi_correlation(correlation_input)
+
+        // Remove subcortical regions
+        remove_subcortical(calculate_roi_correlation.out.corr_dscalar)
 
         // CURRENTLY COMMENTED OUT SINCE WE'RE GOING TO BE USING BOTH HEMISPHERES FOR TESTING
         ////Separate out cifti file
@@ -262,6 +330,6 @@ workflow calculate_weightfunc_wf {
 
         emit:
         //    weightfunc = create_dense.out.weightfunc
-        weightfunc = calculate_roi_correlation.out.corr_dscalar
+        weightfunc = remove_subcortical.out.corr_dscalar
 
 }

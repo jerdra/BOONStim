@@ -1,16 +1,16 @@
 nextflow.preview.dsl = 2
 
 process split_dscalar{
-    
+
     label 'connectome'
-    
+
     input:
     tuple val(sub), path(dscalar)
 
     output:
     tuple val(sub), val('L'), path('L.shape.gii'), emit: left
     tuple val(sub), val('R'), path('R.shape.gii'), emit: right
-    
+
     shell:
     '''
     wb_command -cifti-separate \
@@ -25,7 +25,7 @@ process split_dscalar{
 process resample_surf{
 
     label 'connectome'
-    
+
     input:
     tuple val(sub), val(hemi), path(shape), path(source_sphere), path(target_sphere)
 
@@ -48,17 +48,17 @@ process resample_surf{
 process recombine {
 
     label 'connectome'
-    
+
     input:
     tuple val(sub), path(left), path(right)
 
     output:
-    tuple val(sub), path('dscalar.nii'), emit: dscalar
+    tuple val(sub), path("${sub}.dscalar.nii"), emit: dscalar
 
     shell:
     '''
     wb_command -cifti-create-dense-scalar \
-                dscalar.nii \
+                !{sub}.dscalar.nii \
                 -left-metric !{left} \
                 -right-metric !{right}
     '''
@@ -74,7 +74,7 @@ workflow resample2native_wf {
         msm_sphere
 
     main:
-        
+
         //Split dscalar for resampling
         split_dscalar(dscalar)
 
@@ -93,11 +93,11 @@ workflow resample2native_wf {
                                                                     "${params.atlas}/R.sphere.32k_fs_LR.surf.gii"
                                                                 ]
                                                 }
-        resample_input = left_resample_input.mix(right_resample_input) 
+        resample_input = left_resample_input.mix(right_resample_input)
         resample_surf(resample_input)
 
         //Recombine
-        recombine_input = resample_surf.out.resampled 
+        recombine_input = resample_surf.out.resampled
                                         .map { s,h,f -> [s,f] }
                                         .groupTuple ( by: 0, sort: { it.baseName } )
                                         .map { s,f -> [s,f[0],f[1]] }
@@ -106,8 +106,8 @@ workflow resample2native_wf {
 
         emit:
             resampled = recombine.out.dscalar
-        
-    
+
+
 
 
 }

@@ -99,7 +99,9 @@ process construct_boonstim_outputs{
         path(l_white), path(r_white), \
         path(l_thick), path(r_thick), \
         path(l_msm), path(r_msm), \
-        path(weightfunc), path(mask) //, \
+        path("${sub}.weightfunc.dscalar.nii"), path("${sub}.mask.dscalar.nii"), \
+        path(C), path(R), path(bounds), path(qc_param), \
+        path(femfunc)
 //        path(loc), path(rot), path(hist)
 
     output:
@@ -109,13 +111,21 @@ process construct_boonstim_outputs{
     '''
     #!/bin/bash
 
+    # Make subdirectories
     mkdir !{sub}
     mkdir surfaces
     mkdir optimization
+
+    # Move surface files
     mv \
         !{l_pial} !{r_pial} !{l_white} !{r_white} !{l_thick} !{r_thick} \
-        !{l_msm} !{r_msm} !{weightfunc} !{mask} surfaces
+        !{l_msm} !{r_msm} !{sub}.weightfunc.dscalar.nii !{sub}.mask.dscalar.nii surfaces
+
+    # Move optimization files
     #mv {loc} {rot} {hist} optimization
+    mv !{C} !{R} !{bounds} !{femfunc} optimization
+
+    # Move all files
     mv * !{sub} || true
     '''
 }
@@ -186,8 +196,14 @@ workflow {
                                     .join(midthick.right, by:0)
                                     .join(msm.left, by:0)
                                     .join(msm.right, by:0)
-                                    .join(weightfunc_wf.out.weightfunc, by: 0)
-                                    .join(weightfunc_wf.out.mask, by: 0)
+                                    .join(resampleweightfunc_wf.out.resampled, by:0)
+                                    .join(resamplemask_wf.out.resampled)
+                                    .join(parameterization_wf.out.C)
+                                    .join(parameterization_wf.out.R)
+                                    .join(parameterization_wf.out.bounds)
+                                    .join(parameterization_wf.out.qc_param)
+                                    .join(tet_project_wf.out.fem_weights)
+        //                            .join(weightfunc_wf.out.mask, by: 0)
         //                            .join(optimize_coil.out.position, by: 0)
         //                            .join(optimize_coil.out.orientation, by: 0)
         //                            .join(optimize_coil.out.history, by: 0)

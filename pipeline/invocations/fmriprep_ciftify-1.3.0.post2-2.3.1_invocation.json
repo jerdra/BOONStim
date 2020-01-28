@@ -3,7 +3,7 @@
 	"bids_dir":"/bids",
 	"output_dir":"/output",
 	"analysis_level":"participant",
-	"n_cpus":4,
+	"n_cpus":10,
 	"freesurfer_license":"/license/license.txt",
 	"verbose":true,
 	"resample_to_T1w32k": true,
