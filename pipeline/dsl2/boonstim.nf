@@ -36,7 +36,7 @@ log.info("Using Invocation Files: $params.anat_invocation and $params.ciftify_in
 
 ///////////////////////////////////////////////////////////////////////////////
 
-// IMPORT WORKFLOWS
+// IMPORT MODULES WORKFLOWS
 include cifti_meshing from './modules/cifti_mesh_wf.nf' params(params)
 include make_giftis from './modules/fs2gifti.nf' params(params)
 include registration_wf from './modules/register_fs2cifti_wf.nf' params(params)
@@ -46,6 +46,11 @@ include resample2native_wf as resampleweightfunc_wf from './modules/resample2nat
 include centroid_wf from './modules/centroid_wf.nf' params(params)
 include parameterization_wf from './modules/surfparams_wf.nf' params(params)
 include tet_project_wf from './modules/tetrahedral_wf.nf' params(params)
+
+// IMPORT MODULES PROCESSES
+include apply_mask as centroid_mask from './modules/utils.nf' params(params)
+include apply_mask as weightfunc_mask from './modules/utils.nf' params(params)
+include cifti_dilate as dilate_mask from './modules/utils.nf' params(params)
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -143,31 +148,49 @@ workflow {
 
         // Main preprocessing routine
         cifti_mesh_result = cifti_meshing(bids_channel)
-
-        // Space registration
         make_giftis_result = make_giftis(cifti_mesh_result.mesh_fs)
         registration_wf(cifti_mesh_result.mesh_fs)
 
-        // Calculation of custom weightfunction and centroid
+        // User-defined weightfunction workflow
         weightfunc_input = cifti_mesh_result.fmriprep
                                             .join( cifti_mesh_result.cifti, by : 0 )
         weightfunc_input
         weightfunc_wf(weightfunc_input)
 
-        // Resample the mask
-        resamplemask_wf(weightfunc_wf.out.mask, registration_wf.out.msm_sphere)
-
         // Calculate centroid on resampled data
-        centroid_wf(resamplemask_wf.out.resampled,make_giftis_result.pial, make_giftis_result.white, make_giftis_result.midthickness, cifti_mesh_result.t1fs_conform)
+        centroid_mask_input = weightfunc_wf.out.weightfunc
+                                            .join(weightfunc_wf.out.weightfunc)
+        centroid_mask(centroid_mask_input)
+        resamplemask_wf(centroid_mask.out.masked, registration_wf.out.msm_sphere)
+        centroid_wf(resamplemask_wf.out.resampled,
+                    make_giftis_result.pial,
+                    make_giftis_result.white,
+                    make_giftis_result.midthickness,
+                    cifti_mesh_result.t1fs_conform)
 
         // Parameterize the surface
         parameterization_wf(cifti_mesh_result.msh, centroid_wf.out.centroid)
 
-        // Resample the weightfunc
-        resampleweightfunc_wf(weightfunc_wf.out.weightfunc, registration_wf.out.msm_sphere)
-
-        // Project weightfunc into tetrahedral mesh space
-        tet_project_wf(resampleweightfunc_wf.out.resampled, make_giftis_result.pial, make_giftis_result.white, make_giftis_result.midthickness, cifti_mesh_result.t1fs_conform, cifti_mesh_result.msh)
+        // Tetrahedral workflow
+        dilate_mask_input = weightfunc_wf.out.weightfunc
+                                            .join(cifti_mesh_result.cifti, by: 0)
+                                            .map{ s,w,c ->  [
+                                                                s,w,
+                                                                "${c}/MNINonLinear/fsaverage_LR32k/${s}.L.midthickness.32k_fs_LR.surf.gii",
+                                                                "${c}/MNINonLinear/fsaverage_LR32k/${s}.R.midthickness.32k_fs_LR.surf.gii"
+                                                            ]
+                                                }
+        dilate_mask(dilate_mask_input)
+        weightfunc_mask_input = weightfunc_wf.out.weightfunc
+                                            .join(dilate_mask.out.dilated, by: 0)
+        weightfunc_mask(weightfunc_mask_input)
+        resampleweightfunc_wf(weightfunc_mask.out.masked, registration_wf.out.msm_sphere)
+        tet_project_wf(resampleweightfunc_wf.out.resampled,
+                        make_giftis_result.pial,
+                        make_giftis_result.white,
+                        make_giftis_result.midthickness,
+                        cifti_mesh_result.t1fs_conform,
+                        cifti_mesh_result.msh)
 
         //// Gather inputs for optimization
         //optimize_inputs = cifti_mesh_result.msh
