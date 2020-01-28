@@ -17,8 +17,7 @@ RUN apt-get update && \
 	libxft2 \
 	libxinerama1 \
 	curl \
-	gfortran && \
-	git clone https://github.com/wujian16/Cornell-MOE.git \
+	gfortran \
 	&& add-apt-repository ppa:deadsnakes/ppa \
 	&& apt-get update \
 	&& apt-get install -y --no-install-recommends python3.7 python3.7-dev \
@@ -31,30 +30,19 @@ RUN apt-get update && \
 #Get GMSH and Simnibs modules
 COPY ./gmsh-sdk /gmsh-sdk
 
-#Set up environment for installing Cornell-MOE
-ENV	MOE_CC_PATH=/usr/bin/gcc \
-	MOE_CXX_PATH=/usr/bin/g++ \
-	MOE_CMAKE_OPTS="-D MOE_PYTHON_INCLUDE_DIR=/usr/include/python3.7 -D MOE_PYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.7m.so.1.0"
-	#PYTHONPATH=$PYTHONPATH:/simnibs/Python_modules/src/:/gmsh-sdk/lib/
-
-#Set up SimNIBS python package and compile Cornell-MOE
+#Set up SimNIBS python package and botorch using Ax
 RUN	pip install -f https://github.com/simnibs/simnibs/releases/tag/v3.0 simnibs
-#RUN	pip install future && cd /Cornell-MOE && pip install -r requirements.txt && python ./setup.py install \
-#	&& pip install jupyter numba matplotlib docopt
-RUN	pip install jupyter numba matplotlib docopt sklearn
-
+RUN	pip install ax-platform jupyter numba matplotlib docopt
 
 #Set up Field Optimization package
-#Force a git clcocne
+#Force a git clone
 RUN	mkdir -p /field_pkgs/
 ADD	https://api.github.com/repos/jerdra/fieldopt/git/refs/heads/master version.json
-RUN	git clone -b fast_loop https://github.com/jerdra/fieldopt.git /field_pkgs/fieldopt
+RUN	git clone -b master https://github.com/jerdra/fieldopt.git /field_pkgs/fieldopt
 
-ENV	PYTHONPATH=$PYTHONPATH:/Cornell-MOE:/gmsh-sdk/lib/:/field_pkgs
+ENV	PYTHONPATH=$PYTHONPATH:/gmsh-sdk/lib/:/field_pkgs
 
-
-# DEBUGGING
-RUN	apt-get update && apt-get install -y --no-install-recommends vim \
-	&& pip install memory_profiler
+RUN	apt-get update && apt-get install -y --no-install-recommends vim
 
 ENTRYPOINT /bin/bash
+

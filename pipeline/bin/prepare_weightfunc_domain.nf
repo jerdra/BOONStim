@@ -121,7 +121,7 @@ process weightfunc_to_tetra {
 
     #Do resampling
     mninonlin=!{output}/ciftify/!{sub}/MNINonLinear/fsaverage_LR32k/
-    registration=!{output}/registration/!{sub}/
+    registration=!{output}/sim_mesh/!{sub}/registration
     wb_command -metric-resample \
                 weight.R.shape.gii \
                 $mninonlin/!{sub}.R.sphere.32k_fs_LR.surf.gii \
@@ -226,20 +226,20 @@ process ribbon_projection {
     #Project each half into volume space
     wb_command -metric-to-volume-mapping \
                 weight.R.shape.gii \
-                output/registration/!{sub}/!{sub}.R.midthickness.surf.gii \
+                output/sim_mesh!{sub}/registration/!{sub}.R.midthickness.surf.gii \
                 output/sim_mesh/!{sub}/!{sub}_T1fs_conform.nii.gz \
                 -ribbon-constrained \
-                output/registration/!{sub}/!{sub}.R.white.surf.gii \
-                output/registration/!{sub}/!{sub}.R.pial.surf.gii \
+                output/sim_mesh/!{sub}/registration/!{sub}.R.white.surf.gii \
+                output/sim_mesh/!{sub}/registration/!{sub}.R.pial.surf.gii \
                 ribbon.R.nii.gz
 
     wb_command -metric-to-volume-mapping \
                 weight.L.shape.gii \
-                output/registration/!{sub}/!{sub}.L.midthickness.surf.gii \
+                output/sim_mesh!{sub}/registration/!{sub}.L.midthickness.surf.gii \
                 output/sim_mesh/!{sub}/!{sub}_T1fs_conform.nii.gz \
                 -ribbon-constrained \
-                output/registration/!{sub}/!{sub}.L.white.surf.gii \
-                output/registration/!{sub}/!{sub}.L.pial.surf.gii \
+                output/sim_mesh/!{sub}/registration/!{sub}.L.white.surf.gii \
+                output/sim_mesh/!{sub}/registration/!{sub}.L.pial.surf.gii \
                 ribbon.L.nii.gz
 
     #Squish them together
@@ -264,7 +264,7 @@ tetra_input = ribbon_out
 //Should output data.msh, tetraweights
 process tetrahedral_projection {
 
-    publishDir "$params.out/fem_optimization/$sub/", \
+    publishDir "$params.out/$sub/fem_optimization", \
                 saveAs: { "${sub}_$it" }, \
                 mode: 'copy'
 
@@ -312,7 +312,7 @@ process make_surface_patch {
 //
 process parameterize_surface {
 
-    publishDir "$params.out/fem_optimization/$sub/", \
+    publishDir "$params.out/sim_mesh/${sub}/fem_optimization/", \
                 saveAs: { "${sub}_$it" }, \
                 mode: 'copy'
 

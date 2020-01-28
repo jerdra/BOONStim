@@ -4,8 +4,6 @@
 //INPUTS:
 //out               Output directory containing mri2mesh outputs
 
-
-
 //OUTPUTS:
 //Script will output to output_dir/sim_mesh/sub/surfaces
 
@@ -91,7 +89,7 @@ process assign_structure {
 
     label 'connectome'
 
-    publishDir "$params.out/registration/${sub}/", \
+    publishDir "$params.out/sim_mesh/${sub}/registration/", \
                 saveAs: { "${sub}.$it" }, \
                 mode: 'copy'
 
@@ -126,7 +124,7 @@ midthickness_input = assigned_gifti
 process compute_midthickness {
 
     label 'connectome'
-    publishDir "$params.out/registration/${sub}/", \
+    publishDir "$params.out/sim_mesh/${sub}/registration", \
                 saveAs: { "${sub}.$it" }, \
                 mode: 'copy'
 

@@ -1,0 +1,8 @@
+*.nfs*
+*.sw*
+*_trace.txt
+*.html
+*dot.*
+*txt.*
+*html.*
+nxf-tmp

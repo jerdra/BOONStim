@@ -8,6 +8,7 @@
 	"verbosity":"-vv",
 	"low_mem":true,
 	"anat_only":true,
-	"no_run_reconall":true
+	"no_run_reconall":true,
+	"skip_bids_validation":true
 }
 
