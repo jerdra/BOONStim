@@ -316,20 +316,7 @@ workflow calculate_weightfunc_wf {
         // Remove subcortical regions
         remove_subcortical(calculate_roi_correlation.out.corr_dscalar)
 
-        // CURRENTLY COMMENTED OUT SINCE WE'RE GOING TO BE USING BOTH HEMISPHERES FOR TESTING
-        ////Separate out cifti file
-        //split_cifti(calculate_roi_correlation.out.corr_dscalar)
-
-        ////Mask the right cortex entirely (don't!)
-        //mask_cortex(split_cifti.out.right_shape)
-
-        ////Recombine to make final dscalar containing only left cortex
-        //create_dense_input = split_cifti.out.left_shape
-        //                                .join(mask_cortex.out.masked_shape, by: 0)
-        //create_dense(create_dense_input)
-
         emit:
-        //    weightfunc = create_dense.out.weightfunc
         weightfunc = remove_subcortical.out.corr_dscalar
 
 }

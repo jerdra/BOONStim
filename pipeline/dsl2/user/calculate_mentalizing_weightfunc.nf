@@ -14,7 +14,7 @@ workflow weightfunc_wf {
         mask_wf(cifti,calculate_weightfunc_wf.out.weightfunc)
 
     emit:
-        mask = mask_wf.out.weighted_mask
+        mask = mask_wf.out.mask
         weightfunc = calculate_weightfunc_wf.out.weightfunc
         
         

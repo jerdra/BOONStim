@@ -22,6 +22,101 @@ process project_mask2surf{
 
 }
 
+process threshold_mask{
+
+    label 'connectome'
+    input:
+    tuple val(sub), val(hemi), path(surfmask)
+
+    output:
+    tuple val(sub), val(hemi), path("${sub}.${hemi}.thres_mask.shape.gii"), emit: thres_mask
+
+    shell:
+    '''
+    wb_command -metric-math \
+                "(x>0.75)" \
+                -var "x" !{surfmask}
+                !{sub}.!{hemi}.thres_mask.shape.gii
+    '''
+}
+
+process pull_dmpfc_cluster{
+
+    label 'connectome'
+    input:
+    tuple val(sub), val(hemi), path(thres), path(midthick)
+
+    output:
+    tuple val(sub), val(hemi), path("${sub}.${hemi}.dmpfc_mask.shape.gii"), emit: clusts
+
+    shell:
+    '''
+    # Spatial clustering
+    wb_command -metric-find-clusters \
+                !{midthick} \
+                !{thres} \
+                0.5 50 \
+                !{sub}.!{hemi}.thres_mask_clust.shape.gii
+
+    # Pull maximal cluster # which will be dorsal DMPFC
+    MAX_VAL=$(wb_command -metric-stats !{sub}.!{hemi}.thres_mask_clust.shape.gii)
+
+    wb_command -metric-math \
+                "(x == round($MAX_VAL))" \
+                -var "x" !{sub}.!{hemi}.thres_mask_clust.shape.gii \
+                !{sub}.!{hemi}.dmpfc_mask.shape.gii
+    '''
+}
+
+process dilate_cluster{
+
+    label 'connectome'
+    input:
+    tuple val(sub), val(hemi), path(dmpfc_mask), path(midthick)
+
+    output:
+    tuple val(sub), val(hemi), path("${sub}.${hemi}.dmpfc_mask_dilated.shape.gii"), emit: dmpfc_mask
+
+    shell:
+    '''
+    wb_command -metric-dilate \
+                !{dmpfc_mask} \
+                !{midthick} \
+                6 \
+                !{sub}.!{hemi}.dmpfc_mask_dilated.shape.gii
+    '''
+}
+
+process make_symmetric_dscalar{
+
+    label 'connectome'
+    input:
+    tuple val(sub), path(left_mask), path(right_mask)
+
+    output:
+    tuple val(sub), path("${sub}.dmpfc_mask_symmetric.dscalar.nii"), emit: dmpfc_mask
+
+    shell:
+    '''
+
+    wb_command -metric-math \
+                "(x+y) > 0" \
+                -var x !{left_mask} \
+                -var y !{right_mask} \
+                !{sub}.L.dmpfc_symmetric.shape.gii
+
+    wb_command -metric-math \
+                "(x+y) > 0" \
+                -var x !{right_mask} \
+                -var y !{left_mask} \
+                !{sub}.R.dmpfc_symmetric.shape.gii
+
+    wb_command -cifti-create-dense-scalar \
+                !{sub}.dmpfc_mask_symmetric.dscalar.nii \
+                -left-metric !{sub}.L.dmpfc_symmetric.shape.gii \
+                -right-metric !{sub}.R.dmpfc_symmetric.shape.gii
+    '''
+
 process binarize_mask{
 
     label 'connectome'
@@ -174,38 +269,36 @@ workflow mask_wf {
         project_mask_inputs = project_lmask_inputs.mix(project_rmask_inputs)
         project_mask2surf(project_mask_inputs)
 
-        // Binarize masks on surface
-        binarize_mask(project_mask2surf.out.mask_shape)
-        binarize_mask.out.bin_mask
+        // Threshold masks
+        threshold_mask(project_mask2surf.out.mask_shape)
 
-        // Set up dilation input
-        dilate_mask_input = binarize_mask.out.bin_mask
-                                        .combine(cifti, by: 0)
-                                        .map{ s,h,b,c ->  [
-                                                            s,h,b,
+        // Pull DMPFC cluster
+        dmpfc_cluster_input = threshold_mask.out.thres_mask
+                                    .combine(cifti, by: 0)
+                                    .map{ s,h,t,c ->[
+                                                        s,h,t,
+                                                        "${c}/MNINonLinear/fsaverage_LR32k/${s}.${h}.midthickness.32k_fs_LR.surf.gii"
+                                                    ]
+                                        }
+        pull_dmpfc_cluster(dmpfc_cluster_input)
+
+        // Dilate clusters
+        dilate_cluster_input = pull_dmpfc_cluster.out.clusts
+                                    .combine(cifti, by: 0)
+                                    .map{ s,h,m,c ->    [
+                                                            s,h,m,
                                                             "${c}/MNINonLinear/fsaverage_LR32k/${s}.${h}.midthickness.32k_fs_LR.surf.gii"
                                                         ]
-                                            }
-        dilate_mask(dilate_mask_input)
+                                        }
+        dilate_cluster(dilate_cluster_input)
 
-        // Recombine shape mask files
-        recombine_input = dilate_mask.out.dilated_mask
-                                        .map { s,h,d -> [s,d] }
-                                        .groupTuple ( by: 0, sort: {it.baseName}, size: 2)
-                                        .map { s,f -> [s, f[0], f[1]] }
-
-        recombine_masks(recombine_input)
-        recombine_masks.out.dscalar_mask
-
-        // Apply bilateral mask
-        apply_mask_input = weightfile
-                                .join(recombine_masks.out.dscalar_mask, by:0)
-        apply_mask(apply_mask_input)
-
-        // Threshold
-        threshold_weightfunc(apply_mask.out.masked_weightfunc)
+        // Make DMPFC mask symmetric
+        make_symmetric_input = dilate_cluster.out.dmpfc_mask
+                                            .groupTuple(by: 0, size: 2, sort: {it})
+                                            .map{ s,h,m -> [s, m[0], m[1]] }
+        make_symmetric_dscalar(make_symmetric_input)
 
     emit:
-        weighted_mask = threshold_weightfunc.out.thresholded_weightfunc
+        mask = make_symmetric_dscalar.out.dmpfc_mask
 
 }
