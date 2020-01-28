@@ -105,8 +105,8 @@ process construct_boonstim_outputs{
         path(l_thick), path(r_thick), \
         path(l_msm), path(r_msm), \
         path("${sub}.weightfunc.dscalar.nii"), path("${sub}.mask.dscalar.nii"), \
-        path(C), path(R), path(bounds), path(qc_param), \
-        path(femfunc)
+        path(C), path(R), path(bounds), path(qc_param)
+        // path(femfunc)
 //        path(loc), path(rot), path(hist)
 
     output:
@@ -128,7 +128,7 @@ process construct_boonstim_outputs{
 
     # Move optimization files
     #mv {loc} {rot} {hist} optimization
-    mv !{C} !{R} !{bounds} !{femfunc} optimization
+    mv !{C} !{R} !{bounds} optimization
 
     # Move all files
     mv * !{sub} || true
@@ -159,7 +159,7 @@ workflow {
 
         // Calculate centroid on resampled data
         centroid_mask_input = weightfunc_wf.out.weightfunc
-                                            .join(weightfunc_wf.out.weightfunc)
+                                            .join(weightfunc_wf.out.mask)
         centroid_mask(centroid_mask_input)
         resamplemask_wf(centroid_mask.out.masked, registration_wf.out.msm_sphere)
         centroid_wf(resamplemask_wf.out.resampled,
@@ -225,7 +225,7 @@ workflow {
                                     .join(parameterization_wf.out.R)
                                     .join(parameterization_wf.out.bounds)
                                     .join(parameterization_wf.out.qc_param)
-                                    .join(tet_project_wf.out.fem_weights)
+        //                            .join(tet_project_wf.out.fem_weights)
         //                            .join(weightfunc_wf.out.mask, by: 0)
         //                            .join(optimize_coil.out.position, by: 0)
         //                            .join(optimize_coil.out.orientation, by: 0)
