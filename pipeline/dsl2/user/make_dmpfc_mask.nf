@@ -128,7 +128,16 @@ workflow mask_wf {
         project_mask_inputs = project_lmask_inputs.mix(project_rmask_inputs)
         project_mask2surf(project_mask_inputs)
         binarize_mask(project_mask2surf.out.mask_shape)
-        dilate_dmpfc_mask(binarize_mask.out.bin_mask)
+
+        dilate_dmpfc_input = binarize_mask.out.bin_mask
+                                        .combine(cifti, by:0)
+                                        .map{s,h,b,c->[
+                                                        s,h,b,
+                                                        "${c}/MNINonLinear/fsaverage_LR32k/${s}.${h}.midthickness.32k_fs_LR.surf.gii"
+                                                      ]
+                                            }
+
+        dilate_dmpfc_mask(dilate_dmpfc_input)
 
         // Make DMPFC symmetric mask
         make_symmetric_input = dilate_dmpfc_mask.out.dmpfc_mask
