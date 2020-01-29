@@ -99,7 +99,7 @@ workflow resample2native_wf {
         //Recombine
         recombine_input = resample_surf.out.resampled
                                         .map { s,h,f -> [s,f] }
-                                        .groupTuple ( by: 0, sort: { it.baseName } )
+                                        .groupTuple ( by: 0, sort: { it.baseName }, size: 2 )
                                         .map { s,f -> [s,f[0],f[1]] }
 
         recombine(recombine_input)

@@ -105,8 +105,8 @@ process construct_boonstim_outputs{
         path(l_thick), path(r_thick), \
         path(l_msm), path(r_msm), \
         path("${sub}.weightfunc.dscalar.nii"), path("${sub}.mask.dscalar.nii"), \
-        path(C), path(R), path(bounds), path(qc_param)
-        // path(femfunc)
+        path(C), path(R), path(bounds), path(qc_param), \
+        path(femfunc)
 //        path(loc), path(rot), path(hist)
 
     output:
@@ -128,7 +128,7 @@ process construct_boonstim_outputs{
 
     # Move optimization files
     #mv {loc} {rot} {hist} optimization
-    mv !{C} !{R} !{bounds} optimization
+    mv !{C} !{R} !{bounds} !{femfunc} optimization
 
     # Move all files
     mv * !{sub} || true
@@ -172,7 +172,7 @@ workflow {
         parameterization_wf(cifti_mesh_result.msh, centroid_wf.out.centroid)
 
         // Tetrahedral workflow
-        dilate_mask_input = weightfunc_wf.out.weightfunc
+        dilate_mask_input = weightfunc_wf.out.mask
                                             .join(cifti_mesh_result.cifti, by: 0)
                                             .map{ s,w,c ->  [
                                                                 s,w,
@@ -225,7 +225,7 @@ workflow {
                                     .join(parameterization_wf.out.R)
                                     .join(parameterization_wf.out.bounds)
                                     .join(parameterization_wf.out.qc_param)
-        //                            .join(tet_project_wf.out.fem_weights)
+                                    .join(tet_project_wf.out.fem_weights)
         //                            .join(weightfunc_wf.out.mask, by: 0)
         //                            .join(optimize_coil.out.position, by: 0)
         //                            .join(optimize_coil.out.orientation, by: 0)

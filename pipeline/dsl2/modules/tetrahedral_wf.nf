@@ -23,7 +23,7 @@ process split_dscalar {
 
 }
 
-process project2vol {
+process tet_project2vol {
 
     label 'connectome'
 
@@ -31,7 +31,7 @@ process project2vol {
     tuple val(sub), val(hemi), path(shape), path(pial), path(white), path(midthick), path(t1)
 
     output:
-    tuple val(sub), val(hemi), path("${hemi}.ribbon.nii.gz"), emit: ribbon
+    tuple val(sub), val(hemi), path("${sub}.${hemi}.ribbon.nii.gz"), emit: ribbon
 
     shell:
     '''
@@ -42,11 +42,11 @@ process project2vol {
                 -ribbon-constrained \
                     !{white} \
                     !{pial} \
-                !{hemi}.ribbon.nii.gz
+                !{sub}.!{hemi}.ribbon.nii.gz
     '''
 }
 
-process add_niftis {
+process add_tet_niftis {
 
     label 'connectome'
 
@@ -54,7 +54,7 @@ process add_niftis {
     tuple val(sub), path(nifti1), path(nifti2)
 
     output:
-    tuple val(sub), path('combined.nii.gz'), emit: sumvol
+    tuple val(sub), path("${sub}_combined.nii.gz"), emit: sumvol
 
     shell:
     '''
@@ -62,7 +62,7 @@ process add_niftis {
                 "x + y" \
                 -var x !{nifti1} \
                 -var y !{nifti2} \
-                combined.nii.gz
+                !{sub}_combined.nii.gz
     '''
 }
 
@@ -116,17 +116,16 @@ workflow tet_project_wf{
 
         //Combine into one stream
         project_input = left_project_input.mix(right_project_input)
-        project2vol(project_input)
-        project2vol.out.ribbon
+        tet_project2vol(project_input)
 
         //Gather together T1 outputs and sum to form full image
-        add_niftis_input = project2vol.out.ribbon
+        add_niftis_input = tet_project2vol.out.ribbon
                                     .groupTuple(by: 0, size: 2)
                                     .map{ s,h,n -> [ s,n[0],n[1] ] }
-        add_niftis(add_niftis_input)
+        add_tet_niftis(add_niftis_input)
 
         //Tetrahedral projection
-        tet_inputs = add_niftis.out.sumvol.join(msh, by: 0)
+        tet_inputs = add_tet_niftis.out.sumvol.join(msh, by: 0)
         tetrahedral_projection(tet_inputs)
 
         emit:

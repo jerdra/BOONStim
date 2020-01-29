@@ -12,7 +12,7 @@ process split_dscalar {
     tuple val(sub), val('R'), path('R.shape.gii'), emit: right
 
     shell:
-    ''' 
+    '''
     wb_command -cifti-separate \
                 !{dscalar} \
                 COLUMN \
@@ -23,15 +23,15 @@ process split_dscalar {
 
 }
 
-process project2vol {
+process centroid_project2vol {
 
     label 'connectome'
-    
+
     input:
     tuple val(sub), val(hemi), path(shape), path(pial), path(white), path(midthick), path(t1)
-    
+
     output:
-    tuple val(sub), val(hemi), path("${hemi}.ribbon.nii.gz"), emit: ribbon
+    tuple val(sub), val(hemi), path("${sub}.${hemi}.ribbon.nii.gz"), emit: ribbon
 
     shell:
     '''
@@ -42,17 +42,17 @@ process project2vol {
                 -ribbon-constrained \
                     !{white} \
                     !{pial} \
-                !{hemi}.ribbon.nii.gz
+                !{sub}.!{hemi}.ribbon.nii.gz
     '''
 }
 
-process add_niftis {
+process add_centroid_niftis {
 
     label 'connectome'
-    
+
     input:
     tuple val(sub), path(nifti1), path(nifti2)
-    
+
     output:
     tuple val(sub), path('combined.nii.gz'), emit: sumvol
 
@@ -71,7 +71,7 @@ process normalize_vol {
     label 'connectome'
     input:
     tuple val(sub), path(vol)
-    
+
     output:
     tuple val(sub), path('normalized.nii.gz'), emit: normvol
 
@@ -97,14 +97,14 @@ process compute_weighted_centroid{
 
     input:
     tuple val(sub), path(vol)
-    
+
     output:
     tuple val(sub), path('ras_coord.txt'), emit: coord
-    
+
     shell:
     '''
     #!/usr/bin/env python
-    
+
     import nibabel as nib
     import numpy as np
 
@@ -112,7 +112,7 @@ process compute_weighted_centroid{
     img = nib.load("!{vol}")
     affine = img.affine
     data = img.get_data()
-    
+
     #Mask
     x,y,z = np.where(data > 0)
     coords = np.array([x,y,z])
@@ -122,11 +122,11 @@ process compute_weighted_centroid{
     weighted_vox = np.dot(coords,vals)[:,np.newaxis]
     r_weighted_vox = np.dot(affine[:3,:3],weighted_vox)
     weighted_coord = r_weighted_vox + affine[:3,3:4]
-    
+
     #Save
     np.savetxt("ras_coord.txt",weighted_coord)
     '''
-    
+
 
 }
 
@@ -159,30 +159,29 @@ workflow centroid_wf{
 
         //Combine into one stream
         project_input = left_project_input.mix(right_project_input)
-        project2vol(project_input)
-        project2vol.out.ribbon
+        centroid_project2vol(project_input)
 
         //Gather together T1 outputs and sum to form full image
-        add_niftis_input = project2vol.out.ribbon
+        add_niftis_input = centroid_project2vol.out.ribbon
                                     .groupTuple(by: 0, size: 2)
                                     .map{ s,h,n -> [ s,n[0],n[1] ] }
-        add_niftis(add_niftis_input)
+        add_centroid_niftis(add_niftis_input)
 
         //Re-normalize
-        normalize_vol(add_niftis.out.sumvol)
+        normalize_vol(add_centroid_niftis.out.sumvol)
         normalize_vol.out.normvol
 
-        //Calculate centroid 
+        //Calculate centroid
         compute_weighted_centroid(normalize_vol.out.normvol)
 
     emit:
         centroid = compute_weighted_centroid.out.coord
-        
-        
-                                    
-        
-        
-        
+
+
+
+
+
+
 
 
 
