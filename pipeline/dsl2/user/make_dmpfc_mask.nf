@@ -92,7 +92,6 @@ process make_symmetric_dscalar{
 }
 
 
-}
 
 //RECOMBINE INTO DSCALAR
 
