@@ -5,7 +5,7 @@ backports.functools-lru-cache==1.5
 backports.shutil-get-terminal-size==1.0.0
 backports.tempfile==1.0
 backports.weakref==1.0.post1
-bleach==3.1.0
+bleach==3.1.1
 bz2file==0.98
 cloudpickle==0.8.1
 configparser==3.7.3
