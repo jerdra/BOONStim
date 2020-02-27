@@ -99,7 +99,7 @@ process compute_weighted_centroid{
     tuple val(sub), path(vol)
 
     output:
-    tuple val(sub), path('ras_coord.txt'), emit: coord
+    tuple val(sub), path("${sub}_ras_coord.txt"), emit: coord
 
     shell:
     '''
@@ -124,7 +124,7 @@ process compute_weighted_centroid{
     weighted_coord = r_weighted_vox + affine[:3,3:4]
 
     #Save
-    np.savetxt("ras_coord.txt",weighted_coord)
+    np.savetxt("!{sub}_ras_coord.txt",weighted_coord)
     '''
 
 
