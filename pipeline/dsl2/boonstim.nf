@@ -105,7 +105,7 @@ process construct_boonstim_outputs{
         path(l_thick), path(r_thick), \
         path(l_msm), path(r_msm), \
         path("${sub}.weightfunc.dscalar.nii"), path("${sub}.mask.dscalar.nii"), \
-        path(C), path(R), path(bounds), path(qc_param), \
+        path(centroid), path(C), path(R), path(bounds), path(qc_param), \
         path(femfunc)
 //        path(loc), path(rot), path(hist)
 
@@ -128,7 +128,7 @@ process construct_boonstim_outputs{
 
     # Move optimization files
     #mv {loc} {rot} {hist} optimization
-    mv !{C} !{R} !{bounds} !{femfunc} optimization
+    mv !{centroid} !{C} !{R} !{bounds} !{femfunc} optimization
 
     # Move all files
     mv * !{sub} || true
@@ -221,6 +221,7 @@ workflow {
                                     .join(msm.right, by:0)
                                     .join(resampleweightfunc_wf.out.resampled, by:0)
                                     .join(resamplemask_wf.out.resampled)
+                                    .join(centroid_wf.out.centroid)
                                     .join(parameterization_wf.out.C)
                                     .join(parameterization_wf.out.R)
                                     .join(parameterization_wf.out.bounds)
@@ -241,7 +242,4 @@ workflow {
 
 }
 
-// TODO BUILD QC OUTPUTS
-// TODO INSPECT AND MODIFY INPUT FILES IF NEEDED?
-// TODO BUILD INPUT SUBSTITUTEABLE VERSION
-// TODO LOGGING
+// TODO: Allow for flexible optimization modes
