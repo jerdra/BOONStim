@@ -99,7 +99,6 @@ workflow mask_wf {
 
     get:
         cifti
-        weightfile
 
     main:
         project_lmask_inputs = cifti
