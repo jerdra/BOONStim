@@ -17,10 +17,10 @@ process threshold_weightfunc{
     '''
 
     # Get 80th percentile in mask
-    thres=$(wb_command -cifti-stats "masked.dscalar.nii" -percentile 80 \
+    thres=$(wb_command -cifti-stats !{wf} -percentile 80 \
             -roi !{mask})
     wb_command -cifti-math \
-                "x * $thres" \
+                "(x * (x > $thres))" \
                 -var "x" !{wf} \
                 "!{sub}.thresholded_weightfunc.dscalar.nii"
     '''
