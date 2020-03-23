@@ -1,0 +1,34 @@
+Jan-08 13:55:51.356 [main] DEBUG nextflow.cli.Launcher - $> nextflow run dmpfc_run.nf --derivatives /archive/data/SPINS/pipelines/bids_apps/
+Jan-08 13:55:51.561 [main] INFO  nextflow.cli.CmdRun - N E X T F L O W  ~  version 19.09.0-edge
+Jan-08 13:55:51.577 [main] INFO  nextflow.cli.CmdRun - Launching `dmpfc_run.nf` [mad_wing] - revision: 69a7ecdae3
+Jan-08 13:55:51.696 [main] DEBUG nextflow.extension.OperatorEx - Dataflow extension methods: branch,buffer,chain,choice,collate,collect,collectFile,combine,concat,count,countBy,countFasta,countFastq,countLines,countText,cross,distinct,filter,first,flatMap,flatten,fork,groupBy,groupTuple,ifEmpty,into,join,last,map,max,mean,merge,min,mix,phase,print,println,randomSample,reduce,route,separate,set,splitCsv,splitFasta,splitFastq,splitText,spread,subscribe,sum,take,tap,toDouble,toFloat,toInteger,toList,toLong,toSortedList,transpose,unique,until,view
+Jan-08 13:55:51.716 [main] DEBUG nextflow.Session - Session uuid: 4d8e359b-b94c-4ad0-85de-ab87e53cac1c
+Jan-08 13:55:51.716 [main] DEBUG nextflow.Session - Run name: mad_wing
+Jan-08 13:55:51.719 [main] DEBUG nextflow.Session - Executor pool size: 32
+Jan-08 13:55:51.736 [main] DEBUG nextflow.cli.CmdRun - 
+  Version: 19.09.0-edge build 5167
+  Created: 16-09-2019 21:15 UTC (17:15 EDT)
+  System: Linux 4.4.0-148-generic
+  Runtime: Groovy 2.5.8 on OpenJDK 64-Bit Server VM 1.8.0_212-8u212-b03-0ubuntu1.16.04.1-b03
+  Encoding: UTF-8 (UTF-8)
+  Process: 438747@bayes.camhres.ca [172.26.216.97]
+  CPUs: 32 - Mem: 62.5 GB (29.6 GB) - Swap: 980 MB (349.4 MB)
+Jan-08 13:55:51.832 [main] DEBUG nextflow.Session - Work-dir: /scratch/jjeyachandra/nextflow_work [nfs]
+Jan-08 13:55:51.833 [main] DEBUG nextflow.Session - Script base path does not exist or is not a directory: /mnt/tigrlab/projects/jjeyachandra/BOONStim/pipeline/dsl2/user/bin
+Jan-08 13:55:51.866 [main] DEBUG nextflow.Session - Observer factory: TowerFactory
+Jan-08 13:55:51.868 [main] DEBUG nextflow.Session - Observer factory: DefaultObserverFactory
+Jan-08 13:55:52.065 [main] DEBUG nextflow.Session - Session start invoked
+Jan-08 13:55:52.741 [main] DEBUG nextflow.script.ScriptRunner - > Launching execution
+Jan-08 13:55:52.757 [main] WARN  nextflow.NextflowMeta$Preview - DSL 2 IS AN EXPERIMENTAL FEATURE UNDER DEVELOPMENT -- SYNTAX MAY CHANGE IN FUTURE RELEASE
+Jan-08 13:55:52.762 [main] WARN  nextflow.script.ScriptBinding - Access to undefined parameter `subjects` -- Initialise it to a default value eg. `params.subjects = some_value`
+Jan-08 13:55:53.336 [main] DEBUG nextflow.extension.CH - Bridging dataflow queue=DataflowQueue(queue=[])
+Jan-08 13:55:53.339 [main] DEBUG nextflow.Session - Ignite dataflow network (3)
+Jan-08 13:55:53.348 [main] DEBUG nextflow.script.ScriptRunner - > Await termination 
+Jan-08 13:55:53.349 [main] DEBUG nextflow.Session - Session await
+Jan-08 13:55:53.349 [main] DEBUG nextflow.Session - Session await > all process finished
+Jan-08 13:55:53.349 [main] DEBUG nextflow.Session - Session await > all barriers passed
+Jan-08 13:55:53.353 [PathVisitor-2] DEBUG nextflow.file.PathVisitor - files for syntax: glob; folder: /archive/data/SPINS/pipelines/bids_apps/fmriprep/; pattern: sub-*; options: [type:dir]
+Jan-08 13:55:53.353 [PathVisitor-1] DEBUG nextflow.file.PathVisitor - files for syntax: glob; folder: /archive/data/SPINS/pipelines/bids_apps/ciftify/; pattern: sub-*; options: [type:dir]
+Jan-08 13:55:53.662 [main] DEBUG nextflow.trace.StatsObserver - Workflow completed > WorkflowStats[succeedCount=0; failedCount=0; ignoredCount=0; cachedCount=0; succeedDuration=0ms; failedDuration=0ms; cachedDuration=0ms]
+Jan-08 13:55:53.740 [main] DEBUG nextflow.CacheDB - Closing CacheDB done
+Jan-08 13:55:53.781 [main] DEBUG nextflow.script.ScriptRunner - > Execution complete -- Goodbye
