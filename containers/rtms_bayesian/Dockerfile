@@ -38,20 +38,17 @@ ENV	MOE_CC_PATH=/usr/bin/gcc \
 	#PYTHONPATH=$PYTHONPATH:/simnibs/Python_modules/src/:/gmsh-sdk/lib/
 
 #Set up SimNIBS python package and compile Cornell-MOE
-RUN	pip install -f https://github.com/simnibs/simnibs/releases/tag/v3.0 simnibs
-#RUN	pip install future && cd /Cornell-MOE && pip install -r requirements.txt && python ./setup.py install \
-#	&& pip install jupyter numba matplotlib docopt
-RUN	pip install jupyter numba matplotlib docopt sklearn
-
+# Force emcee version as newer ones have issues w/linearly dependent walkers
+RUN	pip install -f https://github.com/simnibs/simnibs/releases/tag/v3.1.2 simnibs
+RUN	pip install future && cd /Cornell-MOE && pip install -r requirements.txt && python ./setup.py install \
+	&& pip install jupyter numba matplotlib docopt sklearn emcee==2.2.1
 
 #Set up Field Optimization package
-#Force a git clcocne
 RUN	mkdir -p /field_pkgs/
 ADD	https://api.github.com/repos/jerdra/fieldopt/git/refs/heads/master version.json
-RUN	git clone -b fast_loop https://github.com/jerdra/fieldopt.git /field_pkgs/fieldopt
+RUN	git clone -b master https://github.com/jerdra/fieldopt.git /field_pkgs/fieldopt
 
 ENV	PYTHONPATH=$PYTHONPATH:/Cornell-MOE:/gmsh-sdk/lib/:/field_pkgs
-
 
 # DEBUGGING
 RUN	apt-get update && apt-get install -y --no-install-recommends vim \
