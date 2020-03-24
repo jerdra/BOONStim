@@ -97,10 +97,10 @@ process optimize_coil {
 
 def lr_branch = branchCriteria {
                 left: it[1] == 'L'
-                    return [it[0],it[2]]
+                    return [it[0], it[2]]
                 right: it[1] == 'R'
                     return [it[0],it[2]]
-            }
+                }
 
 workflow {
 
@@ -152,26 +152,33 @@ workflow {
                         cifti_mesh_result.t1fs_conform,
                         cifti_mesh_result.msh)
 
-        //// Gather inputs for optimization
-        //optimize_inputs = cifti_mesh_result.msh
-        //                            .join(tet_project_wf.out.fem_weights, by: 0)
-        //                            .join(parameterization_wf.out.C, by: 0)
-        //                            .join(parameterization_wf.out.R, by: 0)
-        //                            .join(parameterization_wf.out.bounds, by: 0)
-        //                            .map{ s,m,w,C,R,b -> [ s,m,w,C,R,b,"$params.coil" ] }
+        // Gather inputs for optimization (centroid needed)
+        optimize_inputs = cifti_mesh_result.msh
+                                    .join(tet_project_wf.out.fem_weights, by: 0)
         //optimize_coil(optimize_inputs)
 
-
-        //// Set up outputs
+        // Gather BOONStim outputs for publishing
         registration_wf.out.msm_sphere.branch(lr_branch).set { msm }
         make_giftis_result.pial.branch(lr_branch).set { pial }
         make_giftis_result.white.branch(lr_branch).set { white }
         make_giftis_result.midthickness.branch(lr_branch).set { midthick }
+        publish_boonstim_input = cifti_mesh_result.msh
+                                    .join(cifti_mesh_result.t1fs_conform)
+                                    .join(cifti_mesh_result.mesh_m2m)
+                                    .join(cifti_mesh_result.mesh_fs)
+                                    .join(pial.left).join(pial.right)
+                                    .join(white.left).join(white.right)
+                                    .join(midthick.left).join(midthick.right)
+                                    .join(msm.left).join(msm.right)
+                                    .join(resampleweightfunc_wf.out.resampled)
+                                    .join(centroid_wf.out.coord)
+                                    .join(tet_project_wf.out.fem_weights)
+        publish_boonstim(publish_boonstim_input)
 
-        publish:
-            cifti_mesh_result.cifti   to: "$params.out/ciftify", mode: 'copy'
-            cifti_mesh_result.fmriprep to: "$params.out/fmriprep", mode: 'copy'
-            cifti_mesh_result.freesurfer to: "$params.out/freesurfer", mode: 'copy'
-            cifti_mesh_result.fmriprep_html to: "$params.out/fmriprep", mode: 'copy'
-
+        // Publish Ciftify outputs
+        publish_cifti_input = cifti_mesh_result.out.cifti
+                                    .join(cifti_mesh_result.out.fmriprep)
+                                    .join(cifti_mesh_result.out.freesurfer)
+                                    .combine(["$params.zz"])
+        publish_cifti(publish_cift_input)
 }
