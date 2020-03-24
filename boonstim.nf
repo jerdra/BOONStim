@@ -95,46 +95,6 @@ process optimize_coil {
 
 }
 
-process construct_boonstim_outputs{
-
-    input:
-        tuple val(sub), \
-        path(msh), path(t1fs), path(m2m), path(fs), \
-        path(l_pial), path(r_pial), \
-        path(l_white), path(r_white), \
-        path(l_thick), path(r_thick), \
-        path(l_msm), path(r_msm), \
-        path("${sub}.weightfunc.dscalar.nii"), path("${sub}.mask.dscalar.nii"), \
-        path(centroid), path(C), path(R), path(bounds), path(qc_param), \
-        path(femfunc)
-//        path(loc), path(rot), path(hist)
-
-    output:
-        tuple val(sub), path("$sub"), emit: subject
-
-    shell:
-    '''
-    #!/bin/bash
-
-    # Make subdirectories
-    mkdir !{sub}
-    mkdir surfaces
-    mkdir optimization
-
-    # Move surface files
-    mv \
-        !{l_pial} !{r_pial} !{l_white} !{r_white} !{l_thick} !{r_thick} \
-        !{l_msm} !{r_msm} !{sub}.weightfunc.dscalar.nii !{sub}.mask.dscalar.nii surfaces
-
-    # Move optimization files
-    #mv {loc} {rot} {hist} optimization
-    mv !{centroid} !{C} !{R} !{bounds} !{femfunc} optimization
-
-    # Move all files
-    mv * !{sub} || true
-    '''
-}
-
 def lr_branch = branchCriteria {
                 left: it[1] == 'L'
                     return [it[0],it[2]]
@@ -207,39 +167,11 @@ workflow {
         make_giftis_result.pial.branch(lr_branch).set { pial }
         make_giftis_result.white.branch(lr_branch).set { white }
         make_giftis_result.midthickness.branch(lr_branch).set { midthick }
-        construct_output_input = cifti_mesh_result.msh
-                                    .join(cifti_mesh_result.t1fs_conform, by: 0)
-                                    .join(cifti_mesh_result.mesh_m2m, by: 0)
-                                    .join(cifti_mesh_result.mesh_fs, by: 0)
-                                    .join(pial.left, by:0)
-                                    .join(pial.right, by:0)
-                                    .join(white.left, by:0)
-                                    .join(white.right, by:0)
-                                    .join(midthick.left, by:0)
-                                    .join(midthick.right, by:0)
-                                    .join(msm.left, by:0)
-                                    .join(msm.right, by:0)
-                                    .join(resampleweightfunc_wf.out.resampled, by:0)
-                                    .join(resamplemask_wf.out.resampled)
-                                    .join(centroid_wf.out.centroid)
-                                    .join(parameterization_wf.out.C)
-                                    .join(parameterization_wf.out.R)
-                                    .join(parameterization_wf.out.bounds)
-                                    .join(parameterization_wf.out.qc_param)
-                                    .join(tet_project_wf.out.fem_weights)
-        //                            .join(weightfunc_wf.out.mask, by: 0)
-        //                            .join(optimize_coil.out.position, by: 0)
-        //                            .join(optimize_coil.out.orientation, by: 0)
-        //                            .join(optimize_coil.out.history, by: 0)
-        construct_boonstim_outputs(construct_output_input)
 
         publish:
             cifti_mesh_result.cifti   to: "$params.out/ciftify", mode: 'copy'
             cifti_mesh_result.fmriprep to: "$params.out/fmriprep", mode: 'copy'
             cifti_mesh_result.freesurfer to: "$params.out/freesurfer", mode: 'copy'
             cifti_mesh_result.fmriprep_html to: "$params.out/fmriprep", mode: 'copy'
-            construct_boonstim_outputs.out.subject to: "$params.out/boonstim", mode: 'copy'
 
 }
-
-// TODO: Allow for flexible optimization modes

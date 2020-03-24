@@ -49,11 +49,8 @@ process ciftify{
     -v $(pwd):/output \
     -v !{params.license}:/license \
     !{params.ciftify_descriptor} $(pwd)/!{json} \
-    --imagepath !{params.simg} -x --stream
+    --imagepath !{params.ciftify} -x --stream
     '''
-
-
-
 }
 
 // Process definitions
@@ -111,7 +108,7 @@ process fmriprep_anat{
     -v $(pwd):/output \
     -v !{params.license}:/license \
     !{params.anat_descriptor} $(pwd)/!{json} \
-    --imagepath !{params.simg} -x --stream
+    --imagepath !{params.fmriprep} -x --stream
 
     '''
 }
