@@ -1,0 +1,64 @@
+BOONStim
+=============================
+
+Run the BOONStim coil optimization pipeline
+
+USAGE
+
+nextflow run boonstim.nf [options...] -c <CONFIG> --bids <BIDS> --out <OUT>
+
+REQUIRED
+	-c			Path to Nextflow Config file specifying pipeline configuration
+	--bids			Path to BIDS dataset
+	--out			Path to output folder
+
+
+OPTIONAL
+	--subjects	List of subjects text file to run
+			($subjects)
+	--help		Print this usage log
+
+CONFIG SPECIFIED (REQUIRED - see NOTE)
+	--fmriprep		fMRIPrep image to use
+				Value in config: $fmriprep
+
+	--ciftify		fMRIPrep-Ciftify image to use
+				Value in config: $ciftify
+
+	--connectome		Path to container with Connectome workbench
+				software
+				Value in config: $connectome
+
+	--bin			Path to BOONStim repository bin directory
+				Value in config: $bin
+
+	--coil			Path to SimNIBS compatible coil definition
+				file (.ccd or .nii.gz)
+				Value in config: $coil
+
+	--license		Path to Freesurfer license directory
+				Value in config: $license
+
+	--anat_invocation	Path to Boutiques invocation file for fMRIPrep
+				anatomical-only arguments
+				Value in config: $anat_invocation
+
+	--anat_descriptor	Path to associated Boutiques descriptor
+				for fMRIPrep pipeline
+				Value in config: $anat_descriptor
+
+	--ciftify_invocation	Path to Boutiques invocation file for Ciftify
+				Value in config: $ciftify_invocation
+
+	--ciftify_descriptor	Path to associated Boutiques descriptor
+				for Ciftify pipeline
+				Value in config: $ciftify_descriptor
+
+	--weightworkflow	Path to user-defined weightworkflow
+				Nextflow pipeline file containing a workflow
+				named "weightfunc_wf"
+				Value in config: $weightworkflow
+
+NOTE: CONFIG specified arguments should be defined in the associated
+boonstim.nf.config file. You may override those options with the above
+command-line arguments

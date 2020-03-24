@@ -1,27 +1,60 @@
 // BOONSTIM FULL PIPELINE WORKFLOW
 nextflow.preview.dsl=2
 
-if (!params.bids || !params.out){
+usage = file("${workflow.scriptFile.getParent()}/usage")
+bindings = ["subjects": "$params.subjects",
+            "fmriprep": "$params.fmriprep",
+            "ciftify": "$params.ciftify",
+            "connectome": "$params.connectome",
+            "bin": "$params.bin",
+            "coil": "$params.coil",
+            "license": "$params.license",
+            "anat_invocation": "$params.anat_invocation",
+            "anat_descriptor": "$params.anat_descriptor",
+            "ciftify_invocation": "$params.ciftify_invocation",
+            "ciftify_descriptor": "$params.ciftify_descriptor",
+            "weightworkflow" : "$params.weightworkflow"]
+engine = new groovy.text.SimpleTemplateEngine()
+toprint = engine.createTempalte(usage.text).make(bindings)
+printhelp = params.help
 
-    log.info('Insufficient input specification!')
-    log.info('Needs --bids, --out!')
-    log.info('Exiting...')
-    System.exit(1)
+req_param = ["--bids": "$params.bids",
+            "--out": "$params.out"]
+req_config_param = [
+                    "fmriprep": "$params.fmriprep",
+                    "ciftify": "$params.ciftify",
+                    "connectome": "$params.connectome",
+                    "bin": "$params.bin",
+                    "coil": "$params.coil",
+                    "license": "$params.license",
+                    "anat_invocation": "$params.anat_invocation",
+                    "anat_descriptor": "$params.anat_descriptor",
+                    "ciftify_invocation": "$params.ciftify_invocation",
+                    "ciftify_descriptor": "$params.ciftify_descriptor",
+                    "weightworkflow" : "$params.weightworkflow"
+                    ]
+missing_req = req_param.grep{ (it.value == null || it.value == "") }
+missing_req_config = req_config_param.grep{ (it.value == null || it.value == "") }
 
+if (missing_req){
+    log.error("Missing required command-line argument(s)!")
+    missing_req.each{ log.error("Missing ${it.key}") }
+    printhelp = true
+}
+
+if (missing_req_config){
+    log.error("Config file missing required parameter(s)!")
+    missing_req_config.each{ log.error("Please fill ${it.key} in config") }
+    printhelp = true
+}
+
+if (printhelp){
+    print(toprint)
+    System.exit(0)
 }
 
 log.info("BIDS Directory: $params.bids")
 log.info("Output Directory: $params.out")
-
-//Now check BOSH invocation of Ciftify
-if (!params.anat_invocation || !params.ciftify_invocation || !params.ciftify_descriptor || !params.anat_descriptor) {
-
-    log.info('Missing BOSH invocations and descriptor for fmriprep-ciftify!')
-    log.info('Please have an --anat-only invocation for fmriprep and an associated descriptor')
-    log.info('Exiting with Error')
-    System.exit(1)
-
-}
 
 //Subject list flag
 if (params.subjects) {
@@ -30,7 +63,7 @@ if (params.subjects) {
 
 log.info("Using Descriptor Files: $params.anat_descriptor and $params.ciftify_descriptor")
 log.info("Using Invocation Files: $params.anat_invocation and $params.ciftify_invocation")
-log.info("Using containers: $params.fmriprep_img and $params.ciftify_img")
+log.info("Using containers: $params.fmriprep and $params.ciftify")
 log.info("Using user-defined ROI workflow: $params.weightworkflow")
 log.info("Using Invocation Files: $params.anat_invocation and $params.ciftify_invocation")
 
