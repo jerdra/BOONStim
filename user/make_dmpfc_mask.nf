@@ -97,7 +97,7 @@ process make_symmetric_dscalar{
 
 workflow mask_wf {
 
-    get:
+    take:
         cifti
 
     main:
