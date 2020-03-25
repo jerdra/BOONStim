@@ -69,7 +69,7 @@ process recombine {
 // Workflow to take fsaverage_LR32k surfaces and resample them to native space
 workflow resample2native_wf {
 
-    get:
+    take:
         dscalar
         msm_sphere
 

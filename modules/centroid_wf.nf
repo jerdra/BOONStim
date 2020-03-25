@@ -132,7 +132,7 @@ process compute_weighted_centroid{
 
 workflow centroid_wf{
 
-    get:
+    take:
         dscalar
         pial
         white

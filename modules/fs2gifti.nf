@@ -67,7 +67,7 @@ process compute_midthickness {
 
 workflow make_giftis {
 
-    get: fs_dirs
+    take: fs_dirs
 
     main:
         // Construct pathing

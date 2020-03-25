@@ -88,7 +88,7 @@ process tetrahedral_projection {
 
 workflow tet_project_wf{
 
-    get:
+    take:
         dscalar
         pial
         white

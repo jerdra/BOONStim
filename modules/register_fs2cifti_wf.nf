@@ -233,7 +233,7 @@ process areal_distortion{
 
 workflow registration_wf {
 
-    get:
+    take:
         fs_dirs
 
     main:

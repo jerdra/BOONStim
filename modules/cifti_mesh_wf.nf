@@ -162,7 +162,7 @@ process update_msh{
 workflow cifti_meshing {
 
     //Subject list as inputs with implicit input/output dir params
-    get: subs
+    take: subs
     main:
         // Ciftify full pipeline
         ciftify_invocation(subs)

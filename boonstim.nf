@@ -15,11 +15,11 @@ bindings = ["subjects": "$params.subjects",
             "ciftify_descriptor": "$params.ciftify_descriptor",
             "weightworkflow" : "$params.weightworkflow"]
 engine = new groovy.text.SimpleTemplateEngine()
-toprint = engine.createTempalte(usage.text).make(bindings)
+toprint = engine.createTemplate(usage.text).make(bindings)
 printhelp = params.help
 
 req_param = ["--bids": "$params.bids",
-            "--out": "$params.out"]
+             "--out": "$params.out"]
 req_config_param = [
                     "fmriprep": "$params.fmriprep",
                     "ciftify": "$params.ciftify",
@@ -96,6 +96,7 @@ if (params.subjects){
     subjects_channel = Channel.fromPath(params.subjects)
                             .splitText(){it.strip()}
     input_channel = input_channel.join(subjects_channel)
+}
 
 if (!params.rewrite){
     out_channel = Channel.fromPath("$params.out/boonstim/sub-*", type: 'dir')
@@ -184,7 +185,7 @@ workflow {
     main:
 
         // Main preprocessing routine
-        cifti_mesh_result = cifti_meshing(bids_channel)
+        cifti_mesh_result = cifti_meshing(input_channel)
         make_giftis_result = make_giftis(cifti_mesh_result.mesh_fs)
         registration_wf(cifti_mesh_result.mesh_fs)
 
@@ -246,14 +247,14 @@ workflow {
                                     .join(midthick.left).join(midthick.right)
                                     .join(msm.left).join(msm.right)
                                     .join(resampleweightfunc_wf.out.resampled)
-                                    .join(centroid_wf.out.coord)
+                                    .join(centroid_wf.out.centroid)
                                     .join(tet_project_wf.out.fem_weights)
         publish_boonstim(publish_boonstim_input)
 
         // Publish Ciftify outputs
-        publish_cifti_input = cifti_mesh_result.out.cifti
-                                    .join(cifti_mesh_result.out.fmriprep)
-                                    .join(cifti_mesh_result.out.freesurfer)
+        publish_cifti_input = cifti_mesh_result.cifti
+                                    .join(cifti_mesh_result.fmriprep)
+                                    .join(cifti_mesh_result.freesurfer)
                                     .combine(["$params.zz"])
-        publish_cifti(publish_cift_input)
+        publish_cifti(publish_cifti_input)
 }

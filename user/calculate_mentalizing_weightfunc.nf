@@ -30,7 +30,7 @@ process threshold_weightfunc{
 
 workflow weightfunc_wf {
 
-    get: derivatives
+    take: derivatives
 
     main:
         cifti = derivatives.map{s,f,c -> [s,c]}

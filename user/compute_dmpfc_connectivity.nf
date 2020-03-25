@@ -226,7 +226,7 @@ process remove_subcortical{
 
 workflow calculate_weightfunc_wf {
 
-    get:
+    take:
         derivatives
 
     main:

@@ -2,7 +2,7 @@ nextflow.preview.dsl=2
 
 workflow output_wf{
 
-    get:
+    take:
         pial
         white
         midthick
