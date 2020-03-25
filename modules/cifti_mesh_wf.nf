@@ -62,8 +62,7 @@ process fmriprep_invocation{
     output:
     tuple val("$sub"), path("${sub}.json"), emit: json
 
-    echo "true"
-
+    shell:
     """
 
     #!/usr/bin/env python
