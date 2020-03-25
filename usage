@@ -16,6 +16,13 @@ REQUIRED
 OPTIONAL
 	--subjects	List of subjects text file to run
 			($subjects)
+	--rewrite	Overwrite outputs if they exist, this will rerun
+			the pipeline if subject folders exist in
+			the boonstim directory in --out. By default
+			these subjects will be skipped.
+			NOTE: If wanting a complete run from scratch and
+			using cache, all associated subject files must be
+			removed from cache to prevent re-use.
 	--help		Print this usage log
 
 CONFIG SPECIFIED (REQUIRED - see NOTE)

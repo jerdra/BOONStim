@@ -92,13 +92,22 @@ all_dirs = file(params.bids).list()
 input_dirs = new File(params.bids).list()
 output_dirs = new File(params.out).list()
 
-if (params.subjects) {
-    sublist = file(params.subjects)
-    bids_channel = Channel.from(sublist)
-                               .splitText() { it.strip() }
-} else{
-    bids_channel = Channel.from(all_dirs)
-                          .filter { it.contains('sub-') }
+input_channel = Channel.fromPath("$params.bids/sub-*", type: 'dir')
+                    .map{i -> i.getBaseName()}
+
+if (params.subjects){
+    subjects_channel = Channel.fromPath(params.subjects)
+                            .splitText(){it.strip()}
+    input_channel = input_channel.join(subjects_channel)
+
+if (params.rewrite){
+    out_channel = Channel.fromPath("$params.out/boonstim/sub-*", type: 'dir')
+                    .map{o -> [o.getBaseName(), "o"]}
+                    .ifEmpty(["", "o"])
+
+    input_channel = input_channel.join(out_channel, remainder: true)
+                        .filter{it.last() == null}
+                        .map{i,n -> i}
 }
 
 // Process definitions
