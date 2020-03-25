@@ -96,7 +96,7 @@ if (params.subjects){
                             .splitText(){it.strip()}
     input_channel = input_channel.join(subjects_channel)
 
-if (params.rewrite){
+if (!params.rewrite){
     out_channel = Channel.fromPath("$params.out/boonstim/sub-*", type: 'dir')
                     .map{o -> [o.getBaseName(), "o"]}
                     .ifEmpty(["", "o"])
