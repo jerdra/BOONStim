@@ -1,4 +1,3 @@
-// BOONSTIM FULL PIPELINE WORKFLOW
 nextflow.preview.dsl=2
 
 usage = file("${workflow.scriptFile.getParent()}/usage")
@@ -55,8 +54,6 @@ if (printhelp){
 
 log.info("BIDS Directory: $params.bids")
 log.info("Output Directory: $params.out")
-
-//Subject list flag
 if (params.subjects) {
     log.info ("Subject list file provided: $params.subjects")
 }
@@ -77,7 +74,6 @@ include weightfunc_wf from "${params.weightworkflow}" params(params)
 include resample2native_wf as resamplemask_wf from './modules/resample2native.nf' params(params)
 include resample2native_wf as resampleweightfunc_wf from './modules/resample2native.nf' params(params)
 include centroid_wf from './modules/centroid_wf.nf' params(params)
-include parameterization_wf from './modules/surfparams_wf.nf' params(params)
 include tet_project_wf from './modules/tetrahedral_wf.nf' params(params)
 
 // IMPORT MODULES PROCESSES
@@ -111,14 +107,14 @@ if (params.rewrite){
 }
 
 // Process definitions
-process optimize_coil {
+process optimize_coil{
 
     stageInMode 'copy'
     label 'rtms'
     containerOptions "-B ${params.bin}:/scripts"
 
     input:
-    tuple val(sub), path(msh), path(weights), path(C), path(R), path(bounds), path(coil)
+    tuple val(sub), path(msh), path(weights), path(coil)
 
     output:
     tuple val(sub), path('coil_position'), emit: position
@@ -127,14 +123,52 @@ process optimize_coil {
 
     shell:
     '''
-    /scripts/optimize_fem.py !{msh} !{weights} !{C} !{bounds} !{R} !{coil} \
+    /scripts/optimize_fem.py !{msh} !{weights} !{coil} \
                              coil_position coil_orientation \
                              --history history \
                              --n-iters 30 \
                              --skip-convergence \
                              --cpus 8
     '''
+}
 
+process publish_boonstim{
+
+    publishDir path: "$params.out/boonstim", \
+               mode: 'copy'
+
+
+    input:
+    tuple val(sub), \
+    path(msh), path(t1fs), path(m2m), path(fs), \
+    path(pl), path(pr), path(wl), path(wr), path(ml), path(mr), \
+    path(msml), path(msmr), path(wf), path(centroid), path(femw)
+
+    shell:
+    '''
+    mkdir !{sub}
+    mkdir T1w
+    mv \
+        !{pl} !{pr} !{wl} !{wr} !{ml} !{mr} !{msml} !{msmr} \
+        T1w
+    mv * !{sub} || true
+    '''
+}
+
+process publish_cifti{
+
+    publishDir path: "$params.out", \
+               mode: 'copyNoFollow'
+
+    input:
+    tuple val(sub), \
+    path("ciftify/*"), path("fmriprep/*"), path("freesurfer/*"), \
+    path("ciftify/zz_templates")
+
+    shell:
+    '''
+    echo "Copying fMRIPrep_Ciftify outputs"
+    '''
 }
 
 def lr_branch = branchCriteria {
@@ -170,9 +204,6 @@ workflow {
                     make_giftis_result.midthickness,
                     cifti_mesh_result.t1fs_conform)
 
-        // Parameterize the surface
-        parameterization_wf(cifti_mesh_result.msh, centroid_wf.out.centroid)
-
         // Tetrahedral workflow
         dilate_mask_input = weightfunc_wf.out.mask
                                             .join(cifti_mesh_result.cifti, by: 0)
@@ -197,6 +228,7 @@ workflow {
         // Gather inputs for optimization (centroid needed)
         optimize_inputs = cifti_mesh_result.msh
                                     .join(tet_project_wf.out.fem_weights, by: 0)
+                                    .map{ m,f -> [m,f,params.coil] }
         //optimize_coil(optimize_inputs)
 
         // Gather BOONStim outputs for publishing
