@@ -2,6 +2,7 @@ nextflow.preview.dsl=2
 
 usage = file("${workflow.scriptFile.getParent()}/usage")
 bindings = ["subjects": "$params.subjects",
+            "cache_dir": "$params.cache_dir",
             "fmriprep": "$params.fmriprep",
             "ciftify": "$params.ciftify",
             "connectome": "$params.connectome",
