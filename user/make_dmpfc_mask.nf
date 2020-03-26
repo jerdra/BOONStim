@@ -141,7 +141,7 @@ workflow mask_wf {
         // Make DMPFC symmetric mask
         make_symmetric_input = dilate_dmpfc_mask.out.dmpfc_mask
                                             .groupTuple(by: 0, size: 2, sort: {it})
-                                            .map{ s,h,m -> [s, m[0], m[1]] } | view
+                                            .map{ s,h,m -> [s, m[0], m[1]] }
         make_symmetric_dscalar(make_symmetric_input)
 
     emit:

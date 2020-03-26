@@ -159,13 +159,17 @@ process publish_boonstim{
 
 process publish_cifti{
 
+    stageInMode 'copy'
     publishDir path: "$params.out", \
-               mode: 'copyNoFollow'
+               mode: 'copy'
 
     input:
     tuple val(sub), \
     path("ciftify/*"), path("fmriprep/*"), path("freesurfer/*"), \
     path("ciftify/zz_templates")
+
+    output:
+    tuple path("ciftify"), path("fmriprep"), path("freesurfer"), emit: published
 
     shell:
     '''
