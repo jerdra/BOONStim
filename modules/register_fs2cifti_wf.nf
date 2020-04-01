@@ -91,7 +91,6 @@ process assign_sphere{
 process deform_sphere{
 
     label 'connectome'
-    containerOptions "-B ${params.atlas}:/atlas"
 
     input:
     tuple val(sub), val(hemi), path(sphere)
