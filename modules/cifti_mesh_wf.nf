@@ -153,7 +153,7 @@ process update_msh{
     set +u
 
     sed 's/Merge.*m2m/Merge "m2m/g' !{sub}.geo -i
-    /gmsh-sdk/bin/gmsh -3 -bin -format msh2 -o !{sub}.msh !{sub}.geo || true
+    /gmsh-sdk/bin/gmsh -3 -format msh2 -o !{sub}.msh !{sub}.geo || true
     '''
 }
 
