@@ -74,8 +74,12 @@ include registration_wf from './modules/register_fs2cifti_wf.nf' params(params)
 include weightfunc_wf from "${params.weightworkflow}" params(params)
 include resample2native_wf as resamplemask_wf from './modules/resample2native.nf' params(params)
 include resample2native_wf as resampleweightfunc_wf from './modules/resample2native.nf' params(params)
+include resample2native_wf as resampledistmap_wf from './modules/resample2native.nf' params(params)
 include centroid_wf from './modules/centroid_wf.nf' params(params)
-include tet_project_wf from './modules/tetrahedral_wf.nf' params(params)
+include tet_project_wf as tet_project_weightfunc_wf from './modules/tetrahedral_wf.nf' params(params)
+include tet_project_wf as tet_project_roi_wf from './modules/tetrahedral_wf.nf' params(params)
+include calculate_reference_field_wf from './modules/reference_field_wf.nf' params(params)
+include cortex2scalp_wf from './modules/cortex2scalp.nf' params(params)
 
 // IMPORT MODULES PROCESSES
 include apply_mask as centroid_mask from './modules/utils.nf' params(params)
@@ -116,43 +120,53 @@ process optimize_coil{
     containerOptions "-B ${params.bin}:/scripts"
 
     input:
-    tuple val(sub), path(msh), path(weights), path(coil)
+    tuple val(sub), path(msh), path(weights),\
+          path(centroid), path(coil)
 
     output:
-    tuple val(sub), path('coil_position'), emit: position
-    tuple val(sub), path('coil_orientation'), emit: orientation
-    tuple val(sub), path('history'), emit: history
+    tuple val(sub), path("${sub}_orientation.txt"), emit: orientation
+    tuple val(sub), path("${sub}_optimal_sim.msh"), emit: opt_msh
+    tuple val(sub), path("${sub}_optimal_coilpos.geo"), emit: opt_coil
+    tuple val(sub), path("${sub}_history.txt"), emit: history
 
     shell:
     '''
-    /scripts/optimize_fem.py !{msh} !{weights} !{coil} \
-                             coil_position coil_orientation \
-                             --history history \
-                             --n-iters 30 \
-                             --skip-convergence \
-                             --cpus 8
+    /scripts/optimize_fem.py !{msh} !{weights} !{centroid} \
+                             !{coil} \
+                             $(pwd)/!{sub} \
+                             --history !{sub}_history.txt \
+                             --n-iters 50 \
+                             --cpus 5 \
+                             --tmp-dir /tmp
     '''
 }
 
 process publish_boonstim{
 
     publishDir path: "$params.out/boonstim", \
-               mode: 'copy'
+               mode: 'copy', \
+               overwrite: true
 
 
     input:
     tuple val(sub), \
     path(msh), path(t1fs), path(m2m), path(fs), \
     path(pl), path(pr), path(wl), path(wr), path(ml), path(mr), \
-    path(msml), path(msmr), path(wf), path(centroid), path(femw)
+    path(msml), path(msmr), path(wf), path(centroid), path(femw),
+    path(ori), path(opt_msh), path(opt_coil), path(history)
+
+    output:
+    path "$sub", emit: boonstim_out
 
     shell:
     '''
     mkdir !{sub}
     mkdir T1w
+    mkdir results
     mv \
         !{pl} !{pr} !{wl} !{wr} !{ml} !{mr} !{msml} !{msmr} \
         T1w
+    mv !{ori} !{opt_msh} !{opt_coil} !{history} results
     mv * !{sub} || true
     '''
 }
@@ -224,18 +238,33 @@ workflow {
                                             .join(dilate_mask.out.dilated, by: 0)
         weightfunc_mask(weightfunc_mask_input)
         resampleweightfunc_wf(weightfunc_mask.out.masked, registration_wf.out.msm_sphere)
-        tet_project_wf(resampleweightfunc_wf.out.resampled,
+        tet_project_weightfunc_wf(resampleweightfunc_wf.out.resampled,
                         make_giftis_result.pial,
                         make_giftis_result.white,
                         make_giftis_result.midthickness,
                         cifti_mesh_result.t1fs_conform,
                         cifti_mesh_result.msh)
 
+        // Get ROI --> Resample --> Tetrahedral projection into FEM space
+        calculate_reference_field_wf(cifti_mesh_result.cifti)
+        resampledistmap_wf(
+            calculate_reference_field_wf.out.roi,
+            registration_wf.out.msm_sphere
+        )
+        cortex2scalp_wf(
+            cifti_mesh_result.msh,
+            make_giftis_result.pial,
+            resampledistmap_wf.out.resampled
+        )
+        cortex2scalp_wf.out.scalp2cortex
+
+
         // Gather inputs for optimization (centroid needed)
         optimize_inputs = cifti_mesh_result.msh
-                                    .join(tet_project_wf.out.fem_weights, by: 0)
-                                    .map{ m,f -> [m,f,params.coil] }
-        //optimize_coil(optimize_inputs)
+                                     .join(tet_project_weightfunc_wf.out.fem_weights, by: 0)
+                                     .join(centroid_wf.out.centroid, by: 0)
+                                     .map{s,m,f,c -> [s,m,f,c,params.coil] } | view
+        optimize_coil(optimize_inputs)
 
         // Gather BOONStim outputs for publishing
         registration_wf.out.msm_sphere.branch(lr_branch).set { msm }
@@ -252,8 +281,13 @@ workflow {
                                     .join(msm.left).join(msm.right)
                                     .join(resampleweightfunc_wf.out.resampled)
                                     .join(centroid_wf.out.centroid)
-                                    .join(tet_project_wf.out.fem_weights)
-        publish_boonstim(publish_boonstim_input)
+                                    .join(tet_project_weightfunc_wf.out.fem_weights)
+                                    .join(optimize_coil.out.orientation)
+                                    .join(optimize_coil.out.opt_msh)
+                                    .join(optimize_coil.out.opt_coil)
+                                    .join(optimize_coil.out.history)
+
+//        publish_boonstim(publish_boonstim_input)
 
         // Publish Ciftify outputs
         publish_cifti_input = cifti_mesh_result.cifti
