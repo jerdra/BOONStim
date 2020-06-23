@@ -169,7 +169,6 @@ workflow centroid_wf{
 
         //Re-normalize
         normalize_vol(add_centroid_niftis.out.sumvol)
-        normalize_vol.out.normvol
 
         //Calculate centroid
         compute_weighted_centroid(normalize_vol.out.normvol)
