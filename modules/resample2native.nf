@@ -107,7 +107,4 @@ workflow resample2native_wf {
         emit:
             resampled = recombine.out.dscalar
 
-
-
-
 }
