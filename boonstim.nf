@@ -80,6 +80,7 @@ include tet_project_wf as tet_project_weightfunc_wf from './modules/tetrahedral_
 include tet_project_wf as tet_project_roi_wf from './modules/tetrahedral_wf.nf' params(params)
 include calculate_reference_field_wf from './modules/reference_field_wf.nf' params(params)
 include cortex2scalp_wf from './modules/cortex2scalp.nf' params(params)
+include optimize_wf from "${params.optimization_module}" params(params)
 
 // IMPORT MODULES PROCESSES
 include apply_mask as centroid_mask from './modules/utils.nf' params(params)
