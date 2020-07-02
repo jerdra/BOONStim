@@ -287,7 +287,7 @@ workflow {
                                     .join(optimize_coil.out.opt_coil)
                                     .join(optimize_coil.out.history)
 
-//        publish_boonstim(publish_boonstim_input)
+        publish_boonstim(publish_boonstim_input)
 
         // Publish Ciftify outputs
         publish_cifti_input = cifti_mesh_result.cifti
