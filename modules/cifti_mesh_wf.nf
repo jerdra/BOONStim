@@ -49,11 +49,8 @@ process ciftify{
     -v $(pwd):/output \
     -v !{params.license}:/license \
     !{params.ciftify_descriptor} $(pwd)/!{json} \
-    --imagepath !{params.simg} -x --stream
+    --imagepath !{params.ciftify} -x --stream
     '''
-
-
-
 }
 
 // Process definitions
@@ -65,8 +62,7 @@ process fmriprep_invocation{
     output:
     tuple val("$sub"), path("${sub}.json"), emit: json
 
-    echo "true"
-
+    shell:
     """
 
     #!/usr/bin/env python
@@ -111,7 +107,7 @@ process fmriprep_anat{
     -v $(pwd):/output \
     -v !{params.license}:/license \
     !{params.anat_descriptor} $(pwd)/!{json} \
-    --imagepath !{params.simg} -x --stream
+    --imagepath !{params.fmriprep} -x --stream
 
     '''
 }
@@ -157,7 +153,7 @@ process update_msh{
     set +u
 
     sed 's/Merge.*m2m/Merge "m2m/g' !{sub}.geo -i
-    /gmsh-sdk/bin/gmsh -3 -bin -format msh2 -o !{sub}.msh !{sub}.geo || true
+    /gmsh-sdk/bin/gmsh -3 -format msh2 -o !{sub}.msh !{sub}.geo || true
     '''
 }
 
@@ -165,7 +161,7 @@ process update_msh{
 workflow cifti_meshing {
 
     //Subject list as inputs with implicit input/output dir params
-    get: subs
+    take: subs
     main:
         // Ciftify full pipeline
         ciftify_invocation(subs)

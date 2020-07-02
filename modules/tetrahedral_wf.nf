@@ -88,7 +88,7 @@ process tetrahedral_projection {
 
 workflow tet_project_wf{
 
-    get:
+    take:
         dscalar
         pial
         white
@@ -128,8 +128,8 @@ workflow tet_project_wf{
         tet_inputs = add_tet_niftis.out.sumvol.join(msh, by: 0)
         tetrahedral_projection(tet_inputs)
 
-        emit:
-            fem_weights = tetrahedral_projection.out.fem_weights
+    emit:
+        fem_weights = tetrahedral_projection.out.fem_weights
 
 
 

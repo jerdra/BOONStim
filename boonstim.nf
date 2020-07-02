@@ -1,36 +1,67 @@
-// BOONSTIM FULL PIPELINE WORKFLOW
 nextflow.preview.dsl=2
 
-if (!params.bids || !params.out){
+usage = file("${workflow.scriptFile.getParent()}/usage")
+bindings = ["subjects": "$params.subjects",
+            "cache_dir": "$params.cache_dir",
+            "fmriprep": "$params.fmriprep",
+            "ciftify": "$params.ciftify",
+            "connectome": "$params.connectome",
+            "bin": "$params.bin",
+            "coil": "$params.coil",
+            "license": "$params.license",
+            "anat_invocation": "$params.anat_invocation",
+            "anat_descriptor": "$params.anat_descriptor",
+            "ciftify_invocation": "$params.ciftify_invocation",
+            "ciftify_descriptor": "$params.ciftify_descriptor",
+            "weightworkflow" : "$params.weightworkflow"]
+engine = new groovy.text.SimpleTemplateEngine()
+toprint = engine.createTemplate(usage.text).make(bindings)
+printhelp = params.help
 
-    log.info('Insufficient input specification!')
-    log.info('Needs --bids, --out!')
-    log.info('Exiting...')
-    System.exit(1)
+req_param = ["--bids": "$params.bids",
+             "--out": "$params.out"]
+req_config_param = [
+                    "fmriprep": "$params.fmriprep",
+                    "ciftify": "$params.ciftify",
+                    "connectome": "$params.connectome",
+                    "bin": "$params.bin",
+                    "coil": "$params.coil",
+                    "license": "$params.license",
+                    "anat_invocation": "$params.anat_invocation",
+                    "anat_descriptor": "$params.anat_descriptor",
+                    "ciftify_invocation": "$params.ciftify_invocation",
+                    "ciftify_descriptor": "$params.ciftify_descriptor",
+                    "weightworkflow" : "$params.weightworkflow"
+                    ]
+missing_req = req_param.grep{ (it.value == null || it.value == "") }
+missing_req_config = req_config_param.grep{ (it.value == null || it.value == "") }
 
+if (missing_req){
+    log.error("Missing required command-line argument(s)!")
+    missing_req.each{ log.error("Missing ${it.key}") }
+    printhelp = true
+}
+
+if (missing_req_config){
+    log.error("Config file missing required parameter(s)!")
+    missing_req_config.each{ log.error("Please fill ${it.key} in config") }
+    printhelp = true
+}
+
+if (printhelp){
+    print(toprint)
+    System.exit(0)
 }
 
 log.info("BIDS Directory: $params.bids")
 log.info("Output Directory: $params.out")
-
-//Now check BOSH invocation of Ciftify
-if (!params.anat_invocation || !params.ciftify_invocation || !params.ciftify_descriptor || !params.anat_descriptor) {
-
-    log.info('Missing BOSH invocations and descriptor for fmriprep-ciftify!')
-    log.info('Please have an --anat-only invocation for fmriprep and an associated descriptor')
-    log.info('Exiting with Error')
-    System.exit(1)
-
-}
-
-//Subject list flag
 if (params.subjects) {
     log.info ("Subject list file provided: $params.subjects")
 }
 
 log.info("Using Descriptor Files: $params.anat_descriptor and $params.ciftify_descriptor")
 log.info("Using Invocation Files: $params.anat_invocation and $params.ciftify_invocation")
-log.info("Using containers: $params.fmriprep_img and $params.ciftify_img")
+log.info("Using containers: $params.fmriprep and $params.ciftify")
 log.info("Using user-defined ROI workflow: $params.weightworkflow")
 log.info("Using Invocation Files: $params.anat_invocation and $params.ciftify_invocation")
 
@@ -43,9 +74,12 @@ include registration_wf from './modules/register_fs2cifti_wf.nf' params(params)
 include weightfunc_wf from "${params.weightworkflow}" params(params)
 include resample2native_wf as resamplemask_wf from './modules/resample2native.nf' params(params)
 include resample2native_wf as resampleweightfunc_wf from './modules/resample2native.nf' params(params)
+include resample2native_wf as resampledistmap_wf from './modules/resample2native.nf' params(params)
 include centroid_wf from './modules/centroid_wf.nf' params(params)
-include parameterization_wf from './modules/surfparams_wf.nf' params(params)
-include tet_project_wf from './modules/tetrahedral_wf.nf' params(params)
+include tet_project_wf as tet_project_weightfunc_wf from './modules/tetrahedral_wf.nf' params(params)
+include tet_project_wf as tet_project_roi_wf from './modules/tetrahedral_wf.nf' params(params)
+include calculate_reference_field_wf from './modules/reference_field_wf.nf' params(params)
+include cortex2scalp_wf from './modules/cortex2scalp.nf' params(params)
 
 // IMPORT MODULES PROCESSES
 include apply_mask as centroid_mask from './modules/utils.nf' params(params)
@@ -59,95 +93,117 @@ all_dirs = file(params.bids).list()
 input_dirs = new File(params.bids).list()
 output_dirs = new File(params.out).list()
 
-if (params.subjects) {
-    sublist = file(params.subjects)
-    bids_channel = Channel.from(sublist)
-                               .splitText() { it.strip() }
-} else{
-    bids_channel = Channel.from(all_dirs)
-                          .filter { it.contains('sub-') }
+input_channel = Channel.fromPath("$params.bids/sub-*", type: 'dir')
+                    .map{i -> i.getBaseName()}
+
+if (params.subjects){
+    subjects_channel = Channel.fromPath(params.subjects)
+                            .splitText(){it.strip()}
+    input_channel = input_channel.join(subjects_channel)
+}
+
+if (!params.rewrite){
+    out_channel = Channel.fromPath("$params.out/boonstim/sub-*", type: 'dir')
+                    .map{o -> [o.getBaseName(), "o"]}
+                    .ifEmpty(["", "o"])
+
+    input_channel = input_channel.join(out_channel, remainder: true)
+                        .filter{it.last() == null}
+                        .map{i,n -> i}
 }
 
 // Process definitions
-process optimize_coil {
+process optimize_coil{
 
     stageInMode 'copy'
     label 'rtms'
     containerOptions "-B ${params.bin}:/scripts"
 
     input:
-    tuple val(sub), path(msh), path(weights), path(C), path(R), path(bounds), path(coil)
+    tuple val(sub), path(msh), path(weights),\
+          path(centroid), path(coil)
 
     output:
-    tuple val(sub), path('coil_position'), emit: position
-    tuple val(sub), path('coil_orientation'), emit: orientation
-    tuple val(sub), path('history'), emit: history
+    tuple val(sub), path("${sub}_orientation.txt"), emit: orientation
+    tuple val(sub), path("${sub}_optimal_sim.msh"), emit: opt_msh
+    tuple val(sub), path("${sub}_optimal_coilpos.geo"), emit: opt_coil
+    tuple val(sub), path("${sub}_history.txt"), emit: history
 
     shell:
     '''
-    /scripts/optimize_fem.py !{msh} !{weights} !{C} !{bounds} !{R} !{coil} \
-                             coil_position coil_orientation \
-                             --history history \
-                             --n-iters 30 \
-                             --skip-convergence \
-                             --cpus 8
+    /scripts/optimize_fem.py !{msh} !{weights} !{centroid} \
+                             !{coil} \
+                             $(pwd)/!{sub} \
+                             --history !{sub}_history.txt \
+                             --n-iters 50 \
+                             --cpus 5 \
+                             --tmp-dir /tmp
     '''
-
 }
 
-process construct_boonstim_outputs{
+process publish_boonstim{
+
+    publishDir path: "$params.out/boonstim", \
+               mode: 'copy', \
+               overwrite: true
+
 
     input:
-        tuple val(sub), \
-        path(msh), path(t1fs), path(m2m), path(fs), \
-        path(l_pial), path(r_pial), \
-        path(l_white), path(r_white), \
-        path(l_thick), path(r_thick), \
-        path(l_msm), path(r_msm), \
-        path("${sub}.weightfunc.dscalar.nii"), path("${sub}.mask.dscalar.nii"), \
-        path(centroid), path(C), path(R), path(bounds), path(qc_param), \
-        path(femfunc)
-//        path(loc), path(rot), path(hist)
+    tuple val(sub), \
+    path(msh), path(t1fs), path(m2m), path(fs), \
+    path(pl), path(pr), path(wl), path(wr), path(ml), path(mr), \
+    path(msml), path(msmr), path(wf), path(centroid), path(femw),
+    path(ori), path(opt_msh), path(opt_coil), path(history)
 
     output:
-        tuple val(sub), path("$sub"), emit: subject
+    path "$sub", emit: boonstim_out
 
     shell:
     '''
-    #!/bin/bash
-
-    # Make subdirectories
     mkdir !{sub}
-    mkdir surfaces
-    mkdir optimization
-
-    # Move surface files
+    mkdir T1w
+    mkdir results
     mv \
-        !{l_pial} !{r_pial} !{l_white} !{r_white} !{l_thick} !{r_thick} \
-        !{l_msm} !{r_msm} !{sub}.weightfunc.dscalar.nii !{sub}.mask.dscalar.nii surfaces
-
-    # Move optimization files
-    #mv {loc} {rot} {hist} optimization
-    mv !{centroid} !{C} !{R} !{bounds} !{femfunc} optimization
-
-    # Move all files
+        !{pl} !{pr} !{wl} !{wr} !{ml} !{mr} !{msml} !{msmr} \
+        T1w
+    mv !{ori} !{opt_msh} !{opt_coil} !{history} results
     mv * !{sub} || true
+    '''
+}
+
+process publish_cifti{
+
+    stageInMode 'copy'
+    publishDir path: "$params.out", \
+               mode: 'copy'
+
+    input:
+    tuple val(sub), \
+    path("ciftify/*"), path("fmriprep/*"), path("freesurfer/*"), \
+    path("ciftify/zz_templates")
+
+    output:
+    tuple path("ciftify"), path("fmriprep"), path("freesurfer"), emit: published
+
+    shell:
+    '''
+    echo "Copying fMRIPrep_Ciftify outputs"
     '''
 }
 
 def lr_branch = branchCriteria {
                 left: it[1] == 'L'
-                    return [it[0],it[2]]
+                    return [it[0], it[2]]
                 right: it[1] == 'R'
                     return [it[0],it[2]]
-            }
+                }
 
 workflow {
 
     main:
 
         // Main preprocessing routine
-        cifti_mesh_result = cifti_meshing(bids_channel)
+        cifti_mesh_result = cifti_meshing(input_channel)
         make_giftis_result = make_giftis(cifti_mesh_result.mesh_fs)
         registration_wf(cifti_mesh_result.mesh_fs)
 
@@ -168,9 +224,6 @@ workflow {
                     make_giftis_result.midthickness,
                     cifti_mesh_result.t1fs_conform)
 
-        // Parameterize the surface
-        parameterization_wf(cifti_mesh_result.msh, centroid_wf.out.centroid)
-
         // Tetrahedral workflow
         dilate_mask_input = weightfunc_wf.out.mask
                                             .join(cifti_mesh_result.cifti, by: 0)
@@ -185,61 +238,61 @@ workflow {
                                             .join(dilate_mask.out.dilated, by: 0)
         weightfunc_mask(weightfunc_mask_input)
         resampleweightfunc_wf(weightfunc_mask.out.masked, registration_wf.out.msm_sphere)
-        tet_project_wf(resampleweightfunc_wf.out.resampled,
+        tet_project_weightfunc_wf(resampleweightfunc_wf.out.resampled,
                         make_giftis_result.pial,
                         make_giftis_result.white,
                         make_giftis_result.midthickness,
                         cifti_mesh_result.t1fs_conform,
                         cifti_mesh_result.msh)
 
-        //// Gather inputs for optimization
-        //optimize_inputs = cifti_mesh_result.msh
-        //                            .join(tet_project_wf.out.fem_weights, by: 0)
-        //                            .join(parameterization_wf.out.C, by: 0)
-        //                            .join(parameterization_wf.out.R, by: 0)
-        //                            .join(parameterization_wf.out.bounds, by: 0)
-        //                            .map{ s,m,w,C,R,b -> [ s,m,w,C,R,b,"$params.coil" ] }
-        //optimize_coil(optimize_inputs)
+        // Get ROI --> Resample --> Tetrahedral projection into FEM space
+        calculate_reference_field_wf(cifti_mesh_result.cifti)
+        resampledistmap_wf(
+            calculate_reference_field_wf.out.roi,
+            registration_wf.out.msm_sphere
+        )
+        cortex2scalp_wf(
+            cifti_mesh_result.msh,
+            make_giftis_result.pial,
+            resampledistmap_wf.out.resampled
+        )
+        cortex2scalp_wf.out.scalp2cortex
 
 
-        //// Set up outputs
+        // Gather inputs for optimization (centroid needed)
+        optimize_inputs = cifti_mesh_result.msh
+                                     .join(tet_project_weightfunc_wf.out.fem_weights, by: 0)
+                                     .join(centroid_wf.out.centroid, by: 0)
+                                     .map{s,m,f,c -> [s,m,f,c,params.coil] } | view
+        optimize_coil(optimize_inputs)
+
+        // Gather BOONStim outputs for publishing
         registration_wf.out.msm_sphere.branch(lr_branch).set { msm }
         make_giftis_result.pial.branch(lr_branch).set { pial }
         make_giftis_result.white.branch(lr_branch).set { white }
         make_giftis_result.midthickness.branch(lr_branch).set { midthick }
-        construct_output_input = cifti_mesh_result.msh
-                                    .join(cifti_mesh_result.t1fs_conform, by: 0)
-                                    .join(cifti_mesh_result.mesh_m2m, by: 0)
-                                    .join(cifti_mesh_result.mesh_fs, by: 0)
-                                    .join(pial.left, by:0)
-                                    .join(pial.right, by:0)
-                                    .join(white.left, by:0)
-                                    .join(white.right, by:0)
-                                    .join(midthick.left, by:0)
-                                    .join(midthick.right, by:0)
-                                    .join(msm.left, by:0)
-                                    .join(msm.right, by:0)
-                                    .join(resampleweightfunc_wf.out.resampled, by:0)
-                                    .join(resamplemask_wf.out.resampled)
+        publish_boonstim_input = cifti_mesh_result.msh
+                                    .join(cifti_mesh_result.t1fs_conform)
+                                    .join(cifti_mesh_result.mesh_m2m)
+                                    .join(cifti_mesh_result.mesh_fs)
+                                    .join(pial.left).join(pial.right)
+                                    .join(white.left).join(white.right)
+                                    .join(midthick.left).join(midthick.right)
+                                    .join(msm.left).join(msm.right)
+                                    .join(resampleweightfunc_wf.out.resampled)
                                     .join(centroid_wf.out.centroid)
-                                    .join(parameterization_wf.out.C)
-                                    .join(parameterization_wf.out.R)
-                                    .join(parameterization_wf.out.bounds)
-                                    .join(parameterization_wf.out.qc_param)
-                                    .join(tet_project_wf.out.fem_weights)
-        //                            .join(weightfunc_wf.out.mask, by: 0)
-        //                            .join(optimize_coil.out.position, by: 0)
-        //                            .join(optimize_coil.out.orientation, by: 0)
-        //                            .join(optimize_coil.out.history, by: 0)
-        construct_boonstim_outputs(construct_output_input)
+                                    .join(tet_project_weightfunc_wf.out.fem_weights)
+                                    .join(optimize_coil.out.orientation)
+                                    .join(optimize_coil.out.opt_msh)
+                                    .join(optimize_coil.out.opt_coil)
+                                    .join(optimize_coil.out.history)
 
-        publish:
-            cifti_mesh_result.cifti   to: "$params.out/ciftify", mode: 'copy'
-            cifti_mesh_result.fmriprep to: "$params.out/fmriprep", mode: 'copy'
-            cifti_mesh_result.freesurfer to: "$params.out/freesurfer", mode: 'copy'
-            cifti_mesh_result.fmriprep_html to: "$params.out/fmriprep", mode: 'copy'
-            construct_boonstim_outputs.out.subject to: "$params.out/boonstim", mode: 'copy'
+        publish_boonstim(publish_boonstim_input)
 
+        // Publish Ciftify outputs
+        publish_cifti_input = cifti_mesh_result.cifti
+                                    .join(cifti_mesh_result.fmriprep)
+                                    .join(cifti_mesh_result.freesurfer)
+                                    .combine(["$params.zz"])
+        publish_cifti(publish_cifti_input)
 }
-
-// TODO: Allow for flexible optimization modes

@@ -57,7 +57,7 @@ process qc_parameterization {
 
 workflow parameterization_wf {
 
-    get:
+    take:
         msh
         centroid
 
