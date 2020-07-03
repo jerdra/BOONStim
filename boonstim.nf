@@ -232,11 +232,12 @@ workflow {
 
 
         // Gather inputs for optimization (centroid needed)
-        optimize_inputs = cifti_mesh_result.msh
-                                     .join(tet_project_weightfunc_wf.out.fem_weights, by: 0)
-                                     .join(centroid_wf.out.centroid, by: 0)
-                                     .map{s,m,f,c -> [s,m,f,c,params.coil] } | view
-        optimize_coil(optimize_inputs)
+        optimize_wf(
+                    cifti_mesh_result.msh,
+                    tet_project_weightfunc_wf.out.fem_weights,
+                    centroid_wf.out.centroid,
+                    params.coil
+                   )
 
         // Gather BOONStim outputs for publishing
         registration_wf.out.msm_sphere.branch(lr_branch).set { msm }
@@ -254,10 +255,10 @@ workflow {
                                     .join(resampleweightfunc_wf.out.resampled)
                                     .join(centroid_wf.out.centroid)
                                     .join(tet_project_weightfunc_wf.out.fem_weights)
-                                    .join(optimize_coil.out.orientation)
-                                    .join(optimize_coil.out.opt_msh)
-                                    .join(optimize_coil.out.opt_coil)
-                                    .join(optimize_coil.out.history)
+                                    .join(optimize_wf.out.orientation)
+                                    .join(optimize_wf.out.opt_msh)
+                                    .join(optimize_wf.out.opt_coil)
+                                    .join(optimize_wf.out.history)
 
         publish_boonstim(publish_boonstim_input)
 
