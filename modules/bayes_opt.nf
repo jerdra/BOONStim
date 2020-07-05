@@ -1,3 +1,4 @@
+nextflow.preview.dsl = 2
 
 // Process definitions
 process optimize_coil{
@@ -12,8 +13,6 @@ process optimize_coil{
 
     output:
     tuple val(sub), path("${sub}_orientation.txt"), emit: orientation
-    tuple val(sub), path("${sub}_optimal_sim.msh"), emit: opt_msh
-    tuple val(sub), path("${sub}_optimal_coilpos.geo"), emit: opt_coil
     tuple val(sub), path("${sub}_history.txt"), emit: history
 
     shell:
