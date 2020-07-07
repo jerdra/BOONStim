@@ -27,7 +27,7 @@ process optimize_coil{
     '''
 }
 
-workflow optimize{
+workflow optimize_wf{
 
     take:
         msh
