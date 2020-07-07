@@ -22,30 +22,30 @@ process grid_optimization{
     /scripts/gridopt_fem.py !{msh} !{weights} !{centroid} \
                             !{coil} \
                             $(pwd)/!{sub}_orientation.txt \
-                            !{params.position_grid_num} \
+                            !{params.positional_grid_num} \
                             !{params.rotational_grid_num} \
                             --history !{sub}_history.txt \
-                            --workdir !(pwd)
+                            --workdir !(pwd) \
                             --ncpus !{params.grid_cpus} \
                             --batchsize !{params.batch_size}
     '''
 }
 
-workflow optimize{
+workflow optimize_wf{
 
     take:
-       msh,
-       weights,
-       centroid,
+       msh
+       weights
+       centroid
        coil
 
     main:
         i_grid_optimization = msh.join(weights)
                                 .join(centroid)
-                                .join(coil)
+                                .spread([coil]) | view
         grid_optimization(i_grid_optimization)
 
     emit:
-        orientation = optimize_coil.out.orientation
-        history = optimize_coil.out.history
+        orientation = grid_optimization.out.orientation
+        history = grid_optimization.out.history
 }
