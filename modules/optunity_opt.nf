@@ -1,7 +1,7 @@
 nextflow.preview.dsl = 2
 
-// Set up grid optimization schema
-process grid_optimization{
+// Set up optunity optimization schema
+process optunity_optimization{
 
     stageInMode 'copy'
     label 'rtms'
@@ -19,16 +19,17 @@ process grid_optimization{
     '''
     #!/bin/bash
 
-    /scripts/gridopt_fem.py !{msh} !{weights} !{centroid} \
+    /scripts/optunityopt_fem.py !{msh} !{weights} !{centroid} \
                             !{coil} \
                             $(pwd)/!{sub}_orientation.txt \
-                            !{params.position_grid_num} \
-                            !{params.rotational_grid_num} \
+                            !{params.position_optunity_num} \
+                            !{params.rotational_optunity_num} \
                             --history !{sub}_history.txt \
                             --workdir !(pwd)
-                            --ncpus !{params.grid_cpus} \
+                            --ncpus !{params.optunity_cpus} \
                             --batchsize !{params.batch_size}
     '''
+
 }
 
 workflow optimize{
@@ -40,10 +41,10 @@ workflow optimize{
        coil
 
     main:
-        i_grid_optimization = msh.join(weights)
+        i_optunity_optimization = msh.join(weights)
                                 .join(centroid)
                                 .join(coil)
-        grid_optimization(i_grid_optimization)
+        optunity_optimization(i_optunity_optimization)
 
     emit:
         orientation = optimize_coil.out.orientation
