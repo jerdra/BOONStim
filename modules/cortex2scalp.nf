@@ -83,18 +83,34 @@ process make_centroid{
 }
 
 // Calculate ROI --> scalp distance
-process calculate_distance{
+process calculate_roi2cortex{
 
     label 'rtms'
     input:
     tuple val(sub), path(mesh), path(centroid)
 
     output:
-    tuple val(sub), path("${sub}.distance.npy"), emit: distance
+    tuple val(sub), path("${sub}.roi_distance.npy"), emit: distance
 
     shell:
     '''
-    /scripts/get_cortex_to_scalp.py !{mesh} !{centroid} !{sub}.distance.npy
+    /scripts/get_cortex_to_scalp.py !{mesh} --roi !{centroid} !{sub}.roi_distance.npy
+    '''
+}
+
+process calculate_coil2cortex{
+
+    label 'rtms'
+    input:
+    tuple val(sub), path(mesh), path(coil_centre)
+
+    output:
+    tuple val(sub), path("${sub}.coil_distance.npy"), emit: distance
+
+    shell:
+    '''
+    /scripts/get_cortex_to_scalp.py !{mesh} --coilcentre !{coil_centre} \
+                                    !{sub}.coil_distance.npy
     '''
 }
 
@@ -106,7 +122,6 @@ workflow cortex2scalp_wf{
         roi
 
     main:
-
         convert_pial_to_metric(pial)
 
         // Surface coordinates
@@ -129,10 +144,24 @@ workflow cortex2scalp_wf{
                             .map{ s,f -> [s,f].flatten() }
         make_centroid(i_make_centroid)
 
-        i_calculate_distance = mesh.join(make_centroid.out.centroid)
-        calculate_distance(i_calculate_distance)
+        i_calculate_roi2cortex = mesh.join(make_centroid.out.centroid)
+        calculate_roi2cortex(i_calculate_roi2cortex)
 
     emit:
-        scalp2cortex = calculate_distance.out.distance
+        scalp2cortex = calculate_roi2cortex.out.distance
 
+}
+
+workflow coil2cortex_wf{
+
+    take:
+        mesh
+        coil_centre
+
+    main:
+        i_calculate_coil2cortex = mesh.join(coil_centre)
+        calculate_coil2cortex(i_calculate_coil2cortex)
+
+    emit:
+        cortex2coil = calculate_coil2cortex.out.distance
 }

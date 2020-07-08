@@ -80,6 +80,7 @@ include tet_project_wf as tet_project_weightfunc_wf from './modules/tetrahedral_
 include tet_project_wf as tet_project_roi_wf from './modules/tetrahedral_wf.nf' params(params)
 include calculate_reference_field_wf from './modules/reference_field_wf.nf' params(params)
 include cortex2scalp_wf from './modules/cortex2scalp.nf' params(params)
+include coil2cortex_wf from './modules/cortex2scalp.nf' params(params)
 include optimize_wf from "${params.optimization_module}" params(params)
 
 // IMPORT MODULES PROCESSES
@@ -217,7 +218,7 @@ workflow {
                         cifti_mesh_result.t1fs_conform,
                         cifti_mesh_result.msh)
 
-        // Get ROI --> Resample --> Tetrahedral projection into FEM space
+        // Calculate distance from canonical MT --> Scalp
         calculate_reference_field_wf(cifti_mesh_result.cifti)
         resampledistmap_wf(
             calculate_reference_field_wf.out.roi,
@@ -228,8 +229,6 @@ workflow {
             make_giftis_result.pial,
             resampledistmap_wf.out.resampled
         )
-        cortex2scalp_wf.out.scalp2cortex
-
 
         // Gather inputs for optimization (centroid needed)
         optimize_wf(
@@ -238,6 +237,12 @@ workflow {
                     centroid_wf.out.centroid,
                     params.coil
                    )
+
+        // Calculate distance from cortex
+        coil2cortex_wf(
+                        cifti_mesh_result.msh,
+                        optimize_wf.out.orientation
+                      )
 
         // Gather BOONStim outputs for publishing
         registration_wf.out.msm_sphere.branch(lr_branch).set { msm }
