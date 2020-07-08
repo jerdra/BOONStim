@@ -15,7 +15,7 @@ logging.basicConfig(format="%(asctime)s [BOONSTIM GRID]:  %(message)s",
 
 def main():
 
-    parser = argparse.ArgumentParsers(
+    parser = argparse.ArgumentParser(
         description="Run grid optimization on a single subject")
     parser.add_argument('msh',
                         type=str,
@@ -57,7 +57,7 @@ def main():
                         "will default to half the number of cpus if not "
                         "specified.")
 
-    args = parser.parse()
+    args = parser.parse_args()
     msh = args.msh
     wf = np.load(args.weights)
     centroid = np.genfromtxt(args.centroid)
@@ -71,7 +71,8 @@ def main():
     output_file = args.output_file
 
     # Construct objective function object
-    f = FieldFunc(mesh_file=msh,
+    logging.info(f"Using {ncpus} cpus")
+    femfunc = FieldFunc(mesh_file=msh,
                   initial_centroid=centroid,
                   tet_weights=wf,
                   coil=coil,
@@ -79,8 +80,8 @@ def main():
                   cpus=ncpus)
 
     # Set up grid for evaluation
-    x_in = np.linspace(f.bounds[0, 0], f.bounds[0, 1], loc_dim)
-    y_in = np.linspace(f.bounds[1, 0], f.bounds[1, 1], loc_dim)
+    x_in = np.linspace(femfunc.bounds[0, 0], femfunc.bounds[0, 1], loc_dim)
+    y_in = np.linspace(femfunc.bounds[1, 0], femfunc.bounds[1, 1], loc_dim)
     rot_in = np.linspace(0, 180, rot_dim)
     input_array = cartesian([x_in, y_in, rot_in])
 
@@ -92,7 +93,7 @@ def main():
         with open(history, 'r') as f:
             num_previous = sum(1 for _ in f) - 1
         input_array = input_array[num_previous:, :]
-        score_list.append(np.genfromtxt(history, skip_header=1, separator=','))
+        score_list.append(np.genfromtxt(history, skip_header=1, delimiter=','))
 
     elif not os.path.exists(history):
         header = "x,y,r,score\n"
@@ -100,7 +101,7 @@ def main():
             f.write(header)
 
     # Split input array into chunks
-    divisions = np.arange(0, input_array.shape[0], batch_size)
+    divisions = np.arange(batch_size, input_array.shape[0], batch_size)
     input_arrays = np.split(input_array, divisions)
 
     logging.info(f"Running {len(input_arrays)} iterations...")
@@ -109,14 +110,14 @@ def main():
     for i, a in enumerate(input_arrays):
 
         logging.info(f"Iteration number {i} of {len(input_arrays)}")
-        scores = f.evaluate(a)
+        scores = femfunc.evaluate(a)
 
         score_arr = np.c_[a, scores]
         score_list.append(score_arr)
         if history:
             with open(history, "a") as h_file:
                 logging.debug(f"Writing to {history}...")
-                np.savetxt(h_file, np.c_[a, scores], separator=',')
+                np.savetxt(h_file, np.c_[a, scores], delimiter=',')
 
         logging.info(f"Completed iteration {i}")
 
