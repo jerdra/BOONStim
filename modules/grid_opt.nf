@@ -25,7 +25,7 @@ process grid_optimization{
                             !{params.positional_grid_num} \
                             !{params.rotational_grid_num} \
                             --history !{sub}_history.txt \
-                            --workdir !(pwd) \
+                            --workdir $(pwd) \
                             --ncpus !{params.grid_cpus} \
                             --batchsize !{params.batch_size}
     '''
