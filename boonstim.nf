@@ -79,8 +79,7 @@ include centroid_wf from './modules/centroid_wf.nf' params(params)
 include tet_project_wf as tet_project_weightfunc_wf from './modules/tetrahedral_wf.nf' params(params)
 include tet_project_wf as tet_project_roi_wf from './modules/tetrahedral_wf.nf' params(params)
 include calculate_reference_field_wf from './modules/reference_field_wf.nf' params(params)
-include cortex2scalp_wf from './modules/cortex2scalp.nf' params(params)
-include coil2cortex_wf from './modules/cortex2scalp.nf' params(params)
+include fieldscaling_wf from './modules/field_scaling.nf' params(params)
 include optimize_wf from "${params.optimization_module}" params(params)
 
 // IMPORT MODULES PROCESSES
@@ -218,19 +217,7 @@ workflow {
                         cifti_mesh_result.t1fs_conform,
                         cifti_mesh_result.msh)
 
-        // Calculate distance from canonical MT --> Scalp
-        calculate_reference_field_wf(cifti_mesh_result.cifti)
-        resampledistmap_wf(
-            calculate_reference_field_wf.out.roi,
-            registration_wf.out.msm_sphere
-        )
-        cortex2scalp_wf(
-            cifti_mesh_result.msh,
-            make_giftis_result.pial,
-            resampledistmap_wf.out.resampled
-        )
-
-        // Gather inputs for optimization (centroid needed)
+        // Gather inputs for optimization
         optimize_wf(
                     cifti_mesh_result.msh,
                     tet_project_weightfunc_wf.out.fem_weights,
@@ -238,9 +225,17 @@ workflow {
                     params.coil
                    )
 
-        // Calculate distance from cortex
-        coil2cortex_wf(
+        // Calculate scaling factor between coil and cortex
+        calculate_reference_field_wf(cifti_mesh_result.cifti)
+        resampledistmap_wf(
+            calculate_reference_field_wf.out.roi,
+            registration_wf.out.msm_sphere
+        )
+
+        fieldscaling_wf(
                         cifti_mesh_result.msh,
+                        make_giftis_result.pial,
+                        resampledistmap_wf.out.resampled,
                         optimize_wf.out.orientation
                       )
 

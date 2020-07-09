@@ -114,6 +114,30 @@ process calculate_coil2cortex{
     '''
 }
 
+process get_ratio{
+
+    label 'rtms'
+    input:
+    tuple val(sub), path(cortex2scalp), path(coil2cortex)
+
+    output:
+    tuple val(sub), path("${sub}.scaling_factor.txt"), emit: scaling_factor
+
+    shell:
+    '''
+    #!/usr/bin/env python
+
+    import numpy as np
+
+    c2s = np.load("!{cortex2scalp}")
+    c2c = np.load("!{coil2cortex}")
+    ratio = c2c/c2s * 100
+
+    with open("!{sub}.scaling_factor.txt","w") as f:
+        f.write(str(ratio))
+    '''
+}
+
 workflow cortex2scalp_wf{
 
     take:
@@ -164,4 +188,25 @@ workflow coil2cortex_wf{
 
     emit:
         cortex2coil = calculate_coil2cortex.out.distance
+}
+
+workflow fieldscaling_wf{
+
+    take:
+        mesh
+        pial
+        roi
+        coil_centre
+
+    main:
+        cortex2scalp_wf(mesh, pial, roi)
+        coil2cortex_wf(mesh, coil_centre)
+
+        i_get_ratio = cortex2scalp_wf.out.scalp2cortex
+                                        .join(coil2cortex_wf.out.cortex2coil)
+        get_ratio(i_get_ratio)
+
+    emit:
+        scaling_factor = get_ratio.out.scaling_factor
+
 }
