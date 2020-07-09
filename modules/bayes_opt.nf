@@ -44,7 +44,5 @@ workflow optimize_wf{
 
     emit:
         orientation = optimize_coil.out.orientation
-        opt_msh = optimize_coil.out.opt_msh
-        opt_coil = optimize_coil.out.opt_coil
         history = optimize_coil.out.history
 }
