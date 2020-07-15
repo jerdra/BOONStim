@@ -5,6 +5,8 @@ include optimize_wf as optimize from "${params.optimization_module}" params(para
 
 process evaluate_fem{
 
+    label 'rtms'
+
     input:
     tuple val(sub), path(msh),\
     path(weights), path(centroid),\
@@ -17,6 +19,8 @@ process evaluate_fem{
 
     shell:
     '''
+    #!/usr/bin/env python
+    import os
     import numpy as np
     from fieldopt.objective import FieldFunc
 
@@ -28,7 +32,7 @@ process evaluate_fem{
                     initial_centroid=centroid,
                     tet_weights=wf,
                     coil="!{coil}",
-                    field_dir=!(pwd),
+                    field_dir=os.getcwd(),
                     cpus=2
                    )
 
