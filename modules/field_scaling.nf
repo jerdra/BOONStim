@@ -138,6 +138,26 @@ process get_ratio{
     '''
 }
 
+process matsimnibs2centre{
+
+    label 'rtms'
+    input:
+    tuple val(sub), path(matsimnibs)
+
+    output:
+    tuple val(sub), path("${sub}_coilcentre.txt"), emit: coil_centre
+
+    shell:
+    '''
+    #!/usr/bin/env python
+    import numpy as np
+
+    matsimnibs = np.load("!{matsimnibs}")
+    coil_centre = matsimnibs[:3,-1]
+    np.savetxt("!{sub}_coilcentre.txt", coil_centre)
+    '''
+}
+
 workflow cortex2scalp_wf{
 
     take:
@@ -196,11 +216,14 @@ workflow fieldscaling_wf{
         mesh
         pial
         roi
-        coil_centre
+        matsimnibs
 
     main:
+
         cortex2scalp_wf(mesh, pial, roi)
-        coil2cortex_wf(mesh, coil_centre)
+
+        matsimnibs2centre(matsimnibs)
+        coil2cortex_wf(mesh, matsimnibs2centre.out.coil_centre)
 
         i_get_ratio = cortex2scalp_wf.out.scalp2cortex
                                         .join(coil2cortex_wf.out.cortex2coil)
