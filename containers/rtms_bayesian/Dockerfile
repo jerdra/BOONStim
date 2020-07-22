@@ -41,7 +41,7 @@ ENV	MOE_CC_PATH=/usr/bin/gcc \
 # Force emcee version as newer ones have issues w/linearly dependent walkers
 RUN	pip install -f https://github.com/simnibs/simnibs/releases/tag/v3.1.2 simnibs
 RUN	pip install future && cd /Cornell-MOE && pip install -r requirements.txt && python ./setup.py install \
-	&& pip install jupyter numba matplotlib docopt sklearn emcee==2.2.1
+	&& pip install jupyter numba matplotlib docopt sklearn emcee==2.2.1 nilearn
 
 #Set up Field Optimization package
 RUN	mkdir -p /field_pkgs/
