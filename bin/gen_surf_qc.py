@@ -9,7 +9,8 @@ import nibabel as nib
 import numpy as np
 
 logging.basicConfig(format="%(asctime)s [BOONSTIM GRID]:  %(message)s",
-                    datefmt="%Y-%m-%d %I:%M:%S %p")
+                    datefmt="%Y-%m-%d %I:%M:%S %p",
+                    level=logging.INFO)
 
 hemi2vert = {'left': 0, 'right': 1}
 
@@ -32,7 +33,8 @@ def construct_cifti_surf_mesh(l, r):
 def construct_map_from_cifti(cifti):
     vertvals = np.asanyarray(cifti.dataobj)[0]
     brain_models = list(cifti.header.get_index_map(1).brain_models)
-    vertices = np.zeros(2 * brain_models[0].surface_number_of_vertices,
+    vertices = np.zeros(sum(m.surface_number_of_vertices
+                            for m in brain_models),
                         dtype=vertvals.dtype)
 
     prev_verts = 0
@@ -111,7 +113,7 @@ def main():
                    output_file=f"{outbase}_view-anterior.png")
 
     # Hemispheric views
-    ind2h = {1: 'left', 2: 'right'}
+    ind2h = {0: 'left', 1: 'right'}
     prev_vert = 0
     for i, h in enumerate([l_surf, r_surf]):
 
@@ -121,6 +123,7 @@ def main():
         hemi = ind2h[i]
         h_bg = bg[inds] if bg_exists else None
 
+        logging.info(f"Generating lateral view of {hemi} hemisphere")
         plot.plot_surf(surf_mesh=[h.darrays[0].data, h.darrays[1].data],
                        surf_map=h_verts,
                        bg_map=h_bg,
@@ -130,7 +133,7 @@ def main():
                        hemi=hemi,
                        output_file=f"{outbase}_view-lateral_hemi-{hemi}.png")
 
-        logging.info(f"Generating medial view of {h} hemisphere")
+        logging.info(f"Generating medial view of {hemi} hemisphere")
         plot.plot_surf(surf_mesh=[h.darrays[0].data, h.darrays[1].data],
                        surf_map=h_verts,
                        bg_map=h_bg,
