@@ -63,19 +63,19 @@ process brainsight_transform{
     from numpy import arcsin, degrees, arctan2
     import numpy as np
 
-    matsimnibs = np.load("!{orientation}")
+    msn = np.load("!{orientation}")
 
-    matsimnibs[:3,2] = -msn[:3,2]
-    matsimnibs[:3,0] = -msn[:3,0]
+    msn[:3,2] = -msn[:3,2]
+    msn[:3,0] = -msn[:3,0]
 
     xyz_alpha = degrees(arctan2(-msn[1,2],msn[2,2]))
     xyz_beta = degrees(arcsin(msn[0,2]))
     xyz_gamma = degrees(arctan2(-msn[0,1],msn[0,0,]))
 
     to_write = np.array([
-        matsimnibs[0,3],
-        matsimnibs[1,3],
-        matsimnibs[2,3],
+        msn[0,3],
+        msn[1,3],
+        msn[2,3],
         -xyz_alpha,
         -xyz_beta,
         xyz_gamma
