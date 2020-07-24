@@ -93,24 +93,29 @@ def main():
     logging.info("Constructing map from dscalar CIFTI")
     vertices = construct_map_from_cifti(nib.load(dscalar))
 
+    plot_args = {
+        "darkness": 0.99,
+        "bg_on_data": True if bg_exists else False,
+        "threshold": 0.1,
+        "cmap": "magma"
+    }
+
     # Construct mapping from left/right
     logging.info("Generating anterior view...")
     plot.plot_surf(surf_mesh=[coord, trigs],
                    surf_map=vertices,
                    bg_map=bg,
-                   bg_on_data=True if bg_exists else False,
-                   darkness=0.8,
                    view='anterior',
-                   output_file=f"{outbase}_view-anterior.png")
+                   output_file=f"{outbase}_view-anterior.png",
+                   **plot_args)
 
     logging.info("Generating dorsal view...")
     plot.plot_surf(surf_mesh=[coord, trigs],
                    surf_map=vertices,
                    bg_map=bg,
-                   bg_on_data=True if bg_exists else False,
-                   darkness=0.8,
                    view='dorsal',
-                   output_file=f"{outbase}_view-anterior.png")
+                   output_file=f"{outbase}_view-dorsal.png",
+                   **plot_args)
 
     # Hemispheric views
     ind2h = {0: 'left', 1: 'right'}
@@ -127,21 +132,19 @@ def main():
         plot.plot_surf(surf_mesh=[h.darrays[0].data, h.darrays[1].data],
                        surf_map=h_verts,
                        bg_map=h_bg,
-                       bg_on_data=True if bg_exists else False,
-                       darkness=0.8,
                        view='lateral',
                        hemi=hemi,
-                       output_file=f"{outbase}_view-lateral_hemi-{hemi}.png")
+                       output_file=f"{outbase}_view-lateral_hemi-{hemi}.png",
+                       **plot_args)
 
         logging.info(f"Generating medial view of {hemi} hemisphere")
         plot.plot_surf(surf_mesh=[h.darrays[0].data, h.darrays[1].data],
                        surf_map=h_verts,
                        bg_map=h_bg,
-                       bg_on_data=True if bg_exists else False,
-                       darkness=0.8,
                        view='medial',
                        hemi=hemi,
-                       output_file=f"{outbase}_view-medial_hemi-{hemi}.png")
+                       output_file=f"{outbase}_view-medial_hemi-{hemi}.png",
+                       **plot_args)
 
         prev_vert += h.darrays[0].data.shape[0]
 
