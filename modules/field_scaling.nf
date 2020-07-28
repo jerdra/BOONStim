@@ -211,6 +211,7 @@ workflow coil2cortex_wf{
         cortex2coil = calculate_coil2cortex.out.distance
 }
 
+
 workflow fieldscaling_wf{
 
     take:
