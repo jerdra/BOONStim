@@ -131,10 +131,11 @@ process get_ratio{
 
     c2s = np.load("!{cortex2scalp}")
     c2c = np.load("!{coil2cortex}")
-    ratio = c2c/c2s * 100
+    ratio = c2s/c2c * 100
 
     with open("!{sub}.scaling_factor.txt","w") as f:
         f.write(str(ratio))
+
     '''
 }
 
@@ -209,6 +210,7 @@ workflow coil2cortex_wf{
     emit:
         cortex2coil = calculate_coil2cortex.out.distance
 }
+
 
 workflow fieldscaling_wf{
 
