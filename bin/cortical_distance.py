@@ -12,7 +12,7 @@ GM_ENTITY = (2, 2)
 def decompose_dscalar(dscalar):
 
     cifti = img.load_img(dscalar)
-    data = cifti.get_fdata(np.float32)
+    data = cifti.get_fdata(dtype=np.float32)
     ax = cifti.header.get_axis(1)
     n_maps = cifti.header.get_axis(0).name.shape[0]
 
@@ -26,9 +26,9 @@ def decompose_dscalar(dscalar):
         h = name.replace("CIFTI_STRUCTURE_CORTEX_", "").lower()
 
         # Step 2: Map into structure
-        texture = np.zeros((n_maps, brainmodel.vertex.max() + 1),
+        texture = np.zeros((brainmodel.vertex.max() + 1, n_maps),
                            dtype=np.float32)
-        texture[brainmodel.vertex] = data[:, indices]
+        texture[brainmodel.vertex, :] = data[:, indices].T
         surf[h] = texture
 
     return surf
@@ -42,7 +42,7 @@ def get_min_scalp2cortex(brain_coords, head_coords):
     '''
 
     # Get pairwise euclidean distances
-    dists = np.linalg.norm(head_coords.reshape[:, np.newaxis, :] -
+    dists = np.linalg.norm(head_coords[:, np.newaxis, :] -
                            brain_coords,
                            axis=2)
 
@@ -96,11 +96,11 @@ def main():
         right_mask = np.where(surf_mask['right'] > 0)
 
         coords = np.vstack([
-            surf_coords['left'][:, left_mask[1]].T,
-            surf_coords['right'][:, right_mask[1]].T
+            surf_coords['left'][left_mask[0], :],
+            surf_coords['right'][right_mask[0], :]
         ])
     else:
-        coords = np.vstack([surf_coords['left'].T, surf_coords['right'].T])
+        coords = np.vstack([surf_coords['left'], surf_coords['right']])
 
     # Get head model coordinates
     _, h_coords, _ = gl.load_gmsh_nodes(f_mesh, HEAD_ENTITY)
