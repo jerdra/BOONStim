@@ -53,6 +53,8 @@ process average_coordinate{
 
     shell:
     '''
+
+    # Apply the ROI mask to the CIFTI data
     wb_command -cifti-math \
         "x*y" \
         -var "x" !{coords} \
@@ -60,6 +62,7 @@ process average_coordinate{
         -var "y" !{roi} \
         !{ori}.dscalar.nii
 
+    # Calculate the average coordinate within the centroid
     wb_command -cifti-roi-average \
         !{ori}.dscalar.nii \
         -cifti-roi !{roi} \
@@ -82,6 +85,25 @@ process make_centroid{
 
 }
 
+process threshold_roi{
+
+    label 'connectome'
+
+    input:
+    tuple val(sub), path(roi)
+
+    output:
+    tuple val(sub), path("${sub}.roi_thresholded.dscalar.nii"), emit: mask
+
+    shell:
+    '''
+    #!/bin/bash
+
+    wb_command -cifti-math "x > 0.5" -var "x" !{roi} \
+                            !{sub}.roi_thresholded.dscalar.nii
+    '''
+}
+
 // Calculate ROI --> scalp distance
 process calculate_roi2cortex{
 
@@ -96,6 +118,42 @@ process calculate_roi2cortex{
     '''
     /scripts/get_cortex_to_scalp.py !{mesh} --roi !{centroid} !{sub}.roi_distance.npy
     '''
+}
+
+// Alternative formulation
+process get_cortical_distance_masked{
+
+    label 'rtms'
+    input:
+    tuple val(sub), path(mesh), path(surf_coords), path(roi)
+
+    output:
+    tuple val(sub), path("${sub}.roi_distance.npy"), emit: distance
+
+    shell:
+    '''
+    /scripts/cortical_distance.py !{mesh} !{surf_coords} --mask !{roi} \
+                                  !{sub}.roi_distance.npy
+    '''
+
+}
+
+process get_cortical_distance{
+
+    label 'rtms'
+    input:
+    tuple val(sub), path(mesh), path(surf_coords), path(coilcentre)
+
+    output:
+    tuple val(sub), path("${sub}.coil_distance.npy"), emit: distance
+
+    shell:
+    '''
+    /scripts/cortical_distance.py !{mesh} !{surf_coords} --coilcentre !{coilcentre} \
+                                  !{sub}.coil_distance.npy
+    '''
+
+
 }
 
 process calculate_coil2cortex{
@@ -163,37 +221,37 @@ workflow cortex2scalp_wf{
 
     take:
         mesh
-        pial
+        pial_surface
         roi
 
     main:
-        convert_pial_to_metric(pial)
 
         // Surface coordinates
-        i_join_surface_coordinates = convert_pial_to_metric.out.shape_coords
-                                        .map{s,h,g -> [s,g]}
-                                        .groupTuple(by: 0, sort: { it.getBaseName() })
-                                        .map{s,g -> [s, g[0], g[1]]}
-        join_surface_coordinates(i_join_surface_coordinates)
 
-        // Process X,Y,Z separately with the roi
-        i_average_coordinate = join_surface_coordinates.out.cifti_coords
-                            .join(roi, by: 0)
-                            .combine([[1,'X'], [2,'Y'], [3,'Z']])
-        average_coordinate(i_average_coordinate)
+        // // Process X,Y,Z separately with the roi
+        // i_average_coordinate = join_surface_coordinates.out.cifti_coords
+        //                     .join(roi, by: 0)
+        //                     .combine([[1,'X'], [2,'Y'], [3,'Z']])
+        // average_coordinate(i_average_coordinate)
 
-        // Average the information in each piece
-        i_make_centroid = average_coordinate.out.avg_coord
-                            .map{ s,o,c -> [s,c] }
-                            .groupTuple(by: 0, sort: { it.getBaseName() })
-                            .map{ s,f -> [s,f].flatten() }
-        make_centroid(i_make_centroid)
+        // // Average the information in each piece
+        // i_make_centroid = average_coordinate.out.avg_coord
+        //                     .map{ s,o,c -> [s,c] }
+        //                     .groupTuple(by: 0, sort: { it.getBaseName() })
+        //                     .map{ s,f -> [s,f].flatten() }
+        // make_centroid(i_make_centroid)
 
-        i_calculate_roi2cortex = mesh.join(make_centroid.out.centroid)
-        calculate_roi2cortex(i_calculate_roi2cortex)
+        // i_calculate_roi2cortex = mesh.join(make_centroid.out.centroid)
+        // calculate_roi2cortex(i_calculate_roi2cortex)
+
+
+        threshold_roi(roi)
+        i_get_cortical_distance = mesh.join(pial_surface)
+                                      .join(threshold_roi.out.mask)
+        get_cortical_distance_masked(i_get_cortical_distance)
 
     emit:
-        scalp2cortex = calculate_roi2cortex.out.distance
+        scalp2cortex = get_cortical_distance_masked.out.distance
 
 }
 
@@ -201,14 +259,18 @@ workflow coil2cortex_wf{
 
     take:
         mesh
+        pial_surface
         coil_centre
 
     main:
-        i_calculate_coil2cortex = mesh.join(coil_centre)
-        calculate_coil2cortex(i_calculate_coil2cortex)
+        // i_calculate_coil2cortex = mesh.join(coil_centre)
+        // calculate_coil2cortex(i_calculate_coil2cortex)
+        i_get_cortical_distance = mesh.join(pial_surface)
+                                      .join(coil_centre)
+        get_cortical_distance(i_get_cortical_distance)
 
     emit:
-        cortex2coil = calculate_coil2cortex.out.distance
+        cortex2coil = get_cortical_distance.out.distance
 }
 
 
@@ -222,10 +284,20 @@ workflow fieldscaling_wf{
 
     main:
 
-        cortex2scalp_wf(mesh, pial, roi)
+        // Convert pial to surface coordinates
+        convert_pial_to_metric(pial)
+        i_join_surface_coordinates = convert_pial_to_metric.out.shape_coords
+                                        .map{s,h,g -> [s,g]}
+                                        .groupTuple(by: 0, sort: { it.getBaseName() })
+                                        .map{s,g -> [s, g[0], g[1]]}
+        join_surface_coordinates(i_join_surface_coordinates)
 
+        // MT calculation
+        cortex2scalp_wf(mesh, join_surface_coordinates.out.cifti_coords, roi)
+
+        // Coil calculation
         matsimnibs2centre(matsimnibs)
-        coil2cortex_wf(mesh, matsimnibs2centre.out.coil_centre)
+        coil2cortex_wf(mesh, join_surface_coordinates.out.cifti_coords, matsimnibs2centre.out.coil_centre)
 
         i_get_ratio = cortex2scalp_wf.out.scalp2cortex
                                         .join(coil2cortex_wf.out.cortex2coil)
