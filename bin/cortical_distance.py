@@ -266,7 +266,7 @@ def main():
 
     # Apply mask if available
     if f_mask:
-        logging.info("Mask file supplied! Reducing search space...")
+    logging.info("Mask file supplied! Reducing search space to ROI...")
         surf_mask = decompose_dscalar(f_mask)
         surf_masked = apply_mask_to_pial(surf_coords, surf_mask)
 
