@@ -246,10 +246,6 @@ def main():
     parser.add_argument('--qc-geo',
                         type=str,
                         help="Path to geo file to generate a QC model")
-    parser.add_argument('--geo-view',
-                        type=str,
-                        help="Template containing gmsh script instructions "
-                        "to use by default"
 
     args = parser.parse_args()
     f_mesh = args.mesh
@@ -258,7 +254,6 @@ def main():
     f_coil = args.coilcentre
     f_out = args.output
     f_qc = args.qc_geo
-    f_opt = args.geo_view
 
     # Step 1: Load in the pial surface
     logging.info("Parsing coordinate CIFTI file...")
@@ -266,7 +261,7 @@ def main():
 
     # Apply mask if available
     if f_mask:
-    logging.info("Mask file supplied! Reducing search space to ROI...")
+        logging.info("Mask file supplied! Reducing search space to ROI...")
         surf_mask = decompose_dscalar(f_mask)
         surf_masked = apply_mask_to_pial(surf_coords, surf_mask)
 
@@ -287,7 +282,7 @@ def main():
         geo_out = "\n".join([construct_dist_qc_view, merge_mesh(f_mesh)])
 
         logging.info(f"Writing geo file to {f_out}")
-        write_geo(geo_out, f_out, f_opt)
+        write_geo(geo_out, f_out, f_qc)
 
     else:
         dist = get_min_scalp2cortex(coords, h_coords, f_coil)
