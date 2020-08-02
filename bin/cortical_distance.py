@@ -6,8 +6,7 @@ from nilearn import image as img
 import logging
 
 # CONSTS
-HEAD_ENTITY = (2, 5)
-GM_ENTITY = (2, 2)
+HEAD_ENTITIES = [(2, 5), (2, 1005)]
 
 logging.basicConfig(format="%(asctime)s [BOONSTIM CORTEX2SCALP]:  %(message)s",
                     datefmt="%Y-%m-%d %I:%M:%S %p",
@@ -217,6 +216,25 @@ def write_geo(cmd, out, opt=None):
     return
 
 
+def load_surf_mesh(f_msh, entities):
+    '''
+    surf:       Path to gmsh MSH file
+    entities:   List of entities to attempt of form (dim, tag)
+    '''
+
+    for dim, tag in entities:
+
+        try:
+            nodes, coords, params = gl.load_gmsh_nodes(f_msh, (dim, tag))
+        except ValueError:
+            continue
+        else:
+            return nodes, coords, params
+
+    logging.error("Could not properly load Mesh! Check entity tags!")
+    raise ValueError
+
+
 def main():
 
     parser = argparse.ArgumentParser(description="Given a head model and "
@@ -272,7 +290,7 @@ def main():
 
     # Get head model coordinates
     logging.info("Loading gmsh entity for head model")
-    _, h_coords, _ = gl.load_gmsh_nodes(f_mesh, HEAD_ENTITY)
+    _, h_coords, _ = load_surf_mesh(f_mesh, HEAD_ENTITIES)
 
     # Compute cortical distance, unless in qc mode
     if f_qc:
