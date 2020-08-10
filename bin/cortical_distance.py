@@ -90,7 +90,7 @@ def get_min_dist(x, y, return_coords=False):
     # Yields row/column combination from x and y
     x_min, y_min = np.unravel_index(min_ind, norms.shape)
 
-    return (norms, x[x_min, :], y[y_min, :])
+    return (norms.flatten().min(), x[x_min, :], y[y_min, :])
 
 
 def apply_mask_to_pial(pial_surf, mask):
@@ -139,13 +139,22 @@ def construct_dist_qc_view(pial_surf, head_surf, coil_centre, mt_roi,
                                                        return_coords=True)
 
     # configure scalar line
-    mt_line = create_scalar_line(min_mt_head, min_roi)
+    # a = np.linspace(0, 1, 5)
+    # mt_points = [
+    #     create_scalar_point(x + min_mt_head + (1 - x) * min_roi) for x in a
+    # ]
     mt_text = create_text_at_coord((min_mt_head + min_roi) / 2, min_mt)
+    mt_line = create_scalar_line(min_mt_head, min_roi)
 
+    # coil_points = [
+    #     create_scalar_point(x + min_coil_head + (1 - x) * min_cortex)
+    #     for x in a
+    # ]
     coil_line = create_scalar_line(min_coil_head, min_cortex)
     coil_text = create_text_at_coord((min_coil_head + min_cortex) / 2,
                                      min_coil)
 
+    # elems = mt_points + [mt_text] + coil_points + [coil_text]
     elems = [mt_line, mt_text, coil_line, coil_text]
     view = construct_view("cortex2scalp", elems)
 
@@ -159,7 +168,7 @@ def merge_mesh(mesh):
     mesh:   Path to gmsh .msh file
     '''
 
-    return f"Merge !{mesh}"
+    return f'Merge "{mesh}";\n'
 
 
 def create_scalar_line(p1, p2):
@@ -173,6 +182,19 @@ def create_scalar_line(p1, p2):
     '''
 
 
+def create_scalar_point(p):
+    '''
+    Create sphere at specified coordinate
+
+    p:  Coordinates at which to create sphere
+    r:  Radius of sphere to be created
+    '''
+
+    return f'''
+    SP({p[0]}, {p[1]}, {p[2]}){{0.0}};
+    '''
+
+
 def create_text_at_coord(p, text):
     '''
     p: Coordinate to insert text
@@ -180,7 +202,7 @@ def create_text_at_coord(p, text):
     '''
 
     return f'''
-    T3({p[0]},{p[1]},{p[2]},7){{text}};
+    T3({p[0]},{p[1]},{p[2]},7){{"{text:.2f}"}};
     '''
 
 
@@ -277,7 +299,10 @@ def main():
     logging.info("Parsing coordinate CIFTI file...")
     surf_coords = decompose_dscalar(f_coords)
 
-    # Apply mask if available
+    # If QC mode
+    if f_qc or not f_mask:
+        coords = np.vstack([surf_coords['left'], surf_coords['right']])
+
     if f_mask:
         logging.info("Mask file supplied! Reducing search space to ROI...")
         surf_mask = decompose_dscalar(f_mask)
@@ -285,8 +310,6 @@ def main():
 
         if not f_qc:
             coords = np.vstack([surf_masked['left'], surf_masked['right']])
-    else:
-        coords = np.vstack([surf_coords['left'], surf_coords['right']])
 
     # Get head model coordinates
     logging.info("Loading gmsh entity for head model")
@@ -296,8 +319,9 @@ def main():
     if f_qc:
         logging.info("Running QC routine")
         masked_coords = np.vstack([surf_masked['left'], surf_masked['right']])
-        construct_dist_qc_view(coords, h_coords, f_coil, masked_coords, f_qc)
-        geo_out = "\n".join([construct_dist_qc_view, merge_mesh(f_mesh)])
+        qc_view = construct_dist_qc_view(coords, h_coords, f_coil,
+                                         masked_coords, f_qc)
+        geo_out = "\n".join([merge_mesh(f_mesh), qc_view])
 
         logging.info(f"Writing geo file to {f_out}")
         write_geo(geo_out, f_out, f_qc)

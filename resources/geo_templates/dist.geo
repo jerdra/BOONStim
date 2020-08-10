@@ -27,3 +27,6 @@ General.TranslationZ = 0;
 General.ScaleX = 1.7;
 General.ScaleY = 1.7;
 General.ScaleZ = 1.7;
+
+//Scalp2Cortex settings
+View[4].LineWidth = 8;

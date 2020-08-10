@@ -217,6 +217,25 @@ process matsimnibs2centre{
     '''
 }
 
+process qc_cortical_distance{
+
+    label 'rtms'
+    input:
+    tuple val(sub), path(mesh), path(pial_surf),\
+    path(coil), path(mask)
+
+    output:
+    tuple val(sub), path("${sub}_distqc.geo"), emit: distqc
+
+    shell:
+    '''
+    /scripts/cortical_distance.py !{mesh} !{pial_surf} \
+                                --coilcentre !{coil} --mask !{mask} \
+                                --qc-geo /geo/dist.geo \
+                                !{sub}_distqc.geo
+    '''
+}
+
 workflow cortex2scalp_wf{
 
     take:
@@ -273,6 +292,27 @@ workflow coil2cortex_wf{
         cortex2coil = get_cortical_distance.out.distance
 }
 
+workflow qc_cortical_distance_wf{
+    take:
+        mesh
+        pial_surface
+        roi
+        coil_centre
+
+    main:
+
+        // Compute mask
+        threshold_roi(roi)
+
+
+
+        i_qc_cortical_distance = mesh.join(pial_surface)
+                                 .join(coil_centre)
+                                 .join(threshold_roi.out.mask)
+        qc_cortical_distance(i_qc_cortical_distance)
+
+}
+
 
 workflow fieldscaling_wf{
 
@@ -293,15 +333,30 @@ workflow fieldscaling_wf{
         join_surface_coordinates(i_join_surface_coordinates)
 
         // MT calculation
-        cortex2scalp_wf(mesh, join_surface_coordinates.out.cifti_coords, roi)
+        cortex2scalp_wf(
+            mesh,
+            join_surface_coordinates.out.cifti_coords,
+            roi
+        )
 
         // Coil calculation
         matsimnibs2centre(matsimnibs)
-        coil2cortex_wf(mesh, join_surface_coordinates.out.cifti_coords, matsimnibs2centre.out.coil_centre)
+        coil2cortex_wf(
+            mesh,
+            join_surface_coordinates.out.cifti_coords,
+            matsimnibs2centre.out.coil_centre
+        )
 
         i_get_ratio = cortex2scalp_wf.out.scalp2cortex
                                         .join(coil2cortex_wf.out.cortex2coil)
         get_ratio(i_get_ratio)
+
+        qc_cortical_distance_wf(
+            mesh,
+            join_surface_coordinates.out.cifti_coords,
+            roi, matsimnibs2centre.out.coil_centre
+        )
+
 
     emit:
         scaling_factor = get_ratio.out.scaling_factor
