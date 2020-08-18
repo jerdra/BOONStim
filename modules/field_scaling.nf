@@ -125,14 +125,15 @@ process get_cortical_distance_masked{
 
     label 'rtms'
     input:
-    tuple val(sub), path(mesh), path(surf_coords), path(roi)
+    tuple val(sub), path(mesh), path(left_surf), path(right_surf), path(roi)
 
     output:
     tuple val(sub), path("${sub}.roi_distance.npy"), emit: distance
 
     shell:
     '''
-    /scripts/cortical_distance.py !{mesh} !{surf_coords} --mask !{roi} \
+    /scripts/cortical_distance.py !{mesh} !{left_surf} !{right_surf} \
+                                  --mask !{roi} \
                                   !{sub}.roi_distance.npy
     '''
 
@@ -142,14 +143,15 @@ process get_cortical_distance{
 
     label 'rtms'
     input:
-    tuple val(sub), path(mesh), path(surf_coords), path(coilcentre)
+    tuple val(sub), path(mesh), path(left_surf), path(right_surf), path(coilcentre)
 
     output:
     tuple val(sub), path("${sub}.coil_distance.npy"), emit: distance
 
     shell:
     '''
-    /scripts/cortical_distance.py !{mesh} !{surf_coords} --coilcentre !{coilcentre} \
+    /scripts/cortical_distance.py !{mesh} !{left_surf} !{right_surf} \
+                                  --coilcentre !{coilcentre} \
                                   !{sub}.coil_distance.npy
     '''
 
@@ -221,7 +223,7 @@ process qc_cortical_distance{
 
     label 'rtms'
     input:
-    tuple val(sub), path(mesh), path(pial_surf),\
+    tuple val(sub), path(mesh), path(left_surf), path(right_surf),\
     path(coil), path(mask)
 
     output:
@@ -229,43 +231,32 @@ process qc_cortical_distance{
 
     shell:
     '''
-    /scripts/cortical_distance.py !{mesh} !{pial_surf} \
+    /scripts/cortical_distance.py !{mesh} !{left_surf} !{right_surf} \
                                 --coilcentre !{coil} --mask !{mask} \
                                 --qc-geo /geo/dist.geo \
                                 !{sub}_distqc.geo
     '''
 }
 
+def lr_branch = branchCriteria {
+                left: it[1] == 'L'
+                    return [it[0], it[2]]
+                right: it[1] == 'R'
+                    return [it[0],it[2]]
+                }
+
 workflow cortex2scalp_wf{
 
     take:
         mesh
-        pial_surface
+        pial
         roi
 
     main:
 
-        // Surface coordinates
-
-        // // Process X,Y,Z separately with the roi
-        // i_average_coordinate = join_surface_coordinates.out.cifti_coords
-        //                     .join(roi, by: 0)
-        //                     .combine([[1,'X'], [2,'Y'], [3,'Z']])
-        // average_coordinate(i_average_coordinate)
-
-        // // Average the information in each piece
-        // i_make_centroid = average_coordinate.out.avg_coord
-        //                     .map{ s,o,c -> [s,c] }
-        //                     .groupTuple(by: 0, sort: { it.getBaseName() })
-        //                     .map{ s,f -> [s,f].flatten() }
-        // make_centroid(i_make_centroid)
-
-        // i_calculate_roi2cortex = mesh.join(make_centroid.out.centroid)
-        // calculate_roi2cortex(i_calculate_roi2cortex)
-
-
         threshold_roi(roi)
-        i_get_cortical_distance = mesh.join(pial_surface)
+        i_get_cortical_distance = mesh.join(pial.left)
+                                      .join(pial.right)
                                       .join(threshold_roi.out.mask)
         get_cortical_distance_masked(i_get_cortical_distance)
 
@@ -278,13 +269,13 @@ workflow coil2cortex_wf{
 
     take:
         mesh
-        pial_surface
+        pial
         coil_centre
 
     main:
-        // i_calculate_coil2cortex = mesh.join(coil_centre)
-        // calculate_coil2cortex(i_calculate_coil2cortex)
-        i_get_cortical_distance = mesh.join(pial_surface)
+
+        i_get_cortical_distance = mesh.join(pial.left)
+                                      .join(pial.right)
                                       .join(coil_centre)
         get_cortical_distance(i_get_cortical_distance)
 
@@ -295,7 +286,7 @@ workflow coil2cortex_wf{
 workflow qc_cortical_distance_wf{
     take:
         mesh
-        pial_surface
+        pial
         roi
         coil_centre
 
@@ -304,9 +295,8 @@ workflow qc_cortical_distance_wf{
         // Compute mask
         threshold_roi(roi)
 
-
-
-        i_qc_cortical_distance = mesh.join(pial_surface)
+        i_qc_cortical_distance = mesh.join(pial.left)
+                                 .join(pial.right)
                                  .join(coil_centre)
                                  .join(threshold_roi.out.mask)
         qc_cortical_distance(i_qc_cortical_distance)
@@ -324,18 +314,12 @@ workflow fieldscaling_wf{
 
     main:
 
-        // Convert pial to surface coordinates
-        convert_pial_to_metric(pial)
-        i_join_surface_coordinates = convert_pial_to_metric.out.shape_coords
-                                        .map{s,h,g -> [s,g]}
-                                        .groupTuple(by: 0, sort: { it.getBaseName() })
-                                        .map{s,g -> [s, g[0], g[1]]}
-        join_surface_coordinates(i_join_surface_coordinates)
+        pial.branch(lr_branch).set{pial_surfs}
 
         // MT calculation
         cortex2scalp_wf(
             mesh,
-            join_surface_coordinates.out.cifti_coords,
+            pial_surfs,
             roi
         )
 
@@ -343,7 +327,7 @@ workflow fieldscaling_wf{
         matsimnibs2centre(matsimnibs)
         coil2cortex_wf(
             mesh,
-            join_surface_coordinates.out.cifti_coords,
+            pial_surfs,
             matsimnibs2centre.out.coil_centre
         )
 
@@ -353,7 +337,7 @@ workflow fieldscaling_wf{
 
         qc_cortical_distance_wf(
             mesh,
-            join_surface_coordinates.out.cifti_coords,
+            pial_surfs,
             roi, matsimnibs2centre.out.coil_centre
         )
 
