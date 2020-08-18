@@ -9,7 +9,7 @@ from collections import namedtuple
 
 # CONSTS
 HEAD_ENTITIES = [(2, 5), (2, 1005)]
-SurfaceMesh = namedtuple("SurfaceMesh", ["ids", "coords", "triangles"])
+SurfaceMesh = namedtuple("SurfaceMesh", ["nodes", "coords", "triangles"])
 DistResult = namedtuple("DistResult", ["source", "target", "distance"])
 
 logging.basicConfig(format="%(asctime)s [BOONSTIM CORTEX2SCALP]:  %(message)s",
@@ -79,7 +79,7 @@ def compose_surfs(*surfs):
         new_nodes.append(surf.nodes + prev_nodes)
         new_coords.append(surf.coords)
         new_trigs.append(surf.triangles + prev_nodes)
-        prev_nodes += surf.nodes.max()
+        prev_nodes += surf.nodes.max() + 1
 
     return SurfaceMesh(np.concatenate(new_nodes), np.vstack(new_coords),
                        np.vstack(new_trigs))
@@ -124,7 +124,7 @@ def get_min_scalp2cortex(brain_coords, head_coords, f_coil):
     '''
 
     head_coords = coil2head(head_coords, f_coil)
-    return get_min_dist(brain_coords, head_coords)
+    return get_min_dist(head_coords, brain_coords)
 
 
 def get_min_dist(x, y, return_coords=False):
@@ -156,33 +156,15 @@ def get_min_dist(x, y, return_coords=False):
     # Yields row/column combination from x and y
     x_min, y_min = np.unravel_index(min_ind, norms.shape)
 
-    return DistResult(norms.flatten().min(), x[x_min, :], y[y_min, :])
+    return DistResult(x[x_min, :], y[y_min, :], norms.flatten().min())
 
 
-def apply_mask_to_pial(pial_surf, mask):
-    '''
-    pial_surf:      Coordinates for pial surface
-    mask:           List of mask indices
-    '''
-
-    left_mask = np.where(mask['left'] > 0)[0]
-    right_mask = np.where(mask['right'] > 0)[0]
-
-    return {
-        'left': pial_surf['left'][left_mask, :],
-        'right': pial_surf['right'][right_mask, :]
-    }
-
-
-def construct_dist_qc_view(pial_surf, head_surf, coil_centre, mt_roi,
-                           geo_file):
+def construct_dist_qcview(s2c, c2s):
     '''
     Function to generate a QC gmsh model
 
-    pial_surf:      Coordinates for pial surface
-    head_surf:      Coordinates for head surface
-    coil_centre:    Coil centre coordinates
-    roi_mask:       Set of coordinates describing MT
+    s2c:            Scalp2Cortex DistResult
+    c2s:            Cortex2Scalp DistResult
     geo_file:       Path to .geo gmsh template file to fill
 
 
@@ -191,25 +173,12 @@ def construct_dist_qc_view(pial_surf, head_surf, coil_centre, mt_roi,
         freesurfer T1 native space
     '''
 
-    # Step 1: Project coil to head
-    coil_coord = coil2head(head_surf, coil_centre)
+    mt_text = create_text_at_coord((c2s.source + c2s.target) / 2, c2s.distance)
+    mt_line = create_scalar_line(c2s.source, c2s.target)
 
-    # Step 2: Minimize distance from mt_roi to head
-    min_mt, min_mt_head, min_roi = get_min_dist(head_surf,
-                                                mt_roi,
-                                                return_coords=True)
-
-    # Step 3: Minimize distance from coil to cortex
-    min_coil, min_coil_head, min_cortex = get_min_dist(coil_coord,
-                                                       pial_surf,
-                                                       return_coords=True)
-
-    mt_text = create_text_at_coord((min_mt_head + min_roi) / 2, min_mt)
-    mt_line = create_scalar_line(min_mt_head, min_roi)
-
-    coil_line = create_scalar_line(min_coil_head, min_cortex)
-    coil_text = create_text_at_coord((min_coil_head + min_cortex) / 2,
-                                     min_coil)
+    coil_line = create_scalar_line(s2c.source, s2c.target)
+    coil_text = create_text_at_coord((s2c.source + s2c.target) / 2,
+                                     s2c.distance)
 
     elems = [mt_line, mt_text, coil_line, coil_text]
     view = construct_view("cortex2scalp", elems)
@@ -397,6 +366,16 @@ def get_min_radial_distance(origin_surf, target_surf, roi=None):
     return DistResult(best_source, best_target, best_ray)
 
 
+def write_file(contents, out):
+    '''
+    Helper func to write contents to out
+    '''
+
+    with open(out, 'w') as f:
+        f.write(contents)
+    return
+
+
 def main():
 
     parser = argparse.ArgumentParser(description="Given a head model and "
@@ -457,33 +436,38 @@ def main():
         scalp2cortex = False
         cortex2scalp = True
 
-    # Step 1: Load in the pial surfaces
     logging.info("Parsing GIFTI Surface Meshes...")
     pial_mesh = compose_surfs(decompose_surf(f_lsurf), decompose_surf(f_rsurf))
 
-    # Get head model coordinates
     logging.info("Loading in head model...")
     head = decompose_gmsh(f_mesh, HEAD_ENTITIES)
 
-    # Calculate scalp to cortex distance
     if scalp2cortex:
-        logger.info("Computing scalp2cortex distance")
+        logging.info("Computing scalp2cortex distance")
         s2c_result = get_min_scalp2cortex(pial_mesh.coords, head.coords,
                                           f_coil)
-        print(s2c_result)
+        if not output_qc:
+            write_file(str(s2c_result.distance), f_out)
 
     if cortex2scalp:
-        logger.info("Computing cortex2scalp distance")
-        logger.info("Obtaining cortical surface normals...")
+        logging.info("Computing cortex2scalp distance")
+
+        logging.info("Loading ROI file...")
         roi = decompose_dscalar(f_roi)
 
-        logger.info("Computing ray intersection of cortical surface "
-                    "to head mesh")
+        logging.info("Computing ray intersection of cortical surface "
+                     "to head mesh...")
+        c2s_result = get_min_radial_distance(pial_mesh, head, roi=roi)
 
-        # Insert routine to compute the ray interesection (geolib func)
+        if not output_qc:
+            write_file(str(c2s_result.distance), f_out)
+            return
 
     if output_qc:
-        pass
+        logging.info(f"Writing QC Geo file to {f_qc}...")
+        geo_contents = construct_dist_qcview(s2c_result, c2s_result)
+        write_geo([merge_mesh(f_mesh)] + geo_contents, f_out, f_qc)
+        return
 
 
 if __name__ == '__main__':
