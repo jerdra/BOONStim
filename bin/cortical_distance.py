@@ -2,11 +2,15 @@
 import argparse
 from fieldopt import geolib as gl
 import numpy as np
+import nibabel as nib
 from nilearn import image as img
 import logging
+from collections import namedtuple
 
 # CONSTS
 HEAD_ENTITIES = [(2, 5), (2, 1005)]
+SurfaceMesh = namedtuple("SurfaceMesh", ["ids", "coords", "triangles"])
+DistResult = namedtuple("DistResult", ["source", "target", "distance"])
 
 logging.basicConfig(format="%(asctime)s [BOONSTIM CORTEX2SCALP]:  %(message)s",
                     datefmt="%Y-%m-%d %I:%M:%S %p",
@@ -27,15 +31,79 @@ def decompose_dscalar(dscalar):
         if not name.startswith("CIFTI_STRUCTURE_CORTEX"):
             continue
 
-        h = name.replace("CIFTI_STRUCTURE_CORTEX_", "").lower()
+        hemi = name.replace("CIFTI_STRUCTURE_CORTEX_", "").lower()
 
         # Step 2: Map into structure
         texture = np.zeros((brainmodel.vertex.max() + 1, n_maps),
                            dtype=np.float32)
         texture[brainmodel.vertex, :] = data[:, indices].T
-        surf[h] = texture
+        surf[hemi] = texture
 
     return surf
+
+
+def decompose_surf(surf):
+    '''
+    Given a GIFTI surface file return:
+        - the index array
+        - the coordinate array
+        - the triangle array
+    '''
+
+    gfti = nib.load(surf)
+
+    coords = gfti.darrays[0].data
+    trigs = gfti.darrays[1].data
+    node_ids = np.arange(0, coords.shape[0])
+
+    return SurfaceMesh(node_ids, coords, trigs)
+
+
+def compose_surfs(*surfs):
+    '''
+    Given a set of SurfaceMesh generate a new
+    SurfaceMesh
+
+    Arguments:
+        ...SurfaceMesh      Set of mesh to combine
+
+    Output:
+        SurfaceMesh
+    '''
+
+    prev_nodes = 0
+    new_nodes = []
+    new_coords = []
+    new_trigs = []
+    for surf in surfs:
+        new_nodes.append(surf.nodes + prev_nodes)
+        new_coords.append(surf.coords)
+        new_trigs.append(surf.triangles + prev_nodes)
+        prev_nodes += surf.nodes.max()
+
+    return SurfaceMesh(np.concatenate(new_nodes), np.vstack(new_coords),
+                       np.vstack(new_trigs))
+
+
+def decompose_gmsh(f_mesh, entity):
+    '''
+    Given a path to a mesh file load the:
+        nodes
+        coordinates
+        triangles
+
+    For the specified surface.
+
+    Arguments:
+        f_mesh          Path to GMSH mesh file
+        entity          Tuple describing gmsh (dim, tag)
+    '''
+
+    # Load vertex data
+    nodes, coords, _ = load_surf_verts(f_mesh, HEAD_ENTITIES)
+    trigs = load_surf_trigs(f_mesh, HEAD_ENTITIES)
+
+    return SurfaceMesh(nodes, coords, trigs)
 
 
 def coil2head(head_coords, f_coil):
@@ -48,16 +116,14 @@ def coil2head(head_coords, f_coil):
     return head_coords[head_ind, :][np.newaxis, :]
 
 
-def get_min_scalp2cortex(brain_coords, head_coords, f_coil=None):
+def get_min_scalp2cortex(brain_coords, head_coords, f_coil):
     '''
     brain_coords: NX3 array containing candidate brain coordinates
     head_coords: MX3 array containing candidate head coordinates
                 to check against
     '''
 
-    if f_coil:
-        head_coords = coil2head(head_coords, f_coil)
-
+    head_coords = coil2head(head_coords, f_coil)
     return get_min_dist(brain_coords, head_coords)
 
 
@@ -90,7 +156,7 @@ def get_min_dist(x, y, return_coords=False):
     # Yields row/column combination from x and y
     x_min, y_min = np.unravel_index(min_ind, norms.shape)
 
-    return (norms.flatten().min(), x[x_min, :], y[y_min, :])
+    return DistResult(norms.flatten().min(), x[x_min, :], y[y_min, :])
 
 
 def apply_mask_to_pial(pial_surf, mask):
@@ -138,23 +204,13 @@ def construct_dist_qc_view(pial_surf, head_surf, coil_centre, mt_roi,
                                                        pial_surf,
                                                        return_coords=True)
 
-    # configure scalar line
-    # a = np.linspace(0, 1, 5)
-    # mt_points = [
-    #     create_scalar_point(x + min_mt_head + (1 - x) * min_roi) for x in a
-    # ]
     mt_text = create_text_at_coord((min_mt_head + min_roi) / 2, min_mt)
     mt_line = create_scalar_line(min_mt_head, min_roi)
 
-    # coil_points = [
-    #     create_scalar_point(x + min_coil_head + (1 - x) * min_cortex)
-    #     for x in a
-    # ]
     coil_line = create_scalar_line(min_coil_head, min_cortex)
     coil_text = create_text_at_coord((min_coil_head + min_cortex) / 2,
                                      min_coil)
 
-    # elems = mt_points + [mt_text] + coil_points + [coil_text]
     elems = [mt_line, mt_text, coil_line, coil_text]
     view = construct_view("cortex2scalp", elems)
 
@@ -238,7 +294,7 @@ def write_geo(cmd, out, opt=None):
     return
 
 
-def load_surf_mesh(f_msh, entities):
+def load_surf_verts(f_msh, entities):
     '''
     surf:       Path to gmsh MSH file
     entities:   List of entities to attempt of form (dim, tag)
@@ -257,6 +313,90 @@ def load_surf_mesh(f_msh, entities):
     raise ValueError
 
 
+def load_surf_trigs(f_msh, entities):
+    '''
+    surf:       Path to gmsh MSH file
+    entities:   List of entities to attempt of form (dim, tag)
+    '''
+
+    for dim, tag in entities:
+
+        try:
+            _, _, trigs = gl.load_gmsh_elems(f_msh, (dim, tag))
+        except ValueError:
+            continue
+        else:
+            return trigs
+
+    logging.error("Could not properly load Mesh! Check entity tags!")
+    raise ValueError
+
+
+def get_surf_normals(surf, roi):
+    '''
+    f_cifti:    Path to cifti file
+    f_mask:     Path to mask ROI file to constrain normal computation
+
+    Compute triangle weighted normals for each vertex
+    '''
+
+    roi_inds = np.where(roi > 0)
+    norm_array = np.zeros((len(roi_inds[0]), 3), dtype=np.float)
+    all_tags = np.arange(0, surf.coords.shape[0])
+
+    for i, r in enumerate(roi_inds[0]):
+        norm_array[i, :] = gl.get_normals([r], all_tags, surf.coords,
+                                          surf.triangles)
+    return roi_inds[0], norm_array
+
+
+def get_min_radial_distance(origin_surf, target_surf, roi=None):
+    '''
+    Given two surfaces, compute the minimum radial distances across
+    all vertices between two surface mesh.
+
+    Computation of distances can be restricted using an ROI mask
+
+    Arguments:
+        origin_surf             Surface to generate radial rays from
+        target_surf             Surface to measure distance to
+        roi                     Mask surface to constrain regions
+                                in which the radial distance will
+                                be calculated
+    '''
+
+    all_tags = np.arange(0, origin_surf.coords.shape[0])
+    if roi:
+        roi_inds = np.where(roi > 0)[0]
+    else:
+        roi_inds = all_tags
+
+    best_ray = 9999
+    best_target = None
+    best_source = None
+    for r in roi_inds:
+
+        # Compute origin surface normal
+        n = gl.get_normals([r], all_tags, origin_surf.coords,
+                           origin_surf.triangles)
+
+        # Generate a ray
+        pn = origin_surf.coords[r, :]
+        pf = pn + n
+
+        # Compute ray distance
+        p_I, ray_len, _ = gl.ray_interception(pn, pf, target_surf.coords,
+                                              target_surf.triangles)
+        if ray_len is None:
+            continue
+        if ray_len < best_ray:
+            best_ray = ray_len
+            best_source = pn
+            best_target = p_I
+
+    return DistResult(best_source, best_target, best_ray)
+
+
 def main():
 
     parser = argparse.ArgumentParser(description="Given a head model and "
@@ -264,12 +404,13 @@ def main():
                                      "the scalp to cortex distance")
 
     parser.add_argument('mesh', type=str, help="path to GMSH mesh file")
-    parser.add_argument('pial_surface',
+    parser.add_argument('left_surface',
                         type=str,
-                        help="path to coordinate dscalar "
-                        ",see wb_command --surface-coordinates-to-metric for "
-                        "information on how to generate a coordinate dscalar")
-    parser.add_argument('--mask',
+                        help="path left surface GIFTI ")
+    parser.add_argument('right_surface',
+                        type=str,
+                        help="path right surface GIFTI ")
+    parser.add_argument('--roi',
                         type=str,
                         help="optional mask to speed up computation time")
     parser.add_argument('output',
@@ -289,46 +430,60 @@ def main():
 
     args = parser.parse_args()
     f_mesh = args.mesh
-    f_coords = args.pial_surface
-    f_mask = args.mask
+    f_lsurf = args.left_surface
+    f_rsurf = args.right_surface
+    f_roi = args.roi
     f_coil = args.coilcentre
     f_out = args.output
     f_qc = args.qc_geo
 
-    # Step 1: Load in the pial surface
-    logging.info("Parsing coordinate CIFTI file...")
-    surf_coords = decompose_dscalar(f_coords)
+    # Make sure input args make sense
+    if f_qc and f_coil:
+        logging.info("Running QC mode!")
+        output_qc = True
+        scalp2cortex = True
+        cortex2scalp = True
+    elif f_coil and not f_qc:
+        logging.info("Coil centre supplied! "
+                     "Calculating scalp under coil to cortex distance")
+        output_qc = False
+        scalp2cortex = True
+        cortex2scalp = False
+    elif f_qc and not f_coil:
+        logging.error("QC mode requires --coilcentre to be specified!")
+        raise ValueError
+    else:
+        logging.info("Calculating cortex to scalp distance")
+        scalp2cortex = False
+        cortex2scalp = True
 
-    # If QC mode
-    if f_qc or not f_mask:
-        coords = np.vstack([surf_coords['left'], surf_coords['right']])
-
-    if f_mask:
-        logging.info("Mask file supplied! Reducing search space to ROI...")
-        surf_mask = decompose_dscalar(f_mask)
-        surf_masked = apply_mask_to_pial(surf_coords, surf_mask)
-
-        if not f_qc:
-            coords = np.vstack([surf_masked['left'], surf_masked['right']])
+    # Step 1: Load in the pial surfaces
+    logging.info("Parsing GIFTI Surface Meshes...")
+    pial_mesh = compose_surfs(decompose_surf(f_lsurf), decompose_surf(f_rsurf))
 
     # Get head model coordinates
-    logging.info("Loading gmsh entity for head model")
-    _, h_coords, _ = load_surf_mesh(f_mesh, HEAD_ENTITIES)
+    logging.info("Loading in head model...")
+    head = decompose_gmsh(f_mesh, HEAD_ENTITIES)
 
-    # Compute cortical distance, unless in qc mode
-    if f_qc:
-        logging.info("Running QC routine")
-        masked_coords = np.vstack([surf_masked['left'], surf_masked['right']])
-        qc_view = construct_dist_qc_view(coords, h_coords, f_coil,
-                                         masked_coords, f_qc)
-        geo_out = "\n".join([merge_mesh(f_mesh), qc_view])
+    # Calculate scalp to cortex distance
+    if scalp2cortex:
+        logger.info("Computing scalp2cortex distance")
+        s2c_result = get_min_scalp2cortex(pial_mesh.coords, head.coords,
+                                          f_coil)
+        print(s2c_result)
 
-        logging.info(f"Writing geo file to {f_out}")
-        write_geo(geo_out, f_out, f_qc)
+    if cortex2scalp:
+        logger.info("Computing cortex2scalp distance")
+        logger.info("Obtaining cortical surface normals...")
+        roi = decompose_dscalar(f_roi)
 
-    else:
-        dist = get_min_scalp2cortex(coords, h_coords, f_coil)
-        np.save(f_out, dist)
+        logger.info("Computing ray intersection of cortical surface "
+                    "to head mesh")
+
+        # Insert routine to compute the ray interesection (geolib func)
+
+    if output_qc:
+        pass
 
 
 if __name__ == '__main__':
