@@ -39,7 +39,7 @@ def decompose_dscalar(dscalar):
         texture[brainmodel.vertex, :] = data[:, indices].T
         surf[hemi] = texture
 
-    return surf
+    return np.concatenate([surf['left'], surf['right']])
 
 
 def decompose_surf(surf):
@@ -103,6 +103,9 @@ def decompose_gmsh(f_mesh, entity):
     nodes, coords, _ = load_surf_verts(f_mesh, HEAD_ENTITIES)
     trigs = load_surf_trigs(f_mesh, HEAD_ENTITIES)
 
+    # Re-normalize node/trig identities
+    trigs = trigs-nodes.min()
+    nodes = nodes-nodes.min()
     return SurfaceMesh(nodes, coords, trigs)
 
 
@@ -127,7 +130,7 @@ def get_min_scalp2cortex(brain_coords, head_coords, f_coil):
     return get_min_dist(head_coords, brain_coords)
 
 
-def get_min_dist(x, y, return_coords=False):
+def get_min_dist(x, y):
     '''
     x: NX3 array
     y: MX3 array
@@ -147,10 +150,6 @@ def get_min_dist(x, y, return_coords=False):
     # Calculate set of all pairwise differences
     diffs = x[:, np.newaxis, :] - y
     norms = np.linalg.norm(diffs, axis=2)
-
-    if not return_coords:
-        return norms.flatten().min()
-
     min_ind = np.argmin(norms)
 
     # Yields row/column combination from x and y
@@ -256,8 +255,9 @@ def write_geo(cmd, out, opt=None):
         with open(opt, 'r') as f:
             write_opt = f.readlines()
 
+    to_write = '\n'.join(cmd)
     with open(out, 'w') as f:
-        f.write(cmd)
+        f.write(to_write)
         f.writelines(write_opt)
 
     return
@@ -295,7 +295,7 @@ def load_surf_trigs(f_msh, entities):
         except ValueError:
             continue
         else:
-            return trigs
+            return trigs[0].reshape(-1, 3)
 
     logging.error("Could not properly load Mesh! Check entity tags!")
     raise ValueError
@@ -335,7 +335,7 @@ def get_min_radial_distance(origin_surf, target_surf, roi=None):
     '''
 
     all_tags = np.arange(0, origin_surf.coords.shape[0])
-    if roi:
+    if roi is not None:
         roi_inds = np.where(roi > 0)[0]
     else:
         roi_inds = all_tags
@@ -343,10 +343,12 @@ def get_min_radial_distance(origin_surf, target_surf, roi=None):
     best_ray = 9999
     best_target = None
     best_source = None
-    for r in roi_inds:
+    for i, r in enumerate(roi_inds):
+
+        logging.info(f"Computing radial for vertex {i}/{len(roi_inds)}...")
 
         # Compute origin surface normal
-        n = gl.get_normals([r], all_tags, origin_surf.coords,
+        n = gl.get_normals(np.array([r]), all_tags, origin_surf.coords,
                            origin_surf.triangles)
 
         # Generate a ray
@@ -362,6 +364,10 @@ def get_min_radial_distance(origin_surf, target_surf, roi=None):
             best_ray = ray_len
             best_source = pn
             best_target = p_I
+
+    if best_target is None:
+        logging.error("Could not succesfully find cortex to scalp distance!")
+        raise ValueError
 
     return DistResult(best_source, best_target, best_ray)
 
@@ -435,6 +441,7 @@ def main():
         logging.info("Calculating cortex to scalp distance")
         scalp2cortex = False
         cortex2scalp = True
+        output_qc = False
 
     logging.info("Parsing GIFTI Surface Meshes...")
     pial_mesh = compose_surfs(decompose_surf(f_lsurf), decompose_surf(f_rsurf))
@@ -464,9 +471,9 @@ def main():
             return
 
     if output_qc:
-        logging.info(f"Writing QC Geo file to {f_qc}...")
+        logging.info(f"Writing QC Geo file to {f_out}...")
         geo_contents = construct_dist_qcview(s2c_result, c2s_result)
-        write_geo([merge_mesh(f_mesh)] + geo_contents, f_out, f_qc)
+        write_geo([merge_mesh(f_mesh)] + [geo_contents], f_out, f_qc)
         return
 
 

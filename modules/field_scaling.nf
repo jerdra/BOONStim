@@ -128,13 +128,13 @@ process get_cortical_distance_masked{
     tuple val(sub), path(mesh), path(left_surf), path(right_surf), path(roi)
 
     output:
-    tuple val(sub), path("${sub}.roi_distance.npy"), emit: distance
+    tuple val(sub), path("${sub}.roi_distance.txt"), emit: distance
 
     shell:
     '''
     /scripts/cortical_distance.py !{mesh} !{left_surf} !{right_surf} \
-                                  --mask !{roi} \
-                                  !{sub}.roi_distance.npy
+                                  --roi !{roi} \
+                                  !{sub}.roi_distance.txt
     '''
 
 }
@@ -146,13 +146,13 @@ process get_cortical_distance{
     tuple val(sub), path(mesh), path(left_surf), path(right_surf), path(coilcentre)
 
     output:
-    tuple val(sub), path("${sub}.coil_distance.npy"), emit: distance
+    tuple val(sub), path("${sub}.coil_distance.txt"), emit: distance
 
     shell:
     '''
     /scripts/cortical_distance.py !{mesh} !{left_surf} !{right_surf} \
                                   --coilcentre !{coilcentre} \
-                                  !{sub}.coil_distance.npy
+                                  !{sub}.coil_distance.txt
     '''
 
 
@@ -170,7 +170,7 @@ process calculate_coil2cortex{
     shell:
     '''
     /scripts/get_cortex_to_scalp.py !{mesh} --coilcentre !{coil_centre} \
-                                    !{sub}.coil_distance.npy
+                                    !{sub}.coil_distance.txt
     '''
 }
 
@@ -189,8 +189,8 @@ process get_ratio{
 
     import numpy as np
 
-    c2s = np.load("!{cortex2scalp}")
-    c2c = np.load("!{coil2cortex}")
+    c2s = np.genfromtxt("!{cortex2scalp}")
+    c2c = np.genfromtxt("!{coil2cortex}")
     ratio = c2s/c2c * 100
 
     with open("!{sub}.scaling_factor.txt","w") as f:
@@ -232,7 +232,7 @@ process qc_cortical_distance{
     shell:
     '''
     /scripts/cortical_distance.py !{mesh} !{left_surf} !{right_surf} \
-                                --coilcentre !{coil} --mask !{mask} \
+                                --coilcentre !{coil} --roi !{mask} \
                                 --qc-geo /geo/dist.geo \
                                 !{sub}_distqc.geo
     '''
@@ -249,14 +249,15 @@ workflow cortex2scalp_wf{
 
     take:
         mesh
-        pial
+        pial_left
+        pial_right
         roi
 
     main:
 
         threshold_roi(roi)
-        i_get_cortical_distance = mesh.join(pial.left)
-                                      .join(pial.right)
+        i_get_cortical_distance = mesh.join(pial_left)
+                                      .join(pial_right)
                                       .join(threshold_roi.out.mask)
         get_cortical_distance_masked(i_get_cortical_distance)
 
@@ -269,13 +270,14 @@ workflow coil2cortex_wf{
 
     take:
         mesh
-        pial
+        pial_left
+        pial_right
         coil_centre
 
     main:
 
-        i_get_cortical_distance = mesh.join(pial.left)
-                                      .join(pial.right)
+        i_get_cortical_distance = mesh.join(pial_left)
+                                      .join(pial_right)
                                       .join(coil_centre)
         get_cortical_distance(i_get_cortical_distance)
 
@@ -286,7 +288,8 @@ workflow coil2cortex_wf{
 workflow qc_cortical_distance_wf{
     take:
         mesh
-        pial
+        pial_left
+        pial_right
         roi
         coil_centre
 
@@ -295,8 +298,8 @@ workflow qc_cortical_distance_wf{
         // Compute mask
         threshold_roi(roi)
 
-        i_qc_cortical_distance = mesh.join(pial.left)
-                                 .join(pial.right)
+        i_qc_cortical_distance = mesh.join(pial_left)
+                                 .join(pial_right)
                                  .join(coil_centre)
                                  .join(threshold_roi.out.mask)
         qc_cortical_distance(i_qc_cortical_distance)
@@ -319,7 +322,8 @@ workflow fieldscaling_wf{
         // MT calculation
         cortex2scalp_wf(
             mesh,
-            pial_surfs,
+            pial_surfs.left,
+            pial_surfs.right,
             roi
         )
 
@@ -327,7 +331,8 @@ workflow fieldscaling_wf{
         matsimnibs2centre(matsimnibs)
         coil2cortex_wf(
             mesh,
-            pial_surfs,
+            pial_surfs.left,
+            pial_surfs.right,
             matsimnibs2centre.out.coil_centre
         )
 
@@ -337,7 +342,8 @@ workflow fieldscaling_wf{
 
         qc_cortical_distance_wf(
             mesh,
-            pial_surfs,
+            pial_surfs.left,
+            pial_surfs.right,
             roi, matsimnibs2centre.out.coil_centre
         )
 
