@@ -201,7 +201,7 @@ def gen_mshplot_html(mesh, out_html, *distresults):
     '''
 
     # Render brain model (will need sulcal information)? think about it
-    p = mp.plot(mesh.coords, mesh.triangles)
+    p = mp.plot(mesh.coords, mesh.triangles, c=np.array([0.8, 0.8, 0.8]))
 
     source_lines = np.array([d.source for d in distresults])
     target_lines = np.array([d.target for d in distresults])
