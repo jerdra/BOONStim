@@ -1,20 +1,27 @@
 #!/usr/bin/env python
 import argparse
-from fieldopt import geolib as gl
-import numpy as np
-import nibabel as nib
-from nilearn import image as img
 import logging
 from collections import namedtuple
 
+import numpy as np
+import nibabel as nib
+from fieldopt import geolib as gl
+
+from nilearn import image as img
+import meshplot as mp
+
 # CONSTS
 HEAD_ENTITIES = [(2, 5), (2, 1005)]
+GM_ENTITIES = [(2, 2), (2, 1002)]
+
 SurfaceMesh = namedtuple("SurfaceMesh", ["nodes", "coords", "triangles"])
 DistResult = namedtuple("DistResult", ["source", "target", "distance"])
 
 logging.basicConfig(format="%(asctime)s [BOONSTIM CORTEX2SCALP]:  %(message)s",
                     datefmt="%Y-%m-%d %I:%M:%S %p",
                     level=logging.INFO)
+
+mp.website()
 
 
 def decompose_dscalar(dscalar):
@@ -100,12 +107,12 @@ def decompose_gmsh(f_mesh, entity):
     '''
 
     # Load vertex data
-    nodes, coords, _ = load_surf_verts(f_mesh, HEAD_ENTITIES)
-    trigs = load_surf_trigs(f_mesh, HEAD_ENTITIES)
+    nodes, coords, _ = load_surf_verts(f_mesh, entity)
+    trigs = load_surf_trigs(f_mesh, entity)
 
     # Re-normalize node/trig identities
-    trigs = trigs-nodes.min()
-    nodes = nodes-nodes.min()
+    trigs = trigs - nodes.min()
+    nodes = nodes - nodes.min()
     return SurfaceMesh(nodes, coords, trigs)
 
 
@@ -183,6 +190,28 @@ def construct_dist_qcview(s2c, c2s):
     view = construct_view("cortex2scalp", elems)
 
     return view
+
+
+def gen_mshplot_html(mesh, out_html, *distresults):
+    '''
+    Function to generate a QC interactive HTML page rendering
+
+    mesh:           SurfaceMesh object for mesh to render
+    *distresults:   DistResult objects to render as lines on top of mesh
+    '''
+
+    # Render brain model (will need sulcal information)? think about it
+    p = mp.plot(mesh.coords, mesh.triangles)
+
+    source_lines = np.array([d.source for d in distresults])
+    target_lines = np.array([d.target for d in distresults])
+    p.add_lines(source_lines,
+                target_lines,
+                shading={
+                    "line_width": 10,
+                    "line_color": "black"
+                })
+    p.save(out_html)
 
 
 def merge_mesh(mesh):
@@ -409,9 +438,13 @@ def main():
                         "if a coil centre is provided, we first project "
                         "the coordinate to the scalp to calculate effective "
                         "scalp to cortex distance")
-    parser.add_argument('--qc-geo',
+    parser.add_argument('--gmsh-qc',
                         type=str,
                         help="Path to geo file to generate a QC model")
+    parser.add_argument('--html-qc',
+                        type=str,
+                        help="Path to html file to generate an interactive "
+                        "qc model")
 
     args = parser.parse_args()
     f_mesh = args.mesh
@@ -420,28 +453,35 @@ def main():
     f_roi = args.roi
     f_coil = args.coilcentre
     f_out = args.output
-    f_qc = args.qc_geo
+    f_gmsh = args.gmsh_qc
+    f_html = args.html_qc
 
-    # Make sure input args make sense
-    if f_qc and f_coil:
-        logging.info("Running QC mode!")
+    # TODO: Encode this into argparse
+    output_qc = False
+    if f_gmsh or f_html:
         output_qc = True
+        if not (f_coil and f_roi):
+            logging.error(
+                "QC mode requires --coilcentre and --roi to be specified!")
+            raise ValueError
         scalp2cortex = True
         cortex2scalp = True
-    elif f_coil and not f_qc:
+    elif f_coil:
         logging.info("Coil centre supplied! "
-                     "Calculating scalp under coil to cortex distance")
-        output_qc = False
+                     "Calculating scalp under coil to cortex disatance")
         scalp2cortex = True
         cortex2scalp = False
-    elif f_qc and not f_coil:
-        logging.error("QC mode requires --coilcentre to be specified!")
-        raise ValueError
-    else:
+    elif f_roi:
         logging.info("Calculating cortex to scalp distance")
         scalp2cortex = False
         cortex2scalp = True
-        output_qc = False
+    else:
+        logging.error("Missing critical arguments!")
+        logging.error("If cortex2scalp: --roi is needed")
+        logging.error("If scalp2cortex: --coilcentre is needed")
+        logging.error("If --gmsh-qc: --coilcentre and --roi is needed")
+        logging.error("If --html-qc: --coilcentre and --roi is needed")
+        raise ValueError
 
     logging.info("Parsing GIFTI Surface Meshes...")
     pial_mesh = compose_surfs(decompose_surf(f_lsurf), decompose_surf(f_rsurf))
@@ -455,6 +495,7 @@ def main():
                                           f_coil)
         if not output_qc:
             write_file(str(s2c_result.distance), f_out)
+            return
 
     if cortex2scalp:
         logging.info("Computing cortex2scalp distance")
@@ -470,11 +511,15 @@ def main():
             write_file(str(c2s_result.distance), f_out)
             return
 
-    if output_qc:
+    if f_gmsh:
         logging.info(f"Writing QC Geo file to {f_out}...")
         geo_contents = construct_dist_qcview(s2c_result, c2s_result)
-        write_geo([merge_mesh(f_mesh)] + [geo_contents], f_out, f_qc)
-        return
+        write_geo([merge_mesh(f_mesh)] + [geo_contents], f_out, f_gmsh)
+
+    if f_html:
+        brain = decompose_gmsh(f_mesh, GM_ENTITIES)
+        logging.info(f"Writing QC HTML file to {f_html}...")
+        gen_mshplot_html(brain, f_html, s2c_result, c2s_result)
 
 
 if __name__ == '__main__':
