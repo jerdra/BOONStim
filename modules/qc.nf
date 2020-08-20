@@ -37,7 +37,7 @@ workflow qc_wf{
     main:
         i_create_surface_view = weightfunc
                                 .join(l_pial).join(r_pial)
-                                .join(sulc) | view
+                                .join(sulc)
         create_surface_view(i_create_surface_view)
 
     emit:

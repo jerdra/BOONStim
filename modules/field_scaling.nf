@@ -229,13 +229,15 @@ process qc_cortical_distance{
 
     output:
     tuple val(sub), path("${sub}_distqc.geo"), emit: distqc
+    tuple val(sub), path("${sub}_distqc.html"), emit: qchtml
 
     shell:
     '''
     /scripts/cortical_distance.py !{mesh} !{left_surf} !{right_surf} \
+                                !{sub}_distqc.geo \
                                 --coilcentre !{coil} --roi !{mask} \
-                                --qc-geo /geo/dist.geo \
-                                !{sub}_distqc.geo
+                                --gmsh-qc /geo/dist.geo \
+                                --html-qc !{sub}_distqc.html
     '''
 }
 
