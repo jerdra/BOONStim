@@ -191,10 +191,11 @@ process get_ratio{
 
     c2s = np.genfromtxt("!{cortex2scalp}")
     c2c = np.genfromtxt("!{coil2cortex}")
-    ratio = c2s/c2c * 100
+    ratio = c2c/c2s * 100
 
+    to_write = f"{ratio:.2f}" + "\\n"
     with open("!{sub}.scaling_factor.txt","w") as f:
-        f.write(str(ratio))
+        f.write(to_write)
 
     '''
 }
