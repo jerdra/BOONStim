@@ -285,10 +285,13 @@ def main():
     logging.info("Calculating Euclidean centroid")
     eu_centroid = get_weighted_centroid(pial_mesh, dscalar)
 
-    # Compute balanced normal
+    # Compute normal balanced by strength of weight and ray length
     logging.info("Extracting approximate normal")
     normals, rays = get_radial_dists(pial_mesh, head, dscalar)
-    projection_normal = (normals * (rays / rays.sum())).sum(axis=0)
+
+    # Punish very far rays significantly
+    i_rays = (1/rays) ** 2
+    projection_normal = (normals * (i_rays / i_rays.sum())).sum(axis=0)
 
     # Apply projection normal to eu_centroid
     logging.info("Finding projection of Euclidean centroid to Head")
