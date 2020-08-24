@@ -133,7 +133,12 @@ def get_min_scalp2cortex(brain_coords, head_coords, f_coil):
                 to check against
     '''
 
-    head_coords = coil2head(head_coords, f_coil)
+    head_projection = coil2head(head_coords, f_coil)
+
+    # Expand head search area to neighbouring regions
+    candidate_coords = np.where(
+        np.linalg.norm(head_coords - head_projection, axis=1) < 5)
+    head_coords = head_coords[candidate_coords]
     return get_min_dist(head_coords, brain_coords)
 
 
@@ -192,7 +197,7 @@ def construct_dist_qcview(s2c, c2s):
     return view
 
 
-def gen_mshplot_html(mesh, out_html, *distresults):
+def gen_mshplot_html(brain, head, out_html, *distresults):
     '''
     Function to generate a QC interactive HTML page rendering
 
@@ -201,16 +206,31 @@ def gen_mshplot_html(mesh, out_html, *distresults):
     '''
 
     # Render brain model (will need sulcal information)? think about it
-    p = mp.plot(mesh.coords, mesh.triangles, c=np.array([0.8, 0.8, 0.8]))
+    p = mp.plot(brain.coords, brain.triangles, c=np.array([0.8, 0.8, 0.8]))
+
+    # Render head model
+    # Need to add material modification since meshplot limits shader options
+    p.add_mesh(head.coords, head.triangles, c=np.array([0.87, 0.65, 0.4]))
+    p._Viewer__objects[1]['material'].transparent = True
+    p._Viewer__objects[1]['material'].opacity = 0.5
+    p._Viewer__objects[1]['material'].metalness = 0.1
 
     source_lines = np.array([d.source for d in distresults])
     target_lines = np.array([d.target for d in distresults])
     p.add_lines(source_lines,
                 target_lines,
                 shading={
-                    "line_width": 10,
+                    "line_width": 20,
                     "line_color": "black"
                 })
+    # Add text to visualization
+    # text_adds = [
+    #     f"Source: {d.source}, Target: {d.target}, Distance: {d.distance}"
+    #     for d in distresults
+    # ]
+
+    # [p.add_text(t) for t in text_adds]
+
     p.save(out_html)
 
 
@@ -519,7 +539,7 @@ def main():
     if f_html:
         brain = decompose_gmsh(f_mesh, GM_ENTITIES)
         logging.info(f"Writing QC HTML file to {f_html}...")
-        gen_mshplot_html(brain, f_html, s2c_result, c2s_result)
+        gen_mshplot_html(brain, head, f_html, s2c_result, c2s_result)
 
 
 if __name__ == '__main__':
