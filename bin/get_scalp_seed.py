@@ -240,6 +240,36 @@ def get_radial_dists(origin_surf, target_surf, roi=None):
     return normals, ray_dists
 
 
+def gen_mshplot_html(brain, head, texture, line, out_html):
+    '''
+    Generate a visualization of the centroid to head projection problem
+
+    Arguments:
+       brain:           SurfaceMesh of brain
+       head:            SurfaceMesh of head
+       texture:         Texture to apply to brain
+       line:            DistResult object for line to visualize projection
+    '''
+
+    p = mp.plot(brain.coords, brain.triangles, c=texture)
+
+    p.add_mesh(head.coords, head.triangles, c=np.array([0.7, 0.7, 0.7]))
+    p._Viewer__objects[1]['material'].transparent = True
+    p._Viewer__objects[1]['material'].opacity = 0.5
+    p._Viewer__objects[1]['material'].metalness = 0.1
+
+    source_line = np.array([line.source])
+    target_line = np.array([line.target])
+    p.add_lines(source_line,
+                target_line,
+                shading={
+                    "line_width": 20,
+                    "line_color": "black"
+                })
+
+    p.save(out_html)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Given a dscalar image "
                                      "find the head coordinate that "
@@ -263,12 +293,15 @@ def main():
                         type=str,
                         help='Path of text file to output with coordinates')
 
+    parser.add_argument('--qc-file', type=str, help="Path to qc file")
+
     args = parser.parse_args()
     f_msh = args.mesh
     f_dscalar = args.dscalar
     f_left = args.left_surf
     f_right = args.right_surf
     output = args.output_file
+    qcfile = args.qc_file
 
     logging.info("Loading in surface files...")
 
@@ -290,7 +323,7 @@ def main():
     normals, rays = get_radial_dists(pial_mesh, head, dscalar)
 
     # Punish very far rays significantly
-    i_rays = (1/rays) ** 2
+    i_rays = (1 / rays)**2
     projection_normal = (normals * (i_rays / i_rays.sum())).sum(axis=0)
 
     # Apply projection normal to eu_centroid
@@ -301,6 +334,11 @@ def main():
 
     logging.info(f"Saving results into {output}")
     np.savetxt(output, p_I[:, np.newaxis])
+
+    if qcfile:
+        logging.info("QC File requested, building visualization")
+        line = DistResult(eu_centroid, p_I, 0)
+        gen_mshplot_html(pial_mesh, head, dscalar, line, qcfile)
 
 
 if __name__ == '__main__':
