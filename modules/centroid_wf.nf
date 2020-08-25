@@ -130,6 +130,58 @@ process compute_weighted_centroid{
 
 }
 
+process get_scalp_seed {
+
+    label 'rtms'
+
+    input:
+    tuple val(sub), path(mesh), path(dscalar), path(l_pial), path(r_pial)
+
+    output:
+    tuple val(sub), path("${sub}_seed.txt"), emit: seed
+    tuple val(sub), path("${sub}_qcseed.html"), emit: qchtml
+
+    shell:
+    '''
+    #!/bin/bash
+
+    /scripts/get_scalp_seed.py !{mesh} !{dscalar} !{l_pial} !{r_pial} \
+                               !{sub}_seed.txt --qc-file !{sub}_qcseed.html
+    '''
+}
+
+def lr_branch = branchCriteria {
+                left: it[1] == 'L'
+                    return [it[0], it[2]]
+                right: it[1] == 'R'
+                    return [it[0],it[2]]
+                }
+
+workflow centroid_radial_wf{
+
+    take:
+        msh
+        dscalar
+        pial
+
+    main:
+
+        // Branch out left/right surfaces
+        pial.branch(lr_branch).set{pial_surfs}
+
+        i_get_scalp_seed = msh.join(dscalar)
+                              .join(pial_surfs.left)
+                              .join(pial_surfs.right)
+
+        get_scalp_seed(i_get_scalp_seed)
+
+    emit:
+        centroid = get_scalp_seed.out.seed
+        qchtml = get_scalp_seed.out.qchtml
+
+
+}
+
 workflow centroid_wf{
 
     take:
