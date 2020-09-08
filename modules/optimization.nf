@@ -23,6 +23,7 @@ process evaluate_fem{
     import os
     import numpy as np
     from fieldopt.objective import FieldFunc
+    from simnibs.msh import mesh_io
 
     coords = np.genfromtxt("!{orientation}")
     centroid = np.genfromtxt("!{centroid}")
@@ -41,6 +42,14 @@ process evaluate_fem{
 
     # Save matsimnibs matrix
     np.save("!{sub}_optimized_coords.npy", matsimnibs)
+
+    # Write in weight function
+    M = mesh_io.read_msh("!{sub}_optimized_fields.msh")
+    gm = np.where(M.elm.tag1 == 2)
+    wf_field = np.zeros_like(M.elmdata[1].value)
+    wf_field[gm] = wf
+    M.add_element_field(wf_field,'weightfunction')
+    M.write("!{sub}_optimized_fields.msh")
     '''
 
 }
