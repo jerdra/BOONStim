@@ -21,6 +21,7 @@ logging.basicConfig(format="%(asctime)s [BOONSTIM CORTEX2SCALP]:  %(message)s",
 
 mp.website()
 
+
 def decompose_dscalar(dscalar):
 
     cifti = img.load_img(dscalar)
@@ -238,7 +239,7 @@ def get_radial_dists(origin_surf, target_surf, roi=None):
         normals[i, :] = n
         ray_dists[i] = ray_len
 
-    return normals, ray_dists
+    return normals, ray_dists, roi_inds
 
 
 def gen_mshplot_html(brain, head, texture, line, out_html):
@@ -315,17 +316,25 @@ def main():
     logging.info("dscalar...")
     dscalar = decompose_dscalar(f_dscalar)
 
-    # Compute weighted euclidean centroid
-    logging.info("Calculating Euclidean centroid")
-    eu_centroid = get_weighted_centroid(pial_mesh, dscalar)
-
     # Compute normal balanced by strength of weight and ray length
     logging.info("Extracting approximate normal")
-    normals, rays = get_radial_dists(pial_mesh, head, dscalar)
+    normals, rays, roi_inds = get_radial_dists(pial_mesh, head, dscalar)
 
-    # Punish very far rays significantly
+    # Threshold rays that are far away
     i_rays = (1 / rays)**2
-    projection_normal = (normals * (i_rays / i_rays.sum())).sum(axis=0)
+    i_rays = i_rays / i_rays.sum()
+
+    # Projection normal is weighted by ray length
+    projection_normal = (normals * i_rays).sum(axis=0)
+
+    # Compute weighted centroid, this should take into account
+    # the feasibility of the target
+    logging.info("Calculating Euclidean centroid")
+
+    # Weigh the dscalar FC, need to construct the empty mesh
+    w = dscalar / dscalar.sum()
+    w[roi_inds] *= i_rays
+    eu_centroid = get_weighted_centroid(pial_mesh, w)
 
     # Apply projection normal to eu_centroid
     logging.info("Finding projection of Euclidean centroid to Head")
@@ -339,7 +348,7 @@ def main():
     if qcfile:
         logging.info("QC File requested, building visualization")
         line = DistResult(eu_centroid, p_I, 0)
-        gen_mshplot_html(pial_mesh, head, dscalar, line, qcfile)
+        gen_mshplot_html(pial_mesh, head, w / w.sum(), line, qcfile)
 
 
 if __name__ == '__main__':
