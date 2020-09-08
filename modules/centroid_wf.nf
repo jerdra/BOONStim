@@ -227,6 +227,7 @@ workflow centroid_wf{
 
     emit:
         centroid = compute_weighted_centroid.out.coord
+        qc = compute_weighted_centroid.out.qchtml
 
 
 
