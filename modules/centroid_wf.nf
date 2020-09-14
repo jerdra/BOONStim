@@ -177,7 +177,7 @@ workflow centroid_radial_wf{
 
     emit:
         centroid = get_scalp_seed.out.seed
-        qchtml = get_scalp_seed.out.qchtml
+        qc = get_scalp_seed.out.qchtml
 
 
 }
@@ -227,7 +227,6 @@ workflow centroid_wf{
 
     emit:
         centroid = compute_weighted_centroid.out.coord
-        qc = compute_weighted_centroid.out.qchtml
 
 
 
