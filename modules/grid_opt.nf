@@ -42,7 +42,7 @@ workflow optimize_wf{
     main:
         i_grid_optimization = msh.join(weights)
                                 .join(centroid)
-                                .spread([coil]) | view
+                                .spread([coil]) 
         grid_optimization(i_grid_optimization)
 
     emit:
