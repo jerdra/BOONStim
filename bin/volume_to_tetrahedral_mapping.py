@@ -76,7 +76,7 @@ def main():
     wmn_tag = np.array(wmn_tag)
 
     # Set up inputs
-    tn_list = te_param[0].reshape((-1, 4))
+    tn_list = te_param.reshape((-1, 4))
 
     # First concatenate nodes
     min_t, max_t, len_t = np.min(tn_tag), np.max(tn_tag), np.size(tn_tag)

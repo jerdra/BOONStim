@@ -146,7 +146,7 @@ def load_surf_trigs(f_msh, entities):
         except ValueError:
             continue
         else:
-            return trigs[0].reshape(-1, 3)
+            return trigs.reshape(-1, 3)
 
     logging.error("Could not properly load Mesh! Check entity tags!")
     raise ValueError
