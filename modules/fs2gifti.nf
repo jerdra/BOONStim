@@ -12,7 +12,8 @@ process convert_fs2gifti{
     tuple val(sub), val(hemi), val(surf), path(fs_surf)
 
     output:
-    tuple val(sub), val(hemi), path("${surf}.surf.gii"), emit: hemi_surf
+    tuple val(sub), val(hemi), val(surf),\
+    path("${sub}.${hemi}.unassigned_${surf}.surf.gii"), emit: hemi_surf
 
     shell:
     '''
@@ -22,7 +23,7 @@ process convert_fs2gifti{
 
     hemi="!{hemi}"
     mv ${hemi,,}h.!{surf}.surf.gii \
-        !{surf}.surf.gii
+        !{sub}.!{hemi}.unassigned_!{surf}.surf.gii
     '''
 
 }
@@ -33,15 +34,16 @@ process assign_structure {
     label 'connectome'
 
     input:
-    tuple val(sub), val(hemi), val(structure), path(gifti)
+    tuple val(sub), val(hemi), val(surf), val(structure), path(gifti)
 
     output:
-    tuple val(sub), val(hemi), path("${sub}.${hemi}.${gifti}"), emit: gifti
+    tuple val(sub), val(hemi), path("${sub}.${hemi}.${surf}.surf.gii"), emit: gifti
 
     shell:
     '''
-    cp -L !{gifti} !{sub}.!{hemi}.!{gifti}
-    wb_command -set-structure !{sub}.!{hemi}.!{gifti} !{structure}
+    cp -L !{gifti} !{sub}.!{hemi}.!{surf}.surf.gii
+    wb_command -set-structure !{sub}.!{hemi}.!{surf}.surf.gii !{structure}
+
     '''
 
 }
@@ -84,9 +86,10 @@ workflow make_giftis {
         // Map hemisphere over to structure
         structure_map = ['L' : 'CORTEX_LEFT', 'R' : 'CORTEX_RIGHT' ]
         assign_structure_input = convert_fs2gifti.out
-                                                .map{ s,h,g ->  [
+                                                .map{ s,h,surf,g ->  [
                                                                     s,
                                                                     h,
+                                                                    surf,
                                                                     structure_map[h],
                                                                     g
                                                                 ]

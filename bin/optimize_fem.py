@@ -5,7 +5,7 @@ and cost weights use Bayesian Optimization from Cornell-MOE to find the optimal
 input (position and rotation).
 
 Usage:
-    optimize_fem.py [options] <mesh> <weightfile> <init_centroid> <coil> <out_basename>
+    optimize_fem.py [options] <mesh> <weightfile> <init_centroid> <coil> <output_file>
 
 Arguments:
     <mesh>                                  GMSH mesh file (v2 or v4)
@@ -14,7 +14,7 @@ Arguments:
     <init_centroid>                         Initial centroid to start sampling
     <coil>                                  Coil magnetization field (.nii.gz)
                                             from SimNIBS
-    <out_basename>                          Output basename
+    <output_file>                           Output basename
 
 Options:
     -c,--cpus N_CPUS                        Number of CPUS to use to calculate
@@ -43,10 +43,12 @@ Options:
 # Base package loading
 
 import os
+import logging
+from collections import deque
+from docopt import docopt
+
 import numpy as np
 from fieldopt.objective import FieldFunc
-from docopt import docopt
-from collections import deque
 
 # Cornell package loading
 
@@ -62,6 +64,8 @@ from moe.optimal_learning.python.python_version.optimization import GradientDesc
 from moe.optimal_learning.python.cpp_wrappers.optimization import GradientDescentOptimizer as cGDOpt
 from moe.optimal_learning.python.cpp_wrappers.optimization import GradientDescentParameters as cGDParams
 
+logging.basicConfig(format="%(asctime)s [BOONSTIM GRID]:  %(message)s",
+                    datefmt="%Y-%m-%d %I:%M:%S %p")
 
 def gen_sample_from_qei(gp,
                         search_domain,
@@ -93,7 +97,7 @@ def main():
     weights = np.load(args['<weightfile>'])
     init_centroid = np.genfromtxt(args['<init_centroid>'])
     coil = args['<coil>']
-    out_basename = args['<out_basename>']
+    output_file = args['<output_file>']
     cpus = int(args['--cpus']) or 8
     tmpdir = args['--tmp-dir'] or os.getenv('TMPDIR') or "/tmp/"
     num_iters = int(args['--n-iters']) or 50
@@ -102,7 +106,7 @@ def main():
     history = args['--history']
     skip_convergence = args['--skip-convergence']
 
-    print('Using {} cpus'.format(cpus))
+    logging.INFO('Using {} cpus'.format(cpus))
 
     f = FieldFunc(mesh_file=mesh,
                   initial_centroid=init_centroid,
@@ -185,13 +189,13 @@ def main():
         min_val = np.min(gp._points_sampled_value)
         best_coord = gp.get_historical_data_copy().points_sampled[min_point]
 
-        print('Iteration {} of {}'.format(i, num_iters))
-        print('Recommended Points:')
-        print(points_to_sample)
-        print('Expected Improvement: {}'.format(ei))
-        print('Current Best:')
-        print('f(x*)=', min_val)
-        print('Coord:', best_coord)
+        logging.INFO('Iteration {} of {}'.format(i, num_iters))
+        logging.INFO('Recommended Points:')
+        logging.INFO(points_to_sample)
+        logging.INFO('Expected Improvement: {}'.format(ei))
+        logging.INFO('Current Best:')
+        logging.INFO('f(x*)=', min_val)
+        logging.INFO('Coord:', best_coord)
         best_point_history.append(str(min_val))
 
         if history:
@@ -202,21 +206,16 @@ def main():
         if (len(var_buffer) == var_buffer.maxlen) and not skip_convergence:
             deviation = sum([abs(x - min_val) for x in var_buffer])
             if deviation < tol:
-                print('Convergence reached!')
-                print('Deviation: {}'.format(deviation))
-                print('History length: {}'.format(var_buffer.maxlen))
-                print('Tolerance: {}'.format(tol))
+                logging.INFO('Convergence reached!')
+                logging.INFO('Deviation: {}'.format(deviation))
+                logging.INFO('History length: {}'.format(var_buffer.maxlen))
+                logging.INFO('Tolerance: {}'.format(tol))
                 break
 
         var_buffer.append(min_val)
 
-    # Run final simulation
-    out_sim = f"{out_basename}_optimal_sim.msh"
-    out_coilpos = f"{out_basename}_optimal_coilpos.geo"
-    _, matsimnibs = f.run_simulation(best_coord, out_sim, out_coilpos)
-
     # Save position and orientation matrix
-    np.savetxt(f"{out_basename}_orientation.txt", matsimnibs)
+    np.savetxt(output_file, best_coord)
 
 
 if __name__ == '__main__':
