@@ -59,7 +59,7 @@ process qc_parameteric_surf{
 
     input:
     tuple val(sub), path(msh),\
-    path(centroid)
+    path(centroid), path(dscalar)
 
     output:
     tuple val(sub), path("${sub}_parameteric_qc.html"), emit:qc_parameteric
@@ -67,7 +67,7 @@ process qc_parameteric_surf{
     shell:
     '''
     #!/bin/bash
-    /scripts/qc/parameteric_surf.py !{msh} !{centroid} \
+    /scripts/qc/parameteric_surf.py !{msh} !{centroid} !{dscalar} \
                                     !{sub}_parameteric_qc.html
 
     '''
@@ -167,6 +167,9 @@ workflow optimize_wf{
         evaluate_fem(i_evaluate_fem)
         brainsight_transform(evaluate_fem.out.coords)
         localite_transform(evaluate_fem.out.coords)
+        i_qc_parameteric_surf = msh.join(centroid)
+                                   .join(weights)
+        qc_parameteric_surf(i_qc_parameteric_surf)
 
     emit:
         history = optimize.out.history
@@ -175,4 +178,5 @@ workflow optimize_wf{
         localite = localite_transform.out.localite_coords
         brainsight = brainsight_transform.out.brainsight_coords
         matsimnibs = evaluate_fem.out.coords
+        qc_parsurf = qc_parameteric_surf.out.qc_parameteric
 }

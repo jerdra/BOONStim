@@ -84,18 +84,17 @@ def load_surf_trigs(f_msh, entities):
     raise ValueError
 
 
-def gen_mshplot_html(brain, param_surf, out_html):
+def gen_mshplot_html(brain, texture, param_surf, out_html):
     '''
     Generate a visualization of the centroid to head projection problem
 
     Arguments:
        brain:           SurfaceMesh of brain
-       head:            SurfaceMesh of head
-       texture:         Texture to apply to brain
-       line:            DistResult object for line to visualize projection
+       param_surf:      Parameteric surface to visualize
+       out_html:        Output HTML file
     '''
 
-    p = mp.plot(brain.coords, brain.triangles, c=np.array([0.5, 0.5, 0.5]))
+    p = mp.plot(brain.coords, brain.triangles, c=texture)
 
     p.add_mesh(param_surf.coords,
                param_surf.triangles,
@@ -127,15 +126,15 @@ def construct_parameteric_mesh(C, A, bounds, grid_res=50):
     # Construct set of coordinates
     XX = X.flatten()
     YY = Y.flatten()
-    poly_arr = np.c_[np.ones(XX.shape[0]), X, YY, XX * YY, XX * XX, YY * YY]
+    poly_arr = np.c_[np.ones(XX.shape[0]), XX, YY, XX * YY, XX * XX, YY * YY]
     Z = np.dot(poly_arr, C)
-    para_coords = (A @ np.c_[XX, YY, Z].T).T
+    para_coords = gl.affine(A, np.c_[XX, YY, Z])
 
     grid = np.arange(0, XX.shape[0]).reshape((grid_res, grid_res))
     trig_list = np.zeros((6 * (grid_res - 1)**2), dtype=np.int64)
 
-    for j in np.arange(0, grid_res):
-        for i in np.arange(0, grid_res):
+    for j in np.arange(0, grid_res - 1):
+        for i in np.arange(0, grid_res - 1):
 
             # Upper triangle
             trig_list[6 * i + 6 * (grid_res - 1) * j] = grid[(j, i)]
@@ -149,7 +148,7 @@ def construct_parameteric_mesh(C, A, bounds, grid_res=50):
             trig_list[6 * i + 5 + 6 * (grid_res - 1) * j] = grid[(j + 1,
                                                                   i + 1)]
 
-    return SurfaceMesh(grid.flatten(), para_coords, trig_list)
+    return SurfaceMesh(grid.flatten(), para_coords, trig_list.reshape((-1, 3)))
 
 
 def main():
@@ -163,6 +162,9 @@ def main():
     p.add_argument('centroid',
                    type=str,
                    help="Path to .txt centroid coordinates")
+    p.add_argument('dscalar',
+                   type=str,
+                   help="Path to .dscalar file for brain texture")
     p.add_argument('out_html',
                    type=str,
                    help="Path to HTML output file for QC")
@@ -171,6 +173,7 @@ def main():
 
     msh = args.msh
     centroid = args.centroid
+    texture = np.load(args.dscalar)
     out = args.out_html
 
     # Load in mesh surfaces
@@ -181,15 +184,13 @@ def main():
     f = FieldFunc(mesh_file=msh,
                   initial_centroid=np.genfromtxt(centroid),
                   tet_weights=None,
-                  coil=None,
+                  coil='',
                   field_dir=None)
 
     logging.info("Discretizing parameteric mesh...")
     C, iR, bounds = f.C, f.iR, f.bounds
     param_mesh = construct_parameteric_mesh(C, iR, bounds)
-
-    # Next plot that shit up
-    gen_mshplot_html(brain, param_mesh, out)
+    gen_mshplot_html(brain, texture, param_mesh, out)
 
 
 if __name__ == '__main__':
