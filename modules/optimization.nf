@@ -54,6 +54,25 @@ process evaluate_fem{
 
 }
 
+process qc_parameteric_surf{
+    label 'rtms'
+
+    input:
+    tuple val(sub), path(msh),\
+    path(centroid)
+
+    output:
+    tuple val(sub), path("${sub}_parameteric_qc.html"), emit:qc_parameteric
+
+    shell:
+    '''
+    #!/bin/bash
+    /scripts/qc/parameteric_surf.py !{msh} !{centroid} \
+                                    !{sub}_parameteric_qc.html
+
+    '''
+}
+
 
 process brainsight_transform{
 
