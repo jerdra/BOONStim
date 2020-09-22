@@ -19,37 +19,12 @@ process evaluate_fem{
 
     shell:
     '''
-    #!/usr/bin/env python
-    import os
-    import numpy as np
-    from fieldopt.objective import FieldFunc
-    from simnibs.msh import mesh_io
-
-    coords = np.genfromtxt("!{orientation}")
-    centroid = np.genfromtxt("!{centroid}")
-    wf = np.load("!{weights}")
-
-    fem = FieldFunc("!{msh}",
-                    initial_centroid=centroid,
-                    tet_weights=wf,
-                    coil="!{coil}",
-                    field_dir=os.getcwd(),
-                    cpus=2
-                   )
-
-    _, matsimnibs = fem.run_simulation(coords, "!{sub}_optimized_fields.msh",
-                        "!{sub}_optimized_coil.geo")
-
-    # Save matsimnibs matrix
-    np.save("!{sub}_optimized_coords.npy", matsimnibs)
-
-    # Write in weight function
-    M = mesh_io.read_msh("!{sub}_optimized_fields.msh")
-    gm = np.where(M.elm.tag1 == 2)
-    wf_field = np.zeros_like(M.elmdata[1].value)
-    wf_field[gm] = wf
-    M.add_element_field(wf_field,'weightfunction')
-    M.write("!{sub}_optimized_fields.msh")
+    /scripts/evaluate_fem.py !{msh} !{orientation} \
+                            !{centroid} !{weights} \
+                            !{coil} \
+                            !{sub}_optimized_fields.msh \
+                            !{sub}_optimized_coil.geo \
+                            !{sub}_optimized_coords.npy
     '''
 
 }
