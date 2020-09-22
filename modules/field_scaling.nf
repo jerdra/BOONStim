@@ -220,7 +220,7 @@ process get_stokes_cf{
     cf = 2.8*(c2c - c2s)
 
     to_write = f"{cf:.2f}" + "\\n"
-    with open("!{sub}.scaling_factor.txt","w") as f:
+    with open("!{sub}.stokes_correction.txt","w") as f:
         f.write(to_write)
     '''
 }
@@ -377,6 +377,6 @@ workflow fieldscaling_wf{
 
 
     emit:
-        scaling_factor = get_ratio.out.scaling_factor
+        scaling_factor = get_stokes_cf.out.stokes_correction
 
 }
