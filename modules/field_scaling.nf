@@ -200,6 +200,31 @@ process get_ratio{
     '''
 }
 
+process get_stokes_cf{
+
+    label 'rtms'
+    input:
+    tuple val(sub), path(cortex2scalp), path(coil2cortex)
+
+    output:
+    tuple val(sub), path("${sub}.stokes_correction.txt"), emit: stokes_correction
+
+    shell:
+    '''
+    #!/usr/bin/env python
+
+    import numpy as np
+
+    c2s = np.genfromtxt("!{cortex2scalp}")
+    c2c = np.genfromtxt("!{coil2cortex}")
+    cf = 2.8*(c2c - c2s)
+
+    to_write = f"{cf:.2f}" + "\\n"
+    with open("!{sub}.stokes_correction.txt","w") as f:
+        f.write(to_write)
+    '''
+}
+
 process matsimnibs2centre{
 
     label 'rtms'
@@ -339,9 +364,9 @@ workflow fieldscaling_wf{
             matsimnibs2centre.out.coil_centre
         )
 
-        i_get_ratio = cortex2scalp_wf.out.scalp2cortex
+        i_get_stokes_cf = cortex2scalp_wf.out.scalp2cortex
                                         .join(coil2cortex_wf.out.cortex2coil)
-        get_ratio(i_get_ratio)
+        get_stokes_cf(i_get_stokes_cf)
 
         qc_cortical_distance_wf(
             mesh,
@@ -352,6 +377,6 @@ workflow fieldscaling_wf{
 
 
     emit:
-        scaling_factor = get_ratio.out.scaling_factor
+        scaling_factor = get_stokes_cf.out.stokes_correction
 
 }
