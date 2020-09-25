@@ -68,12 +68,12 @@ process brainsight_transform{
 
     msn = np.load("!{orientation}")
 
+    msn[:3,1] = -msn[:3,1]
     msn[:3,2] = -msn[:3,2]
-    msn[:3,0] = -msn[:3,0]
 
     xyz_alpha = degrees(arctan2(-msn[1,2],msn[2,2]))
     xyz_beta = degrees(arcsin(msn[0,2]))
-    xyz_gamma = degrees(arctan2(-msn[0,1],msn[0,0,]))
+    xyz_gamma = degrees(arctan2(-msn[0,1],msn[0,0]))
 
     to_write = np.array([
         msn[0,3],
