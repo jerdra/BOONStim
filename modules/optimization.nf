@@ -116,7 +116,7 @@ process localite_transform{
     ])
 
     matsimnibs = np.load("!{orientation}")
-    localite_af = AFFINE @ matsimnibs
+    localite_af = matsimnibs @ AFFINE
     np.savetxt("!{sub}_localite.csv", localite_af, delimiter=',')
     '''
 }
