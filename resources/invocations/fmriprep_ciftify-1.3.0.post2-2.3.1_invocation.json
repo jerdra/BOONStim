@@ -7,7 +7,7 @@
 	"freesurfer_license":"/license/license.txt",
 	"verbose":true,
 	"resample_to_T1w32k": true,
-	"task_label": ["rest"],
+	"task_label": ["rest", "rest-pa", "rest-ap"],
 	"ignore_fieldmaps": true
 
 }
