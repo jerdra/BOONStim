@@ -5,11 +5,11 @@ process split_dscalar{
     label 'connectome'
 
     input:
-    tuple val(sub), path(dscalar)
+    tuple val(id), path(dscalar)
 
     output:
-    tuple val(sub), val('L'), path('L.shape.gii'), emit: left
-    tuple val(sub), val('R'), path('R.shape.gii'), emit: right
+    tuple val(id), val('L'), path('L.shape.gii'), emit: left
+    tuple val(id), val('R'), path('R.shape.gii'), emit: right
 
     shell:
     '''
@@ -27,10 +27,10 @@ process resample_surf{
     label 'connectome'
 
     input:
-    tuple val(sub), val(hemi), path(shape), path(source_sphere), path(target_sphere)
+    tuple val(id), val(hemi), path(shape), path(source_sphere), path(target_sphere)
 
     output:
-    tuple val(sub), val(hemi), path("resampled_shape.${hemi}.shape.gii"), emit: resampled
+    tuple val(id), val(hemi), path("resampled_shape.${hemi}.shape.gii"), emit: resampled
 
     shell:
     '''
@@ -50,15 +50,15 @@ process recombine {
     label 'connectome'
 
     input:
-    tuple val(sub), path(left), path(right)
+    tuple val(id), path(left), path(right)
 
     output:
-    tuple val(sub), path("${sub}.dscalar.nii"), emit: dscalar
+    tuple val(id), path("resampled_dscalar.nii"), emit: dscalar
 
     shell:
     '''
     wb_command -cifti-create-dense-scalar \
-                !{sub}.dscalar.nii \
+                 resampled_dscalar.nii \
                 -left-metric !{left} \
                 -right-metric !{right}
     '''
@@ -75,36 +75,45 @@ workflow resample2native_wf {
 
     main:
 
-        //Split dscalar for resampling
-        split_dscalar(dscalar)
+        /* Associate each dscalar map with a unique ID, since we may
+        have more than 1 map/subject */
+        udscalar = dscalar.map{a ->
+                               [ a[0], UUID.randomUUID().toString(),
+                                 a[1..<-1], a[-1] ]}
+                          .multiMap{s, u, ids, d ->
+                            map2id: [u, s, ids]
+                            map2dscalar: [u, d]
+                            map2sub: [u, s]}
 
-        //Stack left and right outputs
-        left_resample_input = split_dscalar.out.left
-                                            .join(msm_sphere, by: [0,1] )
-                                            .map{ s,h,d,msm ->    [
-                                                                    s,h,d,msm,
-                                                                    "${params.atlas}/L.sphere.32k_fs_LR.surf.gii"
-                                                                ]
-                                                }
-        right_resample_input = split_dscalar.out.right
-                                            .join(msm_sphere, by: [0,1] )
-                                            .map{ s,h,d,msm ->    [
-                                                                    s,h,d,msm,
-                                                                    "${params.atlas}/R.sphere.32k_fs_LR.surf.gii"
-                                                                ]
-                                                }
-        resample_input = left_resample_input.mix(right_resample_input)
+        split_dscalar(udscalar.map2dscalar)
+
+        // Map back to subject, then append associated spheres
+        resample_input=\
+            split_dscalar.left.mix(split_dscalar.right)
+                              .join(udscalar.map2sub, by: 0)
+                              .map{u, h, d, s -> [s, h, u, d]}
+                              .combine(msm_sphere, by: [0,1])
+                              .map{s,h,u,d,m ->
+                                    [
+                                        u,h,d,m,
+                                        "${params.atlas}/${h}.sphere.32k_fs_LR.surf.gii"
+                                    ]}
         resample_surf(resample_input)
 
-        //Recombine
+        // Recombine based on UUID assigned to original dscalar
         recombine_input = resample_surf.out.resampled
-                                        .map { s,h,f -> [s,f] }
+                                        .map { u,h,f -> [u,f] }
                                         .groupTuple ( by: 0, sort: { it.baseName }, size: 2 )
-                                        .map { s,f -> [s,f[0],f[1]] }
+                                        .map { u,f -> [u,f[0],f[1]] }
 
         recombine(recombine_input)
 
+        // Re-form the original structure of the input
+        output = udscalar.map2id.join(recombine.out.dscalar, by: 0)
+                        .map{u, s, ids, d -> [s, ids, d].flatten()}
+
+
         emit:
-            resampled = recombine.out.dscalar
+            resampled = output
 
 }
