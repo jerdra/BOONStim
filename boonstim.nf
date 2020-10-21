@@ -239,9 +239,10 @@ workflow {
                    )
 
         // Calculate scaling factor between coil and cortex
-        calculate_reference_field_wf(cifti_mesh_result.cifti)
+        calculate_reference_field_wf(cifti_mesh_result.cifti,
+                                     Channel.from(params.ref_coords))
         resampledistmap_wf(
-            calculate_reference_field_wf.out.roi,
+            calculate_reference_field_wf.out.rois,
             registration_wf.out.msm_sphere
         )
 
@@ -252,7 +253,7 @@ workflow {
                         optimize_wf.out.matsimnibs
                       )
 
-        //// Gather BOONStim outputs for publishing
+        // Gather BOONStim outputs for publishing
         registration_wf.out.msm_sphere.branch(lr_branch).set { msm }
         make_giftis_result.pial.branch(lr_branch).set { pial }
         make_giftis_result.white.branch(lr_branch).set { white }
