@@ -10,7 +10,7 @@ process calc_distmap_from_coord{
     path(surf)
 
     output:
-    tuple val(sub), val(name),  val(hemi),\
+    tuple val(sub), val(hemi),  val(name),\
     path("${sub}.${hemi}.${name}_distmap.shape.gii"), emit: dist_shape
 
     shell:
@@ -29,7 +29,7 @@ process calc_distmap_from_coord{
         -var x xdist.shape.gii \
         -var y ydist.shape.gii \
         -var z zdist.shape.gii \
-        !{sub}.!{hemi}.!{name}.distmap.shape.gii
+        !{sub}.!{hemi}.!{name}_distmap.shape.gii
     '''
 }
 
@@ -185,7 +185,7 @@ workflow calculate_reference_field_wf{
                                     .combine(["L","R"])
                                     .combine(coords)
                                     .map{s,c,h,n,x,y,z ->
-                                        [s,c,h,n,x,y,z,
+                                        [s,h,n,x,y,z,
                                         "${c}/MNINonLinear/fsaverage_LR32k/"
                                         + "${s}.${h}.pial.32k_fs_LR.surf.gii"
                                         ]

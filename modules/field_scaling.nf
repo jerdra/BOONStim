@@ -375,7 +375,7 @@ workflow fieldscaling_wf{
             mesh,
             pial_surfs.left,
             pial_surfs.right,
-            roi
+            uroi.map2dscalar
         )
 
         // Coil calculation
@@ -395,7 +395,7 @@ workflow fieldscaling_wf{
             mesh,
             pial_surfs.left,
             pial_surfs.right,
-            roi, matsimnibs2centre.out.coil_centre
+            uroi.map2dscalar, matsimnibs2centre.out.coil_centre
         )
 
         // Map back into original input

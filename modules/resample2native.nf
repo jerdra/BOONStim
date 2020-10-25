@@ -89,8 +89,8 @@ workflow resample2native_wf {
 
         // Map back to subject, then append associated spheres
         resample_input=\
-            split_dscalar.left.mix(split_dscalar.right)
-                              .join(udscalar.map2sub, by: 0)
+            split_dscalar.out.left.mix(split_dscalar.out.right)
+                              .combine(udscalar.map2sub, by: 0)
                               .map{u, h, d, s -> [s, h, u, d]}
                               .combine(msm_sphere, by: [0,1])
                               .map{s,h,u,d,m ->
@@ -111,6 +111,8 @@ workflow resample2native_wf {
         // Re-form the original structure of the input
         output = udscalar.map2id.join(recombine.out.dscalar, by: 0)
                         .map{u, s, ids, d -> [s, ids, d].flatten()}
+
+        //udscalar.map2id.join(recombine.out.dscalar, by: 0) | view
 
 
         emit:

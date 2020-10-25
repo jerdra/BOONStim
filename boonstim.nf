@@ -115,42 +115,120 @@ if (!params.rewrite){
                         .map{i,n -> i}
 }
 
-process publish_boonstim{
+process publish_base{
 
-    publishDir path: "$params.out/boonstim", \
+    publishDir path: "${params.out}/boonstim/${sub}", \
                mode: 'copy', \
                overwrite: true
 
-
     input:
-    tuple val(sub), \
-    path(t1fs), path(m2m), path(fs), \
-    path(pl), path(pr), path(wl), path(wr), path(ml), path(mr), \
-    path(msml), path(msmr), path(wf),
-    path(centroid), path(centroid_qc), \
-    path(femw), \
-    path(opt_msh), path(opt_coil), path(history), \
-    path(brainsight), path(localite)
+    tuple val(sub),\
+    path(t1fs), path(centroid),\
+    path(fem), path(dscalar)
 
     output:
-    path "$sub", emit: boonstim_out
+    tuple path(t1fs), path(centroid),\
+    path(fem), path(dscalar),\
+    emit: base_out
 
     shell:
     '''
-    mkdir !{sub}
-    mkdir T1w
-    mkdir results
+    #!/bin/bash
 
-    mv \
-        !{pl} !{pr} !{wl} !{wr} !{ml} !{mr} !{msml} !{msmr} \
-        T1w
-
-    mv !{brainsight} !{localite} \
-        !{opt_msh} !{opt_coil} !{history} \
-        results
-
-    mv * !{sub} || true
+    echo "Moving files into boonstim/!{sub}..."
     '''
+
+}
+
+process publish_surfs{
+
+    publishDir path: "${params.out}/boonstim/${sub}/T1w", \
+               mode: 'copy', \
+               overwrite: true
+
+    input:
+    tuple val(sub),\
+    path(pl), path(pr),\
+    path(wl), path(wr),\
+    path(ml), path(mr),\
+    path(msml), path(msmr)
+
+    output:
+    tuple path(pl), path(pr),\
+    path(wl), path(wr),\
+    path(ml), path(mr),\
+    path(msml), path(msmr), emit: surfs_out
+
+    shell:
+    '''
+    #!/bin/bash
+    echo "Transferring surfaces to boonstim/!{sub}/T1w..."
+    '''
+
+}
+
+process publish_mri2mesh{
+
+    publishDir path: "${params.out}/boonstim/${sub}", \
+               mode: 'copy', \
+               overwrite: true
+
+    input:
+    tuple val(sub),\
+    path(m2m), path(fs)
+
+    output:
+    tuple val(sub), path(m2m), path(fs)
+
+    shell:
+    '''
+    #!/bin/bash
+    echo "Transferring !{m2m} and !{fs} to boonstim/!{sub} folder..."
+    '''
+}
+
+process publish_opt{
+
+    publishDir path: "${params.out}/boonstim/${sub}/results", \
+               mode: 'copy', \
+               overwrite: true
+
+    input:
+    tuple val(sub),\
+    path(fields), path(coil), path(history),\
+    path(brainsight), path(localite)
+
+    output:
+    tuple path(fields), path(coil), path(history),\
+    path(brainsight), path(localite)
+
+    shell:
+    '''
+    #!/bin/bash
+    echo "Transferring optimization results to boonstim/!{sub}/results..."
+    '''
+}
+
+process publish_scaleref{
+
+    publishDir path: "${params.out}/boonstim/${sub}", \
+               pattern: "*scalefactor.txt", \
+               mode: 'copy', \
+               overwrite: true
+
+    input:
+    tuple val(sub),\
+    val(name), path(factor)
+
+    output:
+    tuple val(sub), path("${sub}.${name}_scalefactor.txt")
+
+    shell:
+    '''
+    echo "Moving stimulation scaling factor values into boonstim/!{sub}..."
+    cp !{factor} "!{sub}.!{name}_scalefactor.txt"
+    '''
+
 }
 
 process publish_cifti{
@@ -238,7 +316,7 @@ workflow {
                     params.coil
                    )
 
-        // Calculate scaling factor between coil and cortex
+        // Calculate scaling factor between coil and cortex across multiple references
         calculate_reference_field_wf(cifti_mesh_result.cifti,
                                      Channel.from(params.ref_coords))
         resampledistmap_wf(
@@ -278,24 +356,37 @@ workflow {
         //    pial.left, pial.right,
         //    resamplesulc_wf.out.resampled)
 
-        publish_boonstim_input = cifti_mesh_result.t1fs_conform
-                                    .join(cifti_mesh_result.mesh_m2m)
-                                    .join(cifti_mesh_result.mesh_fs)
-                                    .join(pial.left).join(pial.right)
-                                    .join(white.left).join(white.right)
-                                    .join(midthick.left).join(midthick.right)
-                                    .join(msm.left).join(msm.right)
-                                    .join(resampleweightfunc_wf.out.resampled)
-                                    .join(centroid_wf.out.centroid)
-                                    .join(centroid_wf.out.qc)
-                                    .join(tet_project_weightfunc_wf.out.fem_weights)
-                                    .join(optimize_wf.out.fields)
-                                    .join(optimize_wf.out.coil)
-                                    .join(optimize_wf.out.history)
-                                    .join(optimize_wf.out.brainsight)
-                                    .join(optimize_wf.out.localite)
+        /* Step 1: Publish base outputs */
+        i_publish_base = cifti_mesh_result.t1fs_conform
+                                .join(centroid_wf.out.centroid)
+                                .join(tet_project_weightfunc_wf.out.fem_weights)
+                                .join(resampleweightfunc_wf.out.resampled)
+        publish_base(i_publish_base)
 
-        publish_boonstim(publish_boonstim_input)
+        /* Step 2: Publish native space surfaces used to map out
+        weight function
+        */
+        i_publish_surfs = pial.left.join(pial.right)
+                            .join(white.left).join(white.right)
+                            .join(midthick.left).join(midthick.right)
+                            .join(msm.left).join(msm.right)
+        publish_surfs(i_publish_surfs)
+
+        /* Step 3: Publish meshing results from mri2mesh */
+        i_publish_mri2mesh = cifti_mesh_result.mesh_m2m
+                                .join(cifti_mesh_result.mesh_fs)
+        publish_mri2mesh(i_publish_mri2mesh)
+
+        /* Step 4: Publish optimization results */
+        i_publish_opt = optimize_wf.out.fields
+                            .join(optimize_wf.out.coil)
+                            .join(optimize_wf.out.history)
+                            .join(optimize_wf.out.brainsight)
+                            .join(optimize_wf.out.localite)
+        publish_opt(i_publish_opt)
+
+        /* Step 5: Publish the reference scaling values */
+        publish_scaleref(fieldscaling_wf.out.scaling_factor)
 
         // Publish Ciftify outputs
         publish_cifti_input = cifti_mesh_result.cifti
