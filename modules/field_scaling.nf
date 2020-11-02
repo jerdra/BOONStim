@@ -345,6 +345,29 @@ workflow fieldscaling_wf{
 
     main:
 
+        // Difference is ROI can contain multiple identifers to be processed simultaneously
+
+        // Transform subject identifiers to UUID
+        uroi = roi.map{a -> [ a[0], UUID.randomUUID().toString(),
+                              a[1..<-1], a[-1] ]}
+                  .multiMap{s, u, ids, d ->
+                    map2id: [u, s, ids]
+                    map2dscalar: [u, d]
+                    map2sub: [u,s]}
+
+        // Transform inputs to using UUIDs
+        pial = uroi.map2sub.map{u,s -> [s,u]}
+                .combine(pial, by: 0)
+                .map{s,u,h,p -> [u,h,p]}
+
+        mesh = uroi.map2sub.map{u,s -> [s,u]}
+                .combine(mesh, by:0)
+                .map{s,u,p -> [u,p]}
+
+        matsimnibs = uroi.map2sub.map{u,s -> [s,u]}
+                        .combine(matsimnibs, by:0)
+                        .map{s,u,m -> [u,m]}
+
         pial.branch(lr_branch).set{pial_surfs}
 
         // MT calculation
@@ -352,7 +375,7 @@ workflow fieldscaling_wf{
             mesh,
             pial_surfs.left,
             pial_surfs.right,
-            roi
+            uroi.map2dscalar
         )
 
         // Coil calculation
@@ -372,11 +395,15 @@ workflow fieldscaling_wf{
             mesh,
             pial_surfs.left,
             pial_surfs.right,
-            roi, matsimnibs2centre.out.coil_centre
+            uroi.map2dscalar, matsimnibs2centre.out.coil_centre
         )
+
+        // Map back into original input
+        output = uroi.map2id.join(get_stokes_cf.out.stokes_correction)
+                   .map{u,s,ids,c -> [s,ids,c].flatten()}
 
 
     emit:
-        scaling_factor = get_stokes_cf.out.stokes_correction
+        scaling_factor = output
 
 }
