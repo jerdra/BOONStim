@@ -1,7 +1,7 @@
 nextflow.preview.dsl = 2
 
 // Process definitions
-process optimize_coil{
+process bayesian_optimization{
 
     stageInMode 'copy'
     label 'rtms'
@@ -21,8 +21,8 @@ process optimize_coil{
                              !{coil} \
                              !{sub}_orientation.txt \
                              --history !{sub}_history.txt \
-                             --n-iters 30 \
-                             --cpus 12 \
+                             --n-iters !{params.max_iters} \
+                             --cpus !{params.bayes_cpus.intdiv(2) - 2} \
                              --tmp-dir $(pwd)
     '''
 }
@@ -36,13 +36,13 @@ workflow optimize_wf{
         coil
 
     main:
-        i_optimize_coil = msh
-                            .join(weights)
-                            .join(centroid)
-                            .join(coil)
-        optimize_coil(i_optimize_coil)
+        i_bayesian_optimization = msh
+                                    .join(weights)
+                                    .join(centroid)
+                                    .join(coil)
+        bayesian_optimization(i_bayesian_optimization)
 
     emit:
-        orientation = optimize_coil.out.orientation
-        history = optimize_coil.out.history
+        orientation = bayesian_optimization.out.orientation
+        history = bayesian_optimization.out.history
 }
