@@ -5,7 +5,7 @@ process optimize_coil{
 
     stageInMode 'copy'
     label 'rtms'
-    containerOptions "-B ${params.bin}:/scripts" 
+    containerOptions "-B ${params.bin}:/scripts"
 
     input:
     tuple val(sub), path(msh), path(weights),\
@@ -21,9 +21,9 @@ process optimize_coil{
                              !{coil} \
                              !{sub}_orientation.txt \
                              --history !{sub}_history.txt \
-                             --n-iters 50 \
-                             --cpus 5 \
-                             --tmp-dir /tmp
+                             --n-iters 30 \
+                             --cpus 12 \
+                             --tmp-dir $(pwd)
     '''
 }
 
