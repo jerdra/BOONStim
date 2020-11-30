@@ -43,9 +43,11 @@ process ciftify{
 
     shell:
     '''
+    mkdir work
     bosh exec launch \
     -v !{params.bids}:/bids \
     -v $(pwd):/output \
+    -v $(pwd)/work:/work \
     -v !{params.license}:/license \
     -v !{params.resources}:/resources \
     !{params.ciftify_descriptor} $(pwd)/!{json} \
@@ -101,9 +103,11 @@ process fmriprep_anat{
 
     shell:
     '''
+    mkdir work
     bosh exec launch \
     -v !{params.bids}:/bids \
     -v $(pwd):/output \
+    -v $(pwd)/work:/work \
     -v !{params.license}:/license \
     -v !{params.resources}:/resources \
     !{params.fmriprep_descriptor} $(pwd)/!{json} \
@@ -127,9 +131,11 @@ process run_fmriprep{
 
     shell:
     '''
+    mkdir work
     bosh exec launch \
     -v !{params.bids}:/bids \
     -v $(pwd):/output \
+    -v $(pwd)/work:/work \
     -v !{params.license}:/license \
     -v !{params.resources}:/resources \
     !{params.fmriprep_descriptor} $(pwd)/!{json} \
