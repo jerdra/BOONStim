@@ -60,12 +60,14 @@ from moe.optimal_learning.python.cpp_wrappers.expected_improvement import multis
 from moe.optimal_learning.python.data_containers import HistoricalData, SamplePoint
 from moe.optimal_learning.python.cpp_wrappers.log_likelihood_mcmc import GaussianProcessLogLikelihoodMCMC
 from moe.optimal_learning.python.default_priors import DefaultPrior
-from moe.optimal_learning.python.python_version.optimization import GradientDescentOptimizer, GradientDescentParameters
+from moe.optimal_learning.python.python_version.optimization import GradientDescentOptimizer
 from moe.optimal_learning.python.cpp_wrappers.optimization import GradientDescentOptimizer as cGDOpt
 from moe.optimal_learning.python.cpp_wrappers.optimization import GradientDescentParameters as cGDParams
+from moe.optimal_learning.python.base_prior import TophatPrior, NormalPrior
 
 logging.basicConfig(format="%(asctime)s [BOONSTIM GRID]:  %(message)s",
                     datefmt="%Y-%m-%d %I:%M:%S %p")
+
 
 def gen_sample_from_qei(gp,
                         search_domain,
@@ -106,7 +108,7 @@ def main():
     history = args['--history']
     skip_convergence = args['--skip-convergence']
 
-    logging.INFO('Using {} cpus'.format(cpus))
+    logging.info('Using {} cpus'.format(cpus))
 
     f = FieldFunc(mesh_file=mesh,
                   initial_centroid=init_centroid,
@@ -130,6 +132,8 @@ def main():
 
     # Generate historical points
     prior = DefaultPrior(n_dims=3 + 2, num_noise=1)
+    prior.tophat = TophatPrior(-2, 5)
+    prior.ln_prior = NormalPrior(12.5, 1.6)
     hist_pts = cpus
     i = 0
     init_pts = search_domain.generate_uniform_random_points_in_domain(hist_pts)
@@ -189,13 +193,13 @@ def main():
         min_val = np.min(gp._points_sampled_value)
         best_coord = gp.get_historical_data_copy().points_sampled[min_point]
 
-        logging.INFO('Iteration {} of {}'.format(i, num_iters))
-        logging.INFO('Recommended Points:')
-        logging.INFO(points_to_sample)
-        logging.INFO('Expected Improvement: {}'.format(ei))
-        logging.INFO('Current Best:')
-        logging.INFO('f(x*)=', min_val)
-        logging.INFO('Coord:', best_coord)
+        logging.info('Iteration {} of {}'.format(i, num_iters))
+        logging.info('Recommended Points:')
+        logging.info(points_to_sample)
+        logging.info('Expected Improvement: {}'.format(ei))
+        logging.info('Current Best:')
+        logging.info(f'f(x*)= {min_val}')
+        logging.info(f'Coord: {best_coord}')
         best_point_history.append(str(min_val))
 
         if history:
@@ -206,10 +210,10 @@ def main():
         if (len(var_buffer) == var_buffer.maxlen) and not skip_convergence:
             deviation = sum([abs(x - min_val) for x in var_buffer])
             if deviation < tol:
-                logging.INFO('Convergence reached!')
-                logging.INFO('Deviation: {}'.format(deviation))
-                logging.INFO('History length: {}'.format(var_buffer.maxlen))
-                logging.INFO('Tolerance: {}'.format(tol))
+                logging.info('Convergence reached!')
+                logging.info('Deviation: {}'.format(deviation))
+                logging.info('History length: {}'.format(var_buffer.maxlen))
+                logging.info('Tolerance: {}'.format(tol))
                 break
 
         var_buffer.append(min_val)
