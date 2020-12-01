@@ -1,7 +1,7 @@
 nextflow.preview.dsl = 2
 
 
-include optimize_wf as optimize from "${params.optimization_module}" params(params)
+include {optimize_wf as optimize} from "${params.optimization_module}" params(params)
 
 process evaluate_fem{
 

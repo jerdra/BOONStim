@@ -39,7 +39,7 @@ workflow optimize_wf{
         i_bayesian_optimization = msh
                                     .join(weights)
                                     .join(centroid)
-                                    .join(coil)
+                                    .spread([coil])
         bayesian_optimization(i_bayesian_optimization)
 
     emit:
