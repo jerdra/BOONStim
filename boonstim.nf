@@ -234,7 +234,6 @@ process publish_scaleref{
 
 process publish_cifti{
 
-    stageInMode 'copy'
     publishDir path: "$params.out", \
                mode: 'move'
 
@@ -245,7 +244,7 @@ process publish_cifti{
 
     output:
     tuple path("ciftify/${sub}"), path("fmriprep/${sub}"),\
-    path("freesurfer/${sub}")
+    path("freesurfer/${sub}"), path("ciftify/zz_templates")
 
     shell:
     '''
