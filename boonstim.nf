@@ -119,7 +119,7 @@ if (!params.rewrite){
 process publish_base{
 
     publishDir path: "${params.out}/boonstim/${sub}", \
-               mode: 'copy', \
+               mode: 'move', \
                overwrite: true
 
     input:
@@ -144,7 +144,7 @@ process publish_base{
 process publish_surfs{
 
     publishDir path: "${params.out}/boonstim/${sub}/T1w", \
-               mode: 'copy', \
+               mode: 'move', \
                overwrite: true
 
     input:
@@ -171,7 +171,7 @@ process publish_surfs{
 process publish_mri2mesh{
 
     publishDir path: "${params.out}/boonstim/${sub}", \
-               mode: 'copy', \
+               mode: 'move', \
                overwrite: true
 
     input:
@@ -191,7 +191,7 @@ process publish_mri2mesh{
 process publish_opt{
 
     publishDir path: "${params.out}/boonstim/${sub}/results", \
-               mode: 'copy', \
+               mode: 'move', \
                overwrite: true
 
     input:
@@ -214,7 +214,7 @@ process publish_scaleref{
 
     publishDir path: "${params.out}/boonstim/${sub}", \
                pattern: "*scalefactor.txt", \
-               mode: 'copy', \
+               mode: 'move', \
                overwrite: true
 
     input:
@@ -234,9 +234,8 @@ process publish_scaleref{
 
 process publish_cifti{
 
-    stageInMode 'copy'
     publishDir path: "$params.out", \
-               mode: 'copy'
+               mode: 'move'
 
     input:
     tuple val(sub), \
@@ -244,7 +243,8 @@ process publish_cifti{
     path("ciftify/zz_templates")
 
     output:
-    tuple path("ciftify"), path("fmriprep"), path("freesurfer"), emit: published
+    tuple path("ciftify/${sub}"), path("fmriprep/${sub}"),\
+    path("freesurfer/${sub}"), path("ciftify/zz_templates")
 
     shell:
     '''
