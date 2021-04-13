@@ -79,6 +79,8 @@ def main():
     if options:
         with open(options, 'r') as f:
             opts = json.load(f)
+    else:
+        opts = {}
 
     # Construct objective function object
     logging.info(f"Using {ncpus} cpus")

@@ -115,6 +115,8 @@ def main():
     if options:
         with open(options, 'r') as f:
             opts = json.load(f)
+    else:
+        opts = {}
 
     logging.info('Using {} cpus'.format(cpus))
 
