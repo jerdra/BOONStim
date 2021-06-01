@@ -115,6 +115,9 @@ def main():
     if options:
         with open(options, 'r') as f:
             opts = json.load(f)
+        logging.info("Using custom options file {}".format(options))
+        logging.info("{}".format('\''.join(
+            [f"{k}:{v}" for k, v in opts.items()])))
     else:
         opts = {}
 
