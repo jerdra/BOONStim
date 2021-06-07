@@ -38,6 +38,8 @@ Options:
     -s,--skip-convergence                   Do not use convergence criterion,
                                             instead use n-iters only
                                             [Default: disabled]
+    -o,--options FILE                       ADVANCED: Overwrite FEM function
+                                            default options
 '''
 
 # Base package loading
@@ -46,6 +48,7 @@ import os
 import logging
 from collections import deque
 from docopt import docopt
+import json
 
 import numpy as np
 from fieldopt.objective import FieldFunc
@@ -107,6 +110,16 @@ def main():
     tol = float(args['--convergence']) or 0.001
     history = args['--history']
     skip_convergence = args['--skip-convergence']
+    options = args['--options']
+
+    if options:
+        with open(options, 'r') as f:
+            opts = json.load(f)
+        logging.info("Using custom options file {}".format(options))
+        logging.info("{}".format('\''.join(
+            [f"{k}:{v}" for k, v in opts.items()])))
+    else:
+        opts = {}
 
     logging.info('Using {} cpus'.format(cpus))
 
@@ -115,7 +128,8 @@ def main():
                   tet_weights=weights,
                   coil=coil,
                   field_dir=tmpdir,
-                  cpus=cpus)
+                  cpus=cpus,
+                  **opts)
 
     # Make search domain
     search_domain = TensorProductDomain([

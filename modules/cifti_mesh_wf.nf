@@ -99,7 +99,10 @@ process fmriprep_anat{
     tuple val(sub), path(json)
 
     output:
-    tuple val(sub), path("fmriprep/$sub/ses-01/anat/${sub}*_desc-preproc_T1w.nii.gz"), emit: preproc_t1
+    tuple val(sub),\
+    path("fmriprep/$sub/ses-01/anat/fmriprep/$sub/ses-01/anat/${sub}*_desc-preproc_T1w.nii.gz"),\
+    emit: preproc_t1
+
 
     shell:
     '''
