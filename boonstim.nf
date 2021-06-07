@@ -83,7 +83,6 @@ include {tet_project_wf as tet_project_roi_wf} from './modules/tetrahedral_wf.nf
 include {calculate_reference_field_wf} from './modules/reference_field_wf.nf' params(params)
 include {fieldscaling_wf} from './modules/field_scaling.nf' params(params)
 include {optimize_wf} from "./modules/optimization.nf" params(params)
-include {qc_wf} from "./modules/qc.nf" params(params)
 
 // IMPORT MODULES PROCESSES
 include {apply_mask as centroid_mask} from './modules/utils.nf' params(params)
@@ -337,25 +336,6 @@ workflow {
         make_giftis.out.pial.branch(lr_branch).set { pial }
         make_giftis.out.white.branch(lr_branch).set { white }
         make_giftis.out.midthickness.branch(lr_branch).set { midthick }
-
-        // Run surface QC workflow
-        i_resample_sulc = cifti_mesh_wf.out.cifti
-                            .map{s,c -> [s,
-                                        "${c}/MNINonLinear/fsaverage_LR32k/${s}.sulc.32k_fs_LR.dscalar.nii"
-                                        ]
-                                }
-
-        resamplesulc_wf(
-            i_resample_sulc,
-            registration_wf.out.msm_sphere
-        )
-
-
-        // Generate QC images
-        //qc_wf(
-        //    resampleweightfunc_wf.out.resampled,
-        //    pial.left, pial.right,
-        //    resamplesulc_wf.out.resampled)
 
         /* Step 1: Publish base outputs */
         i_publish_base = cifti_mesh_wf.out.t1fs_conform
