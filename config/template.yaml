@@ -1,0 +1,42 @@
+# User configuration object storing base settings for running BOONStim
+#
+# Definitions:
+#
+# "image": refers to singularity .simg or .sif image files
+# "invocation" and "descriptor" refers to Boutiques JSON files for specifying
+#     command-line arguments
+#
+#
+UserConfig:
+
+  # If using fMRIPrep
+  FmriprepConfig:
+    image: IMAGE
+    anat_invocation: ANAT_INVOCATION
+    invocation: INVOCATION
+    descriptor: DESCRIPTOR
+
+  CiftifyConfig:
+    image: IMAGE
+    invocation: INVOCATION
+    descriptor: DESCRIPTOR
+
+  HCPPipelinesConfig:
+    image: IMAGE
+    invocation: INVOCATION
+    descriptor: DESCRIPTOR
+
+  # Path to location of BOONStim repository
+  repo: REPOSITORY_PATH
+
+  # Path to SimNIBS coil definition file
+  coil: COIL_NIIGZ_PATH
+
+  # Path to Freesurfer License file (required by Ciftify, fMRIprep and HCPPipelines)
+  freesurfer_license: FREESURFER_LICENSE
+
+  # Path to images containing an installation of SimNIBS, Connectome Workbench and 
+  # BOONStim's bayesian optimization
+  simnibs_image: SIMNIBS_IMAGE_PATH
+  connectome: WORKBENCH_IMAGE_PATH
+  boonstim: BOONSTIM_PYTHON_IMAGE_PATH
