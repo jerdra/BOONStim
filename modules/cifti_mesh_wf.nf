@@ -100,7 +100,7 @@ process fmriprep_anat{
 
     output:
     tuple val(sub),\
-    path("fmriprep/$sub/ses-01/anat/fmriprep/$sub/**/${sub}*_desc-preproc_T1w.nii.gz"),\
+    path("fmriprep/$sub/**/${sub}*_desc-preproc_T1w.nii.gz"),\
     emit: preproc_t1
 
 
