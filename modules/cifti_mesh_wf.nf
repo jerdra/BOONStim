@@ -100,7 +100,7 @@ process fmriprep_anat{
 
     output:
     tuple val(sub),\
-    path("fmriprep/$sub/**/${sub}*_desc-preproc_T1w.nii.gz"),\
+    path("${sub}*_desc-preproc_T1w.nii.gz"),\
     emit: preproc_t1
 
 
@@ -116,6 +116,9 @@ process fmriprep_anat{
     !{params.fmriprep_descriptor} $(pwd)/!{json} \
     --imagepath !{params.fmriprep} -x --stream
 
+    # Find anat file and link to current folder
+    find fmriprep/!{sub}/ -type f -name "*preproc_T1w.nii.gz" | \
+    grep -v MNI152 | xargs -I [] cp [] .
     '''
 }
 
