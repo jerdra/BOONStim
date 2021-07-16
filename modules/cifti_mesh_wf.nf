@@ -53,8 +53,6 @@ process ciftify{
     -v !{params.resources}:/resources \
     !{params.ciftify_descriptor} $(pwd)/!{json} \
     --imagepath !{params.ciftify} -x --stream
-
-    cp -r !{params.zz} .
     '''
 }
 
