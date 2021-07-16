@@ -40,6 +40,7 @@ process ciftify{
 
     output:
     tuple val(sub), path("ciftify/${sub}"), emit: ciftify
+    path("zz_templates"), emit: zz_templates
 
     shell:
     '''
@@ -52,6 +53,27 @@ process ciftify{
     -v !{params.resources}:/resources \
     !{params.ciftify_descriptor} $(pwd)/!{json} \
     --imagepath !{params.ciftify} -x --stream
+
+    cp -r !{params.zz} .
+    '''
+}
+
+process write_zz_templates_to_cache{
+/*
+    zz_templates is required in the caching directory
+    in order for publish_ciftify to correctly follow
+    symlinks.
+*/
+
+    input:
+    path(zz_templates)
+
+    output:
+    path("zz_templates")
+
+    shell:
+    '''
+    echo "Transferring zz_templates" if using cache
     '''
 }
 
