@@ -40,7 +40,9 @@ process ciftify{
 
     output:
     tuple val(sub), path("ciftify/${sub}"), emit: ciftify
-    path("zz_templates"), emit: zz_templates
+    path("ciftify/zz_templates"), emit: zz_templates
+    tuple val(sub), path("ciftify/qc_recon_all/${sub}"), emit: qc_recon
+    tuple val(sub), path("ciftify/qc_fmri/${sub}*"), emit: qc_fmri
 
     shell:
     '''
@@ -56,24 +58,6 @@ process ciftify{
     '''
 }
 
-process write_zz_templates_to_cache{
-/*
-    zz_templates is required in the caching directory
-    in order for publish_ciftify to correctly follow
-    symlinks.
-*/
-
-    input:
-    path(zz_templates)
-
-    output:
-    path("zz_templates")
-
-    shell:
-    '''
-    echo "Transferring zz_templates" if using cache
-    '''
-}
 
 // fMRIPrep anat invocation
 process fmriprep_invocation{
@@ -270,6 +254,8 @@ workflow cifti_meshing_wf {
 
     emit:
         cifti = ciftify.out.ciftify
+        cifti_qc_fmri = ciftify.out.qc_fmri
+        cifti_qc_recon = ciftify.out.qc_recon
         freesurfer = fmriprep_wf.out.freesurfer
         fmriprep = fmriprep_wf.out.fmriprep
         fmriprep_html = fmriprep_wf.out.html
