@@ -40,6 +40,9 @@ process ciftify{
 
     output:
     tuple val(sub), path("ciftify/${sub}"), emit: ciftify
+    path("ciftify/zz_templates"), emit: zz_templates
+    tuple val(sub), path("ciftify/qc_recon_all/${sub}"), emit: qc_recon
+    tuple val(sub), path("ciftify/qc_fmri/${sub}*"), emit: qc_fmri
 
     shell:
     '''
@@ -54,6 +57,7 @@ process ciftify{
     --imagepath !{params.ciftify} -x --stream
     '''
 }
+
 
 // fMRIPrep anat invocation
 process fmriprep_invocation{
@@ -100,7 +104,7 @@ process fmriprep_anat{
 
     output:
     tuple val(sub),\
-    path("fmriprep/$sub/ses-01/anat/fmriprep/$sub/ses-01/anat/${sub}*_desc-preproc_T1w.nii.gz"),\
+    path("${sub}*_desc-preproc_T1w.nii.gz"),\
     emit: preproc_t1
 
 
@@ -116,6 +120,9 @@ process fmriprep_anat{
     !{params.fmriprep_descriptor} $(pwd)/!{json} \
     --imagepath !{params.fmriprep} -x --stream
 
+    # Find anat file and link to current folder
+    find fmriprep/!{sub}/ -type f -name "*preproc_T1w.nii.gz" | \
+    grep -v MNI152 | xargs -I [] cp [] .
     '''
 }
 
@@ -247,6 +254,8 @@ workflow cifti_meshing_wf {
 
     emit:
         cifti = ciftify.out.ciftify
+        cifti_qc_fmri = ciftify.out.qc_fmri
+        cifti_qc_recon = ciftify.out.qc_recon
         freesurfer = fmriprep_wf.out.freesurfer
         fmriprep = fmriprep_wf.out.fmriprep
         fmriprep_html = fmriprep_wf.out.html

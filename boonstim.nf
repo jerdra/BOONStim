@@ -233,21 +233,31 @@ process publish_scaleref{
 
 process publish_cifti{
 
-    publishDir path: "$params.out", \
+    stageInMode 'copy'
+
+    publishDir path: "$params.out",\
                mode: 'move'
 
     input:
-    tuple val(sub), \
-    path("ciftify/*"), path("fmriprep/*"), path("freesurfer/*"), \
+    tuple val(sub),\
+    path("ciftify/${sub}"), path("ciftify/qc_fmri/*"),\
+    path("ciftify/qc_recon_all/${sub}"),\
+    path("fmriprep/*"), path(html),\
+    path("freesurfer/*"),\
     path("ciftify/zz_templates")
 
     output:
-    tuple path("ciftify/${sub}"), path("fmriprep/${sub}"),\
+    tuple path("ciftify/${sub}"),
+    path("ciftify/qc_fmri/${sub}*", includeInputs: true),\
+    path("ciftify/qc_recon_all/${sub}"),\
+    path("fmriprep/${sub}"), path("fmriprep/${sub}.html"),\
     path("freesurfer/${sub}"), path("ciftify/zz_templates")
 
     shell:
     '''
     echo "Copying fMRIPrep_Ciftify outputs"
+    mv !{html} fmriprep/
+
     '''
 }
 
@@ -371,7 +381,10 @@ workflow {
 
         // Publish Ciftify outputs
         publish_cifti_input = cifti_mesh_wf.out.cifti
+                                    .join(cifti_mesh_wf.out.cifti_qc_fmri)
+                                    .join(cifti_mesh_wf.out.cifti_qc_recon)
                                     .join(cifti_mesh_wf.out.fmriprep)
+                                    .join(cifti_mesh_wf.out.fmriprep_html)
                                     .join(cifti_mesh_wf.out.freesurfer)
                                     .combine(["$params.zz"])
         publish_cifti(publish_cifti_input)
