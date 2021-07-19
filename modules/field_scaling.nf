@@ -73,14 +73,14 @@ process average_coordinate{
 process make_centroid{
 
     input:
-    tuple val(sub), path(x), path(y), path(z)
+    tuple val(uuid), path(x), path(y), path(z)
 
     output:
-    tuple val(sub), path("${sub}.roi_centroid.txt"), emit: centroid
+    tuple val(uuid), path("${uuid}.roi_centroid.txt"), emit: centroid
 
     shell:
     '''
-    paste -d '\n' !{x} !{y} !{z} > !{sub}.roi_centroid.txt
+    paste -d '\n' !{x} !{y} !{z} > !{uuid}.roi_centroid.txt
     '''
 
 }
@@ -90,17 +90,17 @@ process threshold_roi{
     label 'connectome'
 
     input:
-    tuple val(sub), path(roi)
+    tuple val(uuid), path(roi)
 
     output:
-    tuple val(sub), path("${sub}.roi_thresholded.dscalar.nii"), emit: mask
+    tuple val(uuid), path("${uuid}.roi_thresholded.dscalar.nii"), emit: mask
 
     shell:
     '''
     #!/bin/bash
 
     wb_command -cifti-math "x > 0.5" -var "x" !{roi} \
-                            !{sub}.roi_thresholded.dscalar.nii
+                            !{uuid}.roi_thresholded.dscalar.nii
     '''
 }
 
@@ -109,14 +109,14 @@ process calculate_roi2cortex{
 
     label 'rtms'
     input:
-    tuple val(sub), path(mesh), path(centroid)
+    tuple val(uuid), path(mesh), path(centroid)
 
     output:
-    tuple val(sub), path("${sub}.roi_distance.npy"), emit: distance
+    tuple val(uuid), path("${uuid}.roi_distance.npy"), emit: distance
 
     shell:
     '''
-    /scripts/get_cortex_to_scalp.py !{mesh} --roi !{centroid} !{sub}.roi_distance.npy
+    /scripts/get_cortex_to_scalp.py !{mesh} --roi !{centroid} !{uuid}.roi_distance.npy
     '''
 }
 
@@ -125,16 +125,16 @@ process get_cortical_distance_masked{
 
     label 'rtms'
     input:
-    tuple val(sub), path(mesh), path(left_surf), path(right_surf), path(roi)
+    tuple val(uuid), path(mesh), path(left_surf), path(right_surf), path(roi)
 
     output:
-    tuple val(sub), path("${sub}.roi_distance.txt"), emit: distance
+    tuple val(uuid), path("${uuid}.roi_distance.txt"), emit: distance
 
     shell:
     '''
     /scripts/cortical_distance.py !{mesh} !{left_surf} !{right_surf} \
                                   --roi !{roi} \
-                                  !{sub}.roi_distance.txt
+                                  !{uuid}.roi_distance.txt
     '''
 
 }
@@ -143,16 +143,16 @@ process get_cortical_distance{
 
     label 'rtms'
     input:
-    tuple val(sub), path(mesh), path(left_surf), path(right_surf), path(coilcentre)
+    tuple val(uuid), path(mesh), path(left_surf), path(right_surf), path(coilcentre)
 
     output:
-    tuple val(sub), path("${sub}.coil_distance.txt"), emit: distance
+    tuple val(uuid), path("${uuid}.coil_distance.txt"), emit: distance
 
     shell:
     '''
     /scripts/cortical_distance.py !{mesh} !{left_surf} !{right_surf} \
                                   --coilcentre !{coilcentre} \
-                                  !{sub}.coil_distance.txt
+                                  !{uuid}.coil_distance.txt
     '''
 
 
@@ -162,15 +162,15 @@ process calculate_coil2cortex{
 
     label 'rtms'
     input:
-    tuple val(sub), path(mesh), path(coil_centre)
+    tuple val(uuid), path(mesh), path(coil_centre)
 
     output:
-    tuple val(sub), path("${sub}.coil_distance.npy"), emit: distance
+    tuple val(uuid), path("${uuid}.coil_distance.npy"), emit: distance
 
     shell:
     '''
     /scripts/get_cortex_to_scalp.py !{mesh} --coilcentre !{coil_centre} \
-                                    !{sub}.coil_distance.txt
+                                    !{uuid}.coil_distance.txt
     '''
 }
 
@@ -204,10 +204,10 @@ process get_stokes_cf{
 
     label 'rtms'
     input:
-    tuple val(sub), path(cortex2scalp), path(coil2cortex)
+    tuple val(uuid), path(cortex2scalp), path(coil2cortex)
 
     output:
-    tuple val(sub), path("${sub}.stokes_correction.txt"), emit: stokes_correction
+    tuple val(uuid), path("${uuid}.stokes_correction.txt"), emit: stokes_correction
 
     shell:
     '''
@@ -220,7 +220,7 @@ process get_stokes_cf{
     cf = 2.8*(c2c - c2s)
 
     to_write = f"{cf:.2f}" + "\\n"
-    with open("!{sub}.stokes_correction.txt","w") as f:
+    with open("!{uuid}.stokes_correction.txt","w") as f:
         f.write(to_write)
     '''
 }
@@ -229,10 +229,10 @@ process matsimnibs2centre{
 
     label 'rtms'
     input:
-    tuple val(sub), path(matsimnibs)
+    tuple val(uuid), path(matsimnibs)
 
     output:
-    tuple val(sub), path("${sub}_coilcentre.txt"), emit: coil_centre
+    tuple val(uuid), path("${uuid}_coilcentre.txt"), emit: coil_centre
 
     shell:
     '''
@@ -241,7 +241,7 @@ process matsimnibs2centre{
 
     matsimnibs = np.load("!{matsimnibs}")
     coil_centre = matsimnibs[:3,-1]
-    np.savetxt("!{sub}_coilcentre.txt", coil_centre)
+    np.savetxt("!{uuid}_coilcentre.txt", coil_centre)
     '''
 }
 
@@ -249,20 +249,20 @@ process qc_cortical_distance{
 
     label 'rtms'
     input:
-    tuple val(sub), path(mesh), path(left_surf), path(right_surf),\
+    tuple val(uuid), path(mesh), path(left_surf), path(right_surf),\
     path(coil), path(mask)
 
     output:
-    tuple val(sub), path("${sub}_distqc.geo"), emit: distqc
-    tuple val(sub), path("${sub}_distqc.html"), emit: qchtml
+    tuple val(uuid), path("${uuid}_distqc.geo"), emit: qc_geo
+    tuple val(uuid), path("${uuid}_distqc.html"), emit: qc_html
 
     shell:
     '''
     /scripts/cortical_distance.py !{mesh} !{left_surf} !{right_surf} \
-                                !{sub}_distqc.geo \
+                                !{uuid}_distqc.geo \
                                 --coilcentre !{coil} --roi !{mask} \
                                 --gmsh-qc /geo/dist.geo \
-                                --html-qc !{sub}_distqc.html
+                                --html-qc !{uuid}_distqc.html
     '''
 }
 
@@ -326,11 +326,16 @@ workflow qc_cortical_distance_wf{
         // Compute mask
         threshold_roi(roi)
 
+
         i_qc_cortical_distance = mesh.join(pial_left)
                                  .join(pial_right)
                                  .join(coil_centre)
                                  .join(threshold_roi.out.mask)
         qc_cortical_distance(i_qc_cortical_distance)
+
+    emit:
+        html = qc_cortical_distance.out.qc_html
+        geo = qc_cortical_distance.out.qc_geo
 
 }
 
@@ -345,10 +350,8 @@ workflow fieldscaling_wf{
 
     main:
 
-        // Difference is ROI can contain multiple identifers to be processed simultaneously
-
-        // Transform subject identifiers to UUID
-        uroi = roi.map{a -> [ a[0], UUID.randomUUID().toString(),
+        // Generate unique hash for combination of IDs
+        uroi = roi.map{a -> [ a[0], a[1..<-1].join('-').md5(),
                               a[1..<-1], a[-1] ]}
                   .multiMap{s, u, ids, d ->
                     map2id: [u, s, ids]
@@ -362,13 +365,14 @@ workflow fieldscaling_wf{
 
         mesh = uroi.map2sub.map{u,s -> [s,u]}
                 .combine(mesh, by:0)
-                .map{s,u,p -> [u,p]}
+                .map{s,u,m -> [u,m]}
 
         matsimnibs = uroi.map2sub.map{u,s -> [s,u]}
                         .combine(matsimnibs, by:0)
                         .map{s,u,m -> [u,m]}
 
         pial.branch(lr_branch).set{pial_surfs}
+
 
         // MT calculation
         cortex2scalp_wf(
@@ -391,6 +395,7 @@ workflow fieldscaling_wf{
                                         .join(coil2cortex_wf.out.cortex2coil)
         get_stokes_cf(i_get_stokes_cf)
 
+        // Generate measurement QC pages
         qc_cortical_distance_wf(
             mesh,
             pial_surfs.left,
@@ -398,12 +403,20 @@ workflow fieldscaling_wf{
             uroi.map2dscalar, matsimnibs2centre.out.coil_centre
         )
 
+        // Map back to original input
+        out_html = uroi.map2id.join(qc_cortical_distance_wf.out.html)
+                        .map{u, s, ids, h -> [s, *ids, h]}
+        out_geo = uroi.map2id.join(qc_cortical_distance_wf.out.geo)
+                        .map{u, s, ids, g -> [s, *ids, g]}
+
         // Map back into original input
-        output = uroi.map2id.join(get_stokes_cf.out.stokes_correction)
+        scaling_output = uroi.map2id.join(get_stokes_cf.out.stokes_correction)
                    .map{u,s,ids,c -> [s,ids,c].flatten()}
 
 
     emit:
-        scaling_factor = output
+        scaling_factor = scaling_output
+        qc_html = out_html
+        qc_geo = out_geo
 
 }

@@ -211,43 +211,55 @@ process publish_opt{
 
 process publish_scaleref{
 
-    publishDir path: "${params.out}/boonstim/${sub}", \
-               pattern: "*scalefactor.txt", \
+    publishDir path: "${params.out}/boonstim/${sub}/results", \
+               pattern: "${sub}.${name}*", \
                mode: 'move', \
                overwrite: true
 
     input:
     tuple val(sub),\
-    val(name), path(factor)
+    val(name), path(factor), path(html), path(geo)
 
     output:
-    tuple val(sub), path("${sub}.${name}_scalefactor.txt")
+    tuple val(sub), path("${sub}.${name}*")
 
     shell:
     '''
     echo "Moving stimulation scaling factor values into boonstim/!{sub}..."
     cp !{factor} "!{sub}.!{name}_scalefactor.txt"
+    cp !{html} "!{sub}.!{name}_qc.html"
+    cp !{geo} "!{sub}.!{name}_qc.geo"
     '''
 
 }
 
 process publish_cifti{
 
-    publishDir path: "$params.out", \
+    stageInMode 'copy'
+
+    publishDir path: "$params.out",\
                mode: 'move'
 
     input:
-    tuple val(sub), \
-    path("ciftify/*"), path("fmriprep/*"), path("freesurfer/*"), \
+    tuple val(sub),\
+    path("ciftify/${sub}"), path("ciftify/qc_fmri/*"),\
+    path("ciftify/qc_recon_all/${sub}"),\
+    path("fmriprep/*"), path(html),\
+    path("freesurfer/*"),\
     path("ciftify/zz_templates")
 
     output:
-    tuple path("ciftify/${sub}"), path("fmriprep/${sub}"),\
+    tuple path("ciftify/${sub}"),
+    path("ciftify/qc_fmri/${sub}*", includeInputs: true),\
+    path("ciftify/qc_recon_all/${sub}"),\
+    path("fmriprep/${sub}"), path("fmriprep/${sub}.html"),\
     path("freesurfer/${sub}"), path("ciftify/zz_templates")
 
     shell:
     '''
     echo "Copying fMRIPrep_Ciftify outputs"
+    mv !{html} fmriprep/
+
     '''
 }
 
@@ -367,11 +379,17 @@ workflow {
         publish_opt(i_publish_opt)
 
         /* Step 5: Publish the reference scaling values */
-        publish_scaleref(fieldscaling_wf.out.scaling_factor)
+        i_publish_scaleref = fieldscaling_wf.out.scaling_factor
+                                            .join(fieldscaling_wf.out.qc_html, by: [0,1])
+                                            .join(fieldscaling_wf.out.qc_geo, by: [0,1])
+        publish_scaleref(i_publish_scaleref)
 
         // Publish Ciftify outputs
         publish_cifti_input = cifti_mesh_wf.out.cifti
+                                    .join(cifti_mesh_wf.out.cifti_qc_fmri)
+                                    .join(cifti_mesh_wf.out.cifti_qc_recon)
                                     .join(cifti_mesh_wf.out.fmriprep)
+                                    .join(cifti_mesh_wf.out.fmriprep_html)
                                     .join(cifti_mesh_wf.out.freesurfer)
                                     .combine(["$params.zz"])
         publish_cifti(publish_cifti_input)
