@@ -221,7 +221,7 @@ process publish_scaleref{
     val(name), path(factor), path(html), path(geo)
 
     output:
-    tuple val(sub), path("${sub}.${name}_scalefactor.txt")
+    tuple val(sub), path("${sub}.${name}*")
 
     shell:
     '''
