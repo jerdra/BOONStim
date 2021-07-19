@@ -250,19 +250,19 @@ process qc_cortical_distance{
     label 'rtms'
     input:
     tuple val(uuid), path(mesh), path(left_surf), path(right_surf),\
-    path(coil), val(id_string), path(mask)
+    path(coil), path(mask)
 
     output:
-    tuple val(uuid), path("${id_string}_distqc.geo"), emit: distqc
-    tuple val(uuid), path("${id_string}_distqc.html"), emit: qchtml
+    tuple val(uuid), path("${uuid}_distqc.geo"), emit: qc_geo
+    tuple val(uuid), path("${uuid}_distqc.html"), emit: qc_html
 
     shell:
     '''
     /scripts/cortical_distance.py !{mesh} !{left_surf} !{right_surf} \
-                                !{id_string}_distqc.geo \
+                                !{uuid}_distqc.geo \
                                 --coilcentre !{coil} --roi !{mask} \
                                 --gmsh-qc /geo/dist.geo \
-                                --html-qc !{id_string}_distqc.html
+                                --html-qc !{uuid}_distqc.html
     '''
 }
 
@@ -324,19 +324,18 @@ workflow qc_cortical_distance_wf{
     main:
 
         // Compute mask
-        i_threshold_roi = roi.map{u,ids,d -> [u,d]}
-        threshold_roi(i_threshold_roi)
+        threshold_roi(roi)
 
-        // Recover string names
-        // [u, ID_STRING, mask]
-        mapped_to_names = roi.map{u, ids, d -> [u, ids]}
-                                .join(threshold_roi.out.mask)
 
         i_qc_cortical_distance = mesh.join(pial_left)
                                  .join(pial_right)
                                  .join(coil_centre)
-                                 .join(mapped_to_names)
+                                 .join(threshold_roi.out.mask)
         qc_cortical_distance(i_qc_cortical_distance)
+
+    emit:
+        html = qc_cortical_distance.out.qc_html
+        geo = qc_cortical_distance.out.qc_geo
 
 }
 
@@ -351,15 +350,12 @@ workflow fieldscaling_wf{
 
     main:
 
-        // Difference is ROI can contain multiple identifers to be processed simultaneously
-
-        // Transform subject identifiers to UUID
-        uroi = roi.map{a -> [ a[0], UUID.randomUUID().toString(),
+        // Generate unique hash for combination of IDs
+        uroi = roi.map{a -> [ a[0], a[1..<-1].join('-').md5(),
                               a[1..<-1], a[-1] ]}
                   .multiMap{s, u, ids, d ->
                     map2id: [u, s, ids]
                     map2dscalar: [u, d]
-                    map2joinedid: [u, [s, *ids].join("_")]
                     map2sub: [u,s]}
 
         // Transform inputs to using UUIDs
@@ -399,21 +395,28 @@ workflow fieldscaling_wf{
                                         .join(coil2cortex_wf.out.cortex2coil)
         get_stokes_cf(i_get_stokes_cf)
 
-        // Create [u, "ID-string", dscalar]
-        i_qc_cortical = uroi.map2joinedid.join(uroi.map2dscalar)
+        // Generate measurement QC pages
         qc_cortical_distance_wf(
             mesh,
             pial_surfs.left,
             pial_surfs.right,
-            i_qc_cortical, matsimnibs2centre.out.coil_centre
+            uroi.map2dscalar, matsimnibs2centre.out.coil_centre
         )
 
+        // Map back to original input
+        out_html = uroi.map2id.join(qc_cortical_distance_wf.out.html)
+                        .map{u, s, ids, h -> [s, *ids, h]}
+        out_geo = uroi.map2id.join(qc_cortical_distance_wf.out.geo)
+                        .map{u, s, ids, g -> [s, *ids, g]}
+
         // Map back into original input
-        output = uroi.map2id.join(get_stokes_cf.out.stokes_correction)
+        scaling_output = uroi.map2id.join(get_stokes_cf.out.stokes_correction)
                    .map{u,s,ids,c -> [s,ids,c].flatten()}
 
 
     emit:
-        scaling_factor = output
+        scaling_factor = scaling_output
+        qc_html = out_html
+        qc_geo = out_geo
 
 }
