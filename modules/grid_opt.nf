@@ -12,6 +12,9 @@ process grid_optimization{
     path(weights), path(centroid), path(coil)
 
     output:
+    tuple val(sub), path("${sub}_optimized_fields.msh"), emit: fields
+    tuple val(sub), path("${sub}_optimized_coil.geo"), emit: coil
+    tuple val(sub), path("${sub}_optimized_coords.npy"), emit: coords
     tuple val(sub), path("${sub}_orientation.txt"), emit: orientation
     tuple val(sub), path("${sub}_history.txt"), emit: history
 
@@ -19,15 +22,16 @@ process grid_optimization{
     '''
     #!/bin/bash
 
-    /scripts/gridopt_fem.py !{msh} !{weights} !{centroid} \
-                            !{coil} \
-                            $(pwd)/!{sub}_orientation.txt \
-                            !{params.positional_grid_num} \
-                            !{params.rotational_grid_num} \
-                            --history !{sub}_history.txt \
-                            --workdir $(pwd) \
-                            --ncpus !{params.grid_cpus} \
-                            --batchsize !{params.batch_size}
+    /scripts/optimize_fem.py !{msh} !{weights} !{centroid} \
+                             !{coil} \
+                             !{sub}_orientation.txt \
+                             --out_msh !{sub}_optimized_fields.msh \
+                             --out_geo !{sub}_optimized_coil.geo \
+                             --history !{sub}_history.txt \
+                             --ncores !{params.bayes_cpus.intdiv(2) - 2} \
+                             grid \
+                             --n_locations !{params.positional_grid_num} \
+                             --n_rotations !{params.rotational_grid_num}
     '''
 }
 
@@ -42,10 +46,14 @@ workflow optimize_wf{
     main:
         i_grid_optimization = msh.join(weights)
                                 .join(centroid)
-                                .spread([coil]) 
+                                .spread([coil])
         grid_optimization(i_grid_optimization)
 
     emit:
         orientation = grid_optimization.out.orientation
         history = grid_optimization.out.history
+        coil = grid_optimization.out.coil
+        fields = grid_optimization.out.fields
+        coords = grid_optimization.out.coords
+
 }

@@ -1,239 +1,131 @@
-#!/usr/bin/env python
-'''
-Given a full head model, description of quadratic input domain,
-and cost weights use Bayesian Optimization from Cornell-MOE to find the optimal
-input (position and rotation).
-
-Usage:
-    optimize_fem.py [options] <mesh> <weightfile> <init_centroid> <coil> <output_file>
-
-Arguments:
-    <mesh>                                  GMSH mesh file (v2 or v4)
-    <weightfile>                            1D array consisting of 1 value per
-                                            node
-    <init_centroid>                         Initial centroid to start sampling
-    <coil>                                  Coil magnetization field (.nii.gz)
-                                            from SimNIBS
-    <output_file>                           Output basename
-
-Options:
-    -c,--cpus N_CPUS                        Number of CPUS to use to calculate
-                                            objective func
-                                            [Default: 1]
-    -t,--tmp-dir TMPDIR                     Directory to perform FEM
-                                            experiments in
-                                            [Default: $TMPDIR]
-                                            [Fallback: /tmp/]
-    -n, --n-iters ITERS                     Maximum number of iterations
-                                            to perform
-                                            [Default: 50]
-    -m, --min-var-samps                     Minimum number of samples required
-                                            to check convergence
-                                            [Default: 10]
-    -c,--convergence TOL                    Convergence threshold for shifts
-                                            in input space (decimal number)
-                                            [Default: 1e-3]
-    -h,--history FILE                       Save best point history
-                                            [Default: disabled]
-    -s,--skip-convergence                   Do not use convergence criterion,
-                                            instead use n-iters only
-                                            [Default: disabled]
-    -o,--options FILE                       ADVANCED: Overwrite FEM function
-                                            default options
-'''
-
-# Base package loading
-
-import os
-import logging
-from collections import deque
-from docopt import docopt
-import json
-
+import argparse
 import numpy as np
+import logging
+from fieldopt.geometry.domains import QuadraticDomain
+from fieldopt.geometry.mesh_wrapper import HeadModel
 from fieldopt.objective import FieldFunc
 
-# Cornell package loading
-
-from moe.optimal_learning.python.cpp_wrappers.domain import TensorProductDomain as cTensorProductDomain
-from moe.optimal_learning.python.python_version.domain import TensorProductDomain
-from moe.optimal_learning.python.geometry_utils import ClosedInterval
-from moe.optimal_learning.python.cpp_wrappers.expected_improvement import ExpectedImprovement
-from moe.optimal_learning.python.cpp_wrappers.expected_improvement import multistart_expected_improvement_optimization as meio
-from moe.optimal_learning.python.data_containers import HistoricalData, SamplePoint
-from moe.optimal_learning.python.cpp_wrappers.log_likelihood_mcmc import GaussianProcessLogLikelihoodMCMC
-from moe.optimal_learning.python.default_priors import DefaultPrior
-from moe.optimal_learning.python.python_version.optimization import GradientDescentOptimizer
-from moe.optimal_learning.python.cpp_wrappers.optimization import GradientDescentOptimizer as cGDOpt
-from moe.optimal_learning.python.cpp_wrappers.optimization import GradientDescentParameters as cGDParams
-from moe.optimal_learning.python.base_prior import TophatPrior, NormalPrior
-
-logging.basicConfig(format="%(asctime)s [BOONSTIM GRID]:  %(message)s",
-                    datefmt="%Y-%m-%d %I:%M:%S %p")
+logging.basicConfig(level=logging.INFO)
 
 
-def gen_sample_from_qei(gp,
-                        search_domain,
-                        sgd_params,
-                        num_samples,
-                        num_mc=1e4,
-                        lhc_iter=2e4):
+def get_grid_optimizer(f, args):
+    '''
+    Retrieve Grid optimizer
+    '''
+    from fieldopt.optimization import grid
 
-    qEI = ExpectedImprovement(gaussian_process=gp,
-                              num_mc_iterations=int(num_mc))
-    optimizer = cGDOpt(search_domain, qEI, sgd_params, int(lhc_iter))
-    points_to_sample = meio(optimizer,
-                            None,
-                            num_samples,
-                            use_gpu=False,
-                            which_gpu=0,
-                            max_num_threads=8)
-    qEI.set_current_point(points_to_sample[0])
+    locations = args.n_locations
+    rotations = args.n_rotations
+    return grid.get_default_tms_optimizer(f, locations, rotations)
 
-    return points_to_sample, qEI.compute_expected_improvement()
+
+def get_bayes_optimizer(f, args):
+    '''
+    Retrieve Bayes Optimizer
+    '''
+    from fieldopt.optimization import bayes_moe
+
+    args = vars(args)
+    kwargs = {
+        k: args[k]
+        for k in ["minimum_samples", "max_iterations"] if args[k] is not None
+    }
+
+    return bayes_moe.get_default_tms_optimizer(f, args["nworkers"], **kwargs)
 
 
 def main():
 
-    args = docopt(__doc__)
+    parser = argparse.ArgumentParser(description="Run Optimization"
+                                     " on a given FEM problem")
+    parser.add_argument("mesh", type=str, help="SimNIBS gmsh .msh file")
+    parser.add_argument("weightfunction",
+                        type=str,
+                        help="Weight function 1-D .npy file with 1 node per"
+                        " grey matter tetrahedron")
+    parser.add_argument(
+        "initial_point",
+        type=str,
+        help="Initial coordinates to construct sampling surface "
+        "from")
+    parser.add_argument(
+        "coil",
+        type=str,
+        help="Coil to use to run simulations, may be .ccd or .nii.gz")
+    parser.add_argument("out_coords",
+                        type=str,
+                        help="Output path to .txt optimal coordinate file")
+    parser.add_argument("--out_msh",
+                        type=str,
+                        help="Output path of .msh result file")
+    parser.add_argument("--out_geo",
+                        type=str,
+                        help="Output path of .geo coil position file")
+    parser.add_argument("--nworkers",
+                        type=int,
+                        help="Number of workers to spawn per run",
+                        default=4)
+    parser.add_argument("--history",
+                        type=str,
+                        help="Path to write history file into")
+    parser.add_argument("--ncores",
+                        type=int,
+                        help="Maximum number of physical cores to use "
+                        "when setting up and solving simulations")
 
-    # Parse arguments
-    mesh = args['<mesh>']
-    weights = np.load(args['<weightfile>'])
-    init_centroid = np.genfromtxt(args['<init_centroid>'])
-    coil = args['<coil>']
-    output_file = args['<output_file>']
-    cpus = int(args['--cpus']) or 8
-    tmpdir = args['--tmp-dir'] or os.getenv('TMPDIR') or "/tmp/"
-    num_iters = int(args['--n-iters']) or 50
-    min_samps = int(args['--min-var-samps']) or 10
-    tol = float(args['--convergence']) or 0.001
-    history = args['--history']
-    skip_convergence = args['--skip-convergence']
-    options = args['--options']
+    sub_parsers = parser.add_subparsers()
+    parser_bayes = sub_parsers.add_parser("bayesian",
+                                          help="Use Bayesian Optimization")
+    parser_bayes.add_argument(
+        "--minimum_samples",
+        type=int,
+        help="Minimum number of samples to collect before "
+        "assessing convergence",
+        default=10)
+    parser_bayes.add_argument("--max_iterations",
+                              type=int,
+                              help="Maximum number of iterations to perform")
+    parser_bayes.set_defaults(func=get_bayes_optimizer)
 
-    if options:
-        with open(options, 'r') as f:
-            opts = json.load(f)
-        logging.info("Using custom options file {}".format(options))
-        logging.info("{}".format('\''.join(
-            [f"{k}:{v}" for k, v in opts.items()])))
-    else:
-        opts = {}
+    parser_grid = sub_parsers.add_parser("grid", help="Use Grid Optimization")
+    parser_grid.add_argument("n_locations",
+                             type=int,
+                             help="N locations to sample in N x N grid")
+    parser_grid.add_argument("n_rotations",
+                             type=int,
+                             help="N rotations to sample between [0, 180]")
+    parser_grid.set_defaults(func=get_grid_optimizer)
 
-    logging.info('Using {} cpus'.format(cpus))
+    p = parser.parse_args()
+    print(p)
+    model = HeadModel(p.mesh)
+    domain = QuadraticDomain(model, np.genfromtxt(p.initial_point))
 
-    f = FieldFunc(mesh_file=mesh,
-                  initial_centroid=init_centroid,
-                  tet_weights=weights,
-                  coil=coil,
-                  field_dir=tmpdir,
-                  cpus=cpus,
-                  **opts)
+    # Set up FEM objective function
+    func_kwargs = {
+        "head_model": model,
+        "sampling_domain": domain,
+        "tet_weights": np.load(p.weightfunction),
+        "coil": p.coil,
+        "nworkers": p.nworkers,
+        "nthreads": p.ncores
+    }
+    f = FieldFunc(**func_kwargs)
 
-    # Make search domain
-    search_domain = TensorProductDomain([
-        ClosedInterval(f.bounds[0, 0], f.bounds[0, 1]),
-        ClosedInterval(f.bounds[1, 0], f.bounds[1, 1]),
-        ClosedInterval(0, 180)
-    ])
+    # Optimize and write history
+    optimizer = p.func(f, p)
+    optimizer.optimize(print_status=True)
 
-    c_search_domain = cTensorProductDomain([
-        ClosedInterval(f.bounds[0, 0], f.bounds[0, 1]),
-        ClosedInterval(f.bounds[1, 0], f.bounds[1, 1]),
-        ClosedInterval(0, 180)
-    ])
+    if p.history:
+        history = optimizer.get_history()
+        np.save(p.history, history)
 
-    # Generate historical points
-    prior = DefaultPrior(n_dims=3 + 2, num_noise=1)
-    prior.tophat = TophatPrior(-2, 5)
-    prior.ln_prior = NormalPrior(12.5, 1.6)
-    hist_pts = cpus
-    i = 0
-    init_pts = search_domain.generate_uniform_random_points_in_domain(hist_pts)
-    observations = -f.evaluate(init_pts)
-    hist_data = HistoricalData(dim=3, num_derivatives=0)
-    hist_data.append_sample_points(
-        [SamplePoint(inp, o, 0.0) for o, inp in zip(observations, init_pts)])
+    # Save optimal coordinates
+    i, score = optimizer.current_best
+    np.savetxt(p.out_coords, i)
 
-    # Train GP model
-    gp_ll = GaussianProcessLogLikelihoodMCMC(historical_data=hist_data,
-                                             derivatives=[],
-                                             prior=prior,
-                                             chain_length=1000,
-                                             burnin_steps=2000,
-                                             n_hypers=2**4,
-                                             noisy=False)
-    gp_ll.train()
-
-    # Initialize grad desc params
-    sgd_params = cGDParams(num_multistarts=200,
-                           max_num_steps=50,
-                           max_num_restarts=5,
-                           num_steps_averaged=4,
-                           gamma=0.7,
-                           pre_mult=1.0,
-                           max_relative_change=0.5,
-                           tolerance=1.0e-10)
-
-    num_samples = int(cpus * 1.3)
-    best_point_history = []
-
-    # Sum of errors buffer
-    var_buffer = deque(maxlen=min_samps)
-    for i in np.arange(0, num_iters):
-
-        # Optimize qEI and pick samples
-        points_to_sample, ei = gen_sample_from_qei(gp_ll.models[0],
-                                                   c_search_domain,
-                                                   sgd_params=sgd_params,
-                                                   num_samples=num_samples,
-                                                   num_mc=2**10)
-
-        # Collect observations
-        sampled_points = -f.evaluate(points_to_sample)
-        evidence = [
-            SamplePoint(c, v, 0.0)
-            for c, v in zip(points_to_sample, sampled_points)
-        ]
-
-        # Update model
-        gp_ll.add_sampled_points(evidence)
-        gp_ll.train()
-
-        # Pull model and pull values
-        gp = gp_ll.models[0]
-        min_point = np.argmin(gp._points_sampled_value)
-        min_val = np.min(gp._points_sampled_value)
-        best_coord = gp.get_historical_data_copy().points_sampled[min_point]
-
-        logging.info('Iteration {} of {}'.format(i, num_iters))
-        logging.info('Recommended Points:')
-        logging.info(points_to_sample)
-        logging.info('Expected Improvement: {}'.format(ei))
-        logging.info('Current Best:')
-        logging.info(f'f(x*)= {min_val}')
-        logging.info(f'Coord: {best_coord}')
-        best_point_history.append(str(min_val))
-
-        if history:
-            with open(history, 'w') as buf:
-                buf.write('\n'.join(best_point_history))
-
-        # Convergence check
-        if (len(var_buffer) == var_buffer.maxlen) and not skip_convergence:
-            deviation = sum([abs(x - min_val) for x in var_buffer])
-            if deviation < tol:
-                logging.info('Convergence reached!')
-                logging.info('Deviation: {}'.format(deviation))
-                logging.info('History length: {}'.format(var_buffer.maxlen))
-                logging.info('Tolerance: {}'.format(tol))
-                break
-
-        var_buffer.append(min_val)
-
-    # Save position and orientation matrix
-    np.savetxt(output_file, best_coord)
+    # Generate best simulation msh and geo
+    f.visualize_evaluate(*i, out_sim=p.out_msh, out_geo=p.out_geo)
 
 
 if __name__ == '__main__':
