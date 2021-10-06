@@ -20,7 +20,7 @@ import gmsh
 import numpy as np
 import nibabel as nib
 from docopt import docopt
-from fieldopt import geolib as gl
+from fieldopt.geometry import mesh as gl
 from fieldopt import tetrapro as tp
 
 SURF_HEAD = [(3, 1002), (3, 2)]

@@ -4,8 +4,10 @@ import logging
 from collections import namedtuple
 
 import numpy as np
-from fieldopt import geolib as gl
-from fieldopt.objective import FieldFunc
+from fieldopt.geometry import mesh as gm
+from fieldopt.geometry import geometry as gl
+from fieldopt.geometry.mesh_wrapper import HeadModel
+from fieldopt.geometry.domains import QuadraticDomain
 
 import meshplot as mp
 
@@ -55,7 +57,7 @@ def load_surf_verts(f_msh, entities):
     for dim, tag in entities:
 
         try:
-            nodes, coords, params = gl.load_gmsh_nodes(f_msh, (dim, tag))
+            nodes, coords, params = gm.load_gmsh_nodes(f_msh, (dim, tag))
         except ValueError:
             continue
         else:
@@ -74,7 +76,7 @@ def load_surf_trigs(f_msh, entities):
     for dim, tag in entities:
 
         try:
-            _, _, trigs = gl.load_gmsh_elems(f_msh, (dim, tag))
+            _, _, trigs = gm.load_gmsh_elems(f_msh, (dim, tag))
         except ValueError:
             continue
         else:
@@ -179,16 +181,10 @@ def main():
     # Load in mesh surfaces
     logging.info(f"Loading in brain surfaces from {msh}...")
     brain = decompose_gmsh(msh, GM_ENTITIES)
-
-    # Construct dummy field object
-    f = FieldFunc(mesh_file=msh,
-                  initial_centroid=np.genfromtxt(centroid),
-                  tet_weights=None,
-                  coil='',
-                  field_dir=None)
+    domain = QuadraticDomain(HeadModel(msh), np.genfromtxt(centroid))
 
     logging.info("Discretizing parameteric mesh...")
-    C, iR, bounds = f.C, f.iR, f.bounds
+    C, iR, bounds = domain.C, domain.iR, domain.bounds
     param_mesh = construct_parameteric_mesh(C, iR, bounds)
     gen_mshplot_html(brain, texture, param_mesh, out)
 

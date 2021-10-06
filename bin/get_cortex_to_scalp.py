@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import argparse
-from fieldopt import geolib as gl
+from fieldopt.geometry import mesh as gl
 import numpy as np
 
 HEAD_ENTITY = (2, 5)

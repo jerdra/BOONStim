@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import argparse
 import numpy as np
 import logging
@@ -5,6 +6,7 @@ from fieldopt.geometry.domains import QuadraticDomain
 from fieldopt.geometry.mesh_wrapper import HeadModel
 from fieldopt.objective import FieldFunc
 
+import sys
 logging.basicConfig(level=logging.INFO)
 
 
@@ -118,14 +120,21 @@ def main():
 
     if p.history:
         history = optimizer.get_history()
-        np.save(p.history, history)
+        np.savetxt(p.history, history)
 
-    # Save optimal coordinates
+    # Save optimal coordinates after adjusting for anterior
     i, score = optimizer.current_best
-    np.savetxt(p.out_coords, i)
+    opt_pos = f.place_coils([i])[0]
+    anterior = opt_pos[:3, 1]
+    if anterior[1] < 0:
+        opt_pos[2] = (opt_pos[2] + 180) % 360
+    np.save(p.out_coords, opt_pos)
 
     # Generate best simulation msh and geo
     f.visualize_evaluate(*i, out_sim=p.out_msh, out_geo=p.out_geo)
+
+    logging.info("Successfully completed optimization")
+    sys.exit(0)
 
 
 if __name__ == '__main__':
