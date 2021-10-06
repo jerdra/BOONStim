@@ -96,7 +96,6 @@ process fmriprep_invocation{
 
 process fmriprep_anat{
 
-    beforeScript "source /etc/profile"
     module 'slurm'
 
     input:
@@ -128,7 +127,6 @@ process fmriprep_anat{
 
 process run_fmriprep{
 
-    beforeScript "source /etc/profile"
     module 'slurm'
 
     input:
@@ -156,7 +154,6 @@ process run_fmriprep{
 
 process mri2mesh {
 
-    beforeScript 'source /etc/profile'
 
     input:
     tuple val(sub), path(t1)
@@ -181,7 +178,6 @@ process mri2mesh {
 
 process update_msh{
 
-    beforeScript 'source /etc/profile'
     label 'gmsh4'
 
     input:
