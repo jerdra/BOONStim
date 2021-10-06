@@ -14,17 +14,14 @@ process grid_optimization{
     output:
     tuple val(sub), path("${sub}_optimized_fields.msh"), emit: fields
     tuple val(sub), path("${sub}_optimized_coil.geo"), emit: coil
-    tuple val(sub), path("${sub}_optimized_coords.npy"), emit: coords
-    tuple val(sub), path("${sub}_orientation.txt"), emit: orientation
+    tuple val(sub), path("${sub}_orientation.npy"), emit: coords
     tuple val(sub), path("${sub}_history.txt"), emit: history
 
     shell:
     '''
-    #!/bin/bash
-
     /scripts/optimize_fem.py !{msh} !{weights} !{centroid} \
                              !{coil} \
-                             !{sub}_orientation.txt \
+                             !{sub}_orientation.npy \
                              --out_msh !{sub}_optimized_fields.msh \
                              --out_geo !{sub}_optimized_coil.geo \
                              --history !{sub}_history.txt \
@@ -50,10 +47,8 @@ workflow optimize_wf{
         grid_optimization(i_grid_optimization)
 
     emit:
-        orientation = grid_optimization.out.orientation
         history = grid_optimization.out.history
         coil = grid_optimization.out.coil
         fields = grid_optimization.out.fields
         coords = grid_optimization.out.coords
-
 }
