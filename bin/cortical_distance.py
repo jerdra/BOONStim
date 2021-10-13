@@ -5,7 +5,7 @@ from collections import namedtuple
 
 import numpy as np
 import nibabel as nib
-from fieldopt.geometry import geometry as gl
+from fieldopt.geometry import mesh as gl
 
 from nilearn import image as img
 import meshplot as mp
