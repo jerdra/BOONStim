@@ -127,7 +127,9 @@ def main():
     opt_pos = f.place_coils([i])[0]
     anterior = opt_pos[:3, 1]
     if anterior[1] < 0:
-        opt_pos[2] = (opt_pos[2] + 180) % 360
+        i[2] = (i[2] + 180) % 360
+        opt_pos = f.place_coils([i])[0]
+
     np.save(p.out_coords, opt_pos)
 
     # Generate best simulation msh and geo
