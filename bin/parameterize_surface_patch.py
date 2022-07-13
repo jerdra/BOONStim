@@ -14,7 +14,7 @@ Arguments:
 '''
 
 from docopt import docopt
-from fieldopt import geolib as gl
+from fieldopt.geometry import geometry as gl
 import numpy as np
 
 def main():

@@ -351,7 +351,7 @@ workflow fieldscaling_wf{
     main:
 
         // Generate unique hash for combination of IDs
-        uroi = roi.map{a -> [ a[0], a[1..<-1].join('-').md5(),
+        uroi = roi.map{a -> [ a[0], a[0..<-1].join('-').md5(),
                               a[1..<-1], a[-1] ]}
                   .multiMap{s, u, ids, d ->
                     map2id: [u, s, ids]

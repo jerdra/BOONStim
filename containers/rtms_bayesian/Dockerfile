@@ -45,14 +45,12 @@ RUN	pip install future && cd /Cornell-MOE && pip install -r requirements.txt && 
 	pythreejs https://github.com/skoch9/meshplot/archive/0.4.0.tar.gz
 
 #Set up Field Optimization package
-RUN	mkdir -p /field_pkgs/
-ADD	https://api.github.com/repos/jerdra/fieldopt/git/refs/heads/master version.json
-RUN	git clone -b master https://github.com/jerdra/fieldopt.git /field_pkgs/fieldopt
+ADD	https://api.github.com/repos/jerdra/fieldopt/git/refs/heads/dev version.json
+RUN	git clone -b dev https://github.com/jerdra/fieldopt.git /fieldopt \
+	&& cd /fieldopt \
+	&& pip install -r requirements.txt \
+	&& pip install -e .
 
-ENV	PYTHONPATH=$PYTHONPATH:/Cornell-MOE:/gmsh-sdk/lib/:/field_pkgs
-
-# DEBUGGING
-RUN	apt-get update && apt-get install -y --no-install-recommends vim \
-	&& pip install memory_profiler
+ENV	PYTHONPATH=$PYTHONPATH:/Cornell-MOE:/gmsh-sdk/lib/
 
 ENTRYPOINT /bin/bash
