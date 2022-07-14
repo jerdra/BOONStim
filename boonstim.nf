@@ -41,7 +41,6 @@ parser.addConfigOpt("--license",
     params.license.toString(),
     "FS_LICENSE")
 
-
 parser.addConfigOpt("--fmriprep",
     "Path to fMRIPrep Image",
     params.fmriprep.toString(),
@@ -104,7 +103,6 @@ parser.addOptional("--cache_dir",
     "Create a cache directory to store intermediate results to speed up reruns",
     "CACHE_DIR")
 
-
 missingArgs = parser.isMissingRequired()
 missingConfig = parser.isMissingConfig()
 
@@ -120,7 +118,6 @@ if (missingArgs || missingConfig) {
     print(parser.makeDoc())
     System.exit(1)
 }
-
 
 include {weightfunc_wf} from "${params.weightworkflow}" params(params)
 include {cifti_meshing_wf as cifti_mesh_wf} from './modules/cifti_mesh_wf.nf' params(params)
@@ -140,7 +137,6 @@ include {apply_mask as centroid_mask} from './modules/utils.nf' params(params)
 include {apply_mask as weightfunc_mask} from './modules/utils.nf' params(params)
 include {cifti_dilate as dilate_mask} from './modules/utils.nf' params(params)
 
-
 log.info("BIDS Directory: $params.bids")
 log.info("Output Directory: $params.out")
 if (params.subjects) {
@@ -151,11 +147,6 @@ log.info("Using Descriptor Files: $params.fmriprep_descriptor and $params.ciftif
 log.info("Using Invocation Files: $params.fmriprep_invocation, $params.fmriprep_anat_invocation and $params.ciftify_invocation")
 log.info("Using containers: $params.fmriprep and $params.ciftify")
 log.info("Using user-defined ROI workflow: $params.weightworkflow")
-
-//// Extract subjects to run
-all_dirs = file(params.bids).list()
-input_dirs = new File(params.bids).list()
-output_dirs = new File(params.out).list()
 
 input_channel = Channel.fromPath("$params.bids/sub-*", type: 'dir')
                     .map{i -> i.getBaseName()}
