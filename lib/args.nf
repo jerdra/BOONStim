@@ -113,7 +113,8 @@ public enum ArgType {
 
         |REQUIRED
         ${formatted}
-        |\t-c\tPath to nextflow config file(s), can use multiple times
+        |\t-c\tPath to nextflow config file(s), can use multiple times. Use this
+        to specify the weightworkflow config file as well
         """.toString().stripIndent().stripMargin()
     }
 
@@ -194,6 +195,12 @@ public enum ArgType {
         * Return all args with invalid values
         */
         this.required
+            .findAll{ arg -> !arg.validArg() }
+            .collect{ arg -> arg.flag }
+    }
+
+    public List isMissingConfig(){
+        this.configuration
             .findAll{ arg -> !arg.validArg() }
             .collect{ arg -> arg.flag }
     }

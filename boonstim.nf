@@ -48,6 +48,7 @@ parser.addConfigOpt("--fmriprep",
     "FMRIPREP_IMG")
 
 parser.addConfigOpt("--fmriprep_descriptor",
+    "Path to fMRIPrep Descriptor File",
     params.fmriprep_descriptor.toString(),
     "FMRIPREP_DESCRIPTOR")
 
@@ -57,6 +58,7 @@ parser.addConfigOpt("--fmriprep_invocation",
     "FMRIPREP_INVOCATION")
 
 parser.addConfigOpt("--anat_invocation",
+    "Path to fMRIPrep anatomical only invocation file",
     params.anat_invocation.toString(),
     "FMRIPREP_ANAT_INVOCATION")
 
@@ -66,36 +68,55 @@ parser.addConfigOpt("--ciftify",
     "CIFTIFY_IMG")
 
 parser.addConfigOpt("--ciftify_invocation",
+    "Path to Ciftify invocation file",
     params.ciftify_invocation.toString(),
     "CIFTIFY_INVOCATION")
 
 parser.addConfigOpt("--ciftify_descriptor",
+    "Path to Ciftify descriptor file",
     params.ciftify_descriptor.toString(),
     "CIFTIFY_DESCRIPTOR")
 
+parser.addConfigOpt("--simnibs",
+    "Path to SimNIBS container image",
+    params.simnibs.toString(),
+    "SIMNIBS_IMG")
+
+parser.addConfigOpt("--fieldopt",
+    "Path to FieldOpt container image",
+    params.fieldopt.toString(),
+    "FIELDOPT_IMG")
+
 parser.addConfigOpt("--weightworkflow",
-    params.weightworkflow.toString(),
     "Path to weight workflow module entrypoint",
+    params.weightworkflow.toString(),
     "WEIGHTWORKFLOW_ENTRYPOINT")
 
 parser.addOptional("--subjects",
     "Path to subject text file containing 1 BIDS subject/line",
     "SUBJECT_FILE")
 
+parser.addOptional("--num_cpus",
+    "Maximum number of threads to use when submitting jobs [Default: $params.num_cpus]",
+    "NUM_CPUS")
+
 
 missingArgs = parser.isMissingRequired()
+missingConfig = parser.isMissingConfig()
 
 if (params.help) {
     print(parser.makeDoc())
     System.exit(0)
 }
 
-if (missingArgs) {
+if (missingArgs || missingConfig) {
     log.error("Missing required parameters")
     missingArgs.each{ log.error("Missing ${it}") }
+    missingConfig.each{ log.error("Missing ${it}") }
     print(parser.makeDoc())
     System.exit(1)
 }
+
 
 include {weightfunc_wf} from "${params.weightworkflow}" params(params)
 include {cifti_meshing_wf as cifti_mesh_wf} from './modules/cifti_mesh_wf.nf' params(params)
@@ -114,7 +135,6 @@ include {optimize_wf} from "./modules/optimization.nf" params(params)
 include {apply_mask as centroid_mask} from './modules/utils.nf' params(params)
 include {apply_mask as weightfunc_mask} from './modules/utils.nf' params(params)
 include {cifti_dilate as dilate_mask} from './modules/utils.nf' params(params)
-
 
 
 log.info("BIDS Directory: $params.bids")
