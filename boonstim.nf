@@ -100,6 +100,10 @@ parser.addOptional("--num_cpus",
     "Maximum number of threads to use when submitting jobs [Default: $params.num_cpus]",
     "NUM_CPUS")
 
+parser.addOptional("--cache_dir",
+    "Create a cache directory to store intermediate results to speed up reruns",
+    "CACHE_DIR")
+
 
 missingArgs = parser.isMissingRequired()
 missingConfig = parser.isMissingConfig()
