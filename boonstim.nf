@@ -1,72 +1,6 @@
 nextflow.preview.dsl=2
 
-usage = file("${workflow.scriptFile.getParent()}/usage")
-bindings = ["subjects": "$params.subjects",
-            "cache_dir": "$params.cache_dir",
-            "fmriprep": "$params.fmriprep",
-            "ciftify": "$params.ciftify",
-            "connectome": "$params.connectome",
-            "bin": "$params.bin",
-            "coil": "$params.coil",
-            "license": "$params.license",
-            "fmriprep_invocation": "$params.fmriprep_invocation",
-            "fmriprep_anat_invocation": "$params.fmriprep_anat_invocation",
-            "fmriprep_descriptor": "$params.fmriprep_descriptor",
-            "ciftify_invocation": "$params.ciftify_invocation",
-            "ciftify_descriptor": "$params.ciftify_descriptor",
-            "weightworkflow" : "$params.weightworkflow"]
-engine = new groovy.text.SimpleTemplateEngine()
-toprint = engine.createTemplate(usage.text).make(bindings)
-printhelp = params.help
-
-req_param = ["--bids": "$params.bids",
-             "--out": "$params.out"]
-req_config_param = [
-                    "fmriprep": "$params.fmriprep",
-                    "ciftify": "$params.ciftify",
-                    "connectome": "$params.connectome",
-                    "bin": "$params.bin",
-                    "coil": "$params.coil",
-                    "license": "$params.license",
-                    "fmriprep_invocation": "$params.fmriprep_invocation",
-                    "fmriprep_anat_invocation": "$params.fmriprep_anat_invocation",
-                    "fmriprep_descriptor": "$params.fmriprep_descriptor",
-                    "ciftify_invocation": "$params.ciftify_invocation",
-                    "ciftify_descriptor": "$params.ciftify_descriptor",
-                    "weightworkflow" : "$params.weightworkflow"
-                   ]
-missing_req = req_param.grep{ (it.value == null || it.value == "") }
-missing_req_config = req_config_param.grep{ (it.value == null || it.value == "") }
-
-if (missing_req){
-    log.error("Missing required command-line argument(s)!")
-    missing_req.each{ log.error("Missing ${it.key}") }
-    printhelp = true
-}
-
-if (missing_req_config){
-    log.error("Config file missing required parameter(s)!")
-    missing_req_config.each{ log.error("Please fill ${it.key} in config") }
-    printhelp = true
-}
-
-if (printhelp){
-    print(toprint)
-    System.exit(0)
-}
-
-log.info("BIDS Directory: $params.bids")
-log.info("Output Directory: $params.out")
-if (params.subjects) {
-    log.info ("Subject list file provided: $params.subjects")
-}
-
-log.info("Using Descriptor Files: $params.fmriprep_descriptor and $params.ciftify_descriptor")
-log.info("Using Invocation Files: $params.fmriprep_invocation, $params.fmriprep_anat_invocation and $params.ciftify_invocation")
-log.info("Using containers: $params.fmriprep and $params.ciftify")
-log.info("Using user-defined ROI workflow: $params.weightworkflow")
-
-///////////////////////////////////////////////////////////////////////////////
+include { getArgumentParser } from "./lib/args"
 
 // IMPORT MODULES WORKFLOWS
 include {cifti_meshing_wf as cifti_mesh_wf} from './modules/cifti_mesh_wf.nf' params(params)
@@ -89,7 +23,108 @@ include {apply_mask as centroid_mask} from './modules/utils.nf' params(params)
 include {apply_mask as weightfunc_mask} from './modules/utils.nf' params(params)
 include {cifti_dilate as dilate_mask} from './modules/utils.nf' params(params)
 
-///////////////////////////////////////////////////////////////////////////////
+parser = getArgumentParser(
+    title: "BOONStim TMS Optimization Pipeline",
+    description: "An end-to-end pipeline for integrating fMRI data into TMS target\
+    derivation and optimization",
+    scriptName: "${workflow.scriptName}".toString(),
+)
+
+parser.addRequired("--bids",
+    "Path to BIDS directory",
+    params.bids.toString(),
+    "BIDS_DIRECTORY")
+
+parser.addRequired("--out",
+    "Path to output directory",
+    params.out.toString(),
+    "OUTPUT_DIR")
+
+parser.addConfigOpt("--connectome",
+    "Path to Connectome Workbench Image",
+    params.connectome.toString(),
+    "CONNECTOME_IMG")
+
+parser.addConfigOpt("--bin",
+    "Path to BOONStim bin directory",
+    params.bin.toString(),
+    "BIN_DIR")
+
+parser.addConfigOpt("--coil",
+    "Path to COIL file (.ccd or .nii.gz)",
+    params.coil.toString(),
+    "COIL_FILE")
+
+parser.addConfigOpt("--license",
+    "Path to Freesurfer license file",
+    params.license.toString(),
+    "FS_LICENSE")
+
+parser.addConfigOpt("--fmriprep_invocation",
+    "Path to fMRIPrep invocation file",
+    params.fmriprep_invocation.toString(),
+    "FMRIPREP_INVOCATION")
+
+parser.addConfigOpt("--fmriprep",
+    "Path to fMRIPrep Image",
+    params.fmriprep.toString(),
+    "FMRIPREP_IMG")
+
+parser.addConfigOpt("--fmriprep_anat_invocation",
+    params.fmriprep_anat_invocation.toString(),
+    "FMRIPREP_ANAT_INVOCATION")
+
+parser.addConfigOpt("--fmriprep_descriptor",
+    params.fmriprep_descriptor.toString(),
+    "FMRIPREP_DESCRIPTOR")
+
+parser.addConfigOpt("--ciftify",
+    "Path to Ciftify Image",
+    params.ciftify.toString(),
+    "CIFTIFY_IMG")
+
+parser.addConfigOpt("--ciftify_invocation",
+    params.ciftify_invocation.toString(),
+    "CIFTIFY_INVOCATION")
+
+parser.addConfigOpt("--ciftify_descriptor",
+    params.ciftify_descriptor.toString(),
+    "CIFTIFY_DESCRIPTOR")
+
+parser.addConfigOpt("--weightworkflow",
+    params.weightworkflow.toString(),
+    "Path to weight workflow module entrypoint",
+    "WEIGHTWORKFLOW_ENTRYPOINT")
+
+parser.addOptional("--subjects",
+    "Path to subject text file containing 1 BIDS subject/line",
+    "SUBJECT_FILE")
+
+
+missingArgs = parser.isMissingRequired()
+
+if (params.help) {
+    print(parser.makeDoc())
+    System.exit(0)
+}
+
+if (missingArgs) {
+    log.error("Missing required parameters")
+    missingArgs.each{ log.error("Missing ${it}") }
+    print(parser.makeDoc())
+    System.exit(1)
+}
+
+log.info("BIDS Directory: $params.bids")
+log.info("Output Directory: $params.out")
+if (params.subjects) {
+    log.info ("Subject list file provided: $params.subjects")
+}
+
+log.info("Using Descriptor Files: $params.fmriprep_descriptor and $params.ciftify_descriptor")
+log.info("Using Invocation Files: $params.fmriprep_invocation, $params.fmriprep_anat_invocation and $params.ciftify_invocation")
+log.info("Using containers: $params.fmriprep and $params.ciftify")
+log.info("Using user-defined ROI workflow: $params.weightworkflow")
 
 //// Extract subjects to run
 all_dirs = file(params.bids).list()
@@ -102,6 +137,7 @@ input_channel = Channel.fromPath("$params.bids/sub-*", type: 'dir')
 if (params.subjects){
     subjects_channel = Channel.fromPath(params.subjects)
                             .splitText(){it.strip()}
+
     input_channel = input_channel.join(subjects_channel)
 }
 
