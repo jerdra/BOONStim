@@ -2,32 +2,13 @@ nextflow.preview.dsl=2
 
 include { getArgumentParser } from "./lib/args"
 
-// IMPORT MODULES WORKFLOWS
-include {cifti_meshing_wf as cifti_mesh_wf} from './modules/cifti_mesh_wf.nf' params(params)
-include {make_giftis} from './modules/fs2gifti.nf' params(params)
-include {registration_wf} from './modules/register_fs2cifti_wf.nf' params(params)
-include {weightfunc_wf} from "${params.weightworkflow}" params(params)
-include {resample2native_wf as resamplemask_wf} from './modules/resample2native.nf' params(params)
-include {resample2native_wf as resampleweightfunc_wf} from './modules/resample2native.nf' params(params)
-include {resample2native_wf as resampledistmap_wf} from './modules/resample2native.nf' params(params)
-include {resample2native_wf as resamplesulc_wf} from './modules/resample2native.nf' params(params)
-include {centroid_radial_wf as centroid_wf} from './modules/centroid_wf.nf' params(params)
-include {tet_project_wf as tet_project_weightfunc_wf} from './modules/tetrahedral_wf.nf' params(params)
-include {tet_project_wf as tet_project_roi_wf} from './modules/tetrahedral_wf.nf' params(params)
-include {calculate_reference_field_wf} from './modules/reference_field_wf.nf' params(params)
-include {fieldscaling_wf} from './modules/field_scaling.nf' params(params)
-include {optimize_wf} from "./modules/optimization.nf" params(params)
-
-// IMPORT MODULES PROCESSES
-include {apply_mask as centroid_mask} from './modules/utils.nf' params(params)
-include {apply_mask as weightfunc_mask} from './modules/utils.nf' params(params)
-include {cifti_dilate as dilate_mask} from './modules/utils.nf' params(params)
-
 parser = getArgumentParser(
     title: "BOONStim TMS Optimization Pipeline",
     description: "An end-to-end pipeline for integrating fMRI data into TMS target\
-    derivation and optimization",
+ derivation and optimization",
     scriptName: "${workflow.scriptName}".toString(),
+    note: "Configuration arguments should be defined in a .nf.config file (use -c arg), or\
+ a .json file that can be used (use -params-file arg)"
 )
 
 parser.addRequired("--bids",
@@ -60,23 +41,24 @@ parser.addConfigOpt("--license",
     params.license.toString(),
     "FS_LICENSE")
 
-parser.addConfigOpt("--fmriprep_invocation",
-    "Path to fMRIPrep invocation file",
-    params.fmriprep_invocation.toString(),
-    "FMRIPREP_INVOCATION")
 
 parser.addConfigOpt("--fmriprep",
     "Path to fMRIPrep Image",
     params.fmriprep.toString(),
     "FMRIPREP_IMG")
 
-parser.addConfigOpt("--anat_invocation",
-    params.fmriprep_anat_invocation.toString(),
-    "FMRIPREP_ANAT_INVOCATION")
-
-parser.addConfigOpt("--anat_descriptor",
+parser.addConfigOpt("--fmriprep_descriptor",
     params.fmriprep_descriptor.toString(),
     "FMRIPREP_DESCRIPTOR")
+
+parser.addConfigOpt("--fmriprep_invocation",
+    "Path to fMRIPrep invocation file",
+    params.fmriprep_invocation.toString(),
+    "FMRIPREP_INVOCATION")
+
+parser.addConfigOpt("--anat_invocation",
+    params.anat_invocation.toString(),
+    "FMRIPREP_ANAT_INVOCATION")
 
 parser.addConfigOpt("--ciftify",
     "Path to Ciftify Image",
@@ -114,6 +96,26 @@ if (missingArgs) {
     print(parser.makeDoc())
     System.exit(1)
 }
+
+include {weightfunc_wf} from "${params.weightworkflow}" params(params)
+include {cifti_meshing_wf as cifti_mesh_wf} from './modules/cifti_mesh_wf.nf' params(params)
+include {make_giftis} from './modules/fs2gifti.nf' params(params)
+include {registration_wf} from './modules/register_fs2cifti_wf.nf' params(params)
+include {resample2native_wf as resamplemask_wf} from './modules/resample2native.nf' params(params)
+include {resample2native_wf as resampleweightfunc_wf} from './modules/resample2native.nf' params(params)
+include {resample2native_wf as resampledistmap_wf} from './modules/resample2native.nf' params(params)
+include {resample2native_wf as resamplesulc_wf} from './modules/resample2native.nf' params(params)
+include {centroid_radial_wf as centroid_wf} from './modules/centroid_wf.nf' params(params)
+include {tet_project_wf as tet_project_weightfunc_wf} from './modules/tetrahedral_wf.nf' params(params)
+include {tet_project_wf as tet_project_roi_wf} from './modules/tetrahedral_wf.nf' params(params)
+include {calculate_reference_field_wf} from './modules/reference_field_wf.nf' params(params)
+include {fieldscaling_wf} from './modules/field_scaling.nf' params(params)
+include {optimize_wf} from "./modules/optimization.nf" params(params)
+include {apply_mask as centroid_mask} from './modules/utils.nf' params(params)
+include {apply_mask as weightfunc_mask} from './modules/utils.nf' params(params)
+include {cifti_dilate as dilate_mask} from './modules/utils.nf' params(params)
+
+
 
 log.info("BIDS Directory: $params.bids")
 log.info("Output Directory: $params.out")
