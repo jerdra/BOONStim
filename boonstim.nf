@@ -70,11 +70,11 @@ parser.addConfigOpt("--fmriprep",
     params.fmriprep.toString(),
     "FMRIPREP_IMG")
 
-parser.addConfigOpt("--fmriprep_anat_invocation",
+parser.addConfigOpt("--anat_invocation",
     params.fmriprep_anat_invocation.toString(),
     "FMRIPREP_ANAT_INVOCATION")
 
-parser.addConfigOpt("--fmriprep_descriptor",
+parser.addConfigOpt("--anat_descriptor",
     params.fmriprep_descriptor.toString(),
     "FMRIPREP_DESCRIPTOR")
 
