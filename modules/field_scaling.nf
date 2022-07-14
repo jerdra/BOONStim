@@ -107,7 +107,7 @@ process threshold_roi{
 // Calculate ROI --> scalp distance
 process calculate_roi2cortex{
 
-    label 'rtms'
+    label 'fieldopt'
     input:
     tuple val(uuid), path(mesh), path(centroid)
 
@@ -123,7 +123,7 @@ process calculate_roi2cortex{
 // Alternative formulation
 process get_cortical_distance_masked{
 
-    label 'rtms'
+    label 'fieldopt'
     input:
     tuple val(uuid), path(mesh), path(left_surf), path(right_surf), path(roi)
 
@@ -141,7 +141,7 @@ process get_cortical_distance_masked{
 
 process get_cortical_distance{
 
-    label 'rtms'
+    label 'fieldopt'
     input:
     tuple val(uuid), path(mesh), path(left_surf), path(right_surf), path(coilcentre)
 
@@ -160,7 +160,7 @@ process get_cortical_distance{
 
 process calculate_coil2cortex{
 
-    label 'rtms'
+    label 'fieldopt'
     input:
     tuple val(uuid), path(mesh), path(coil_centre)
 
@@ -176,7 +176,7 @@ process calculate_coil2cortex{
 
 process get_ratio{
 
-    label 'rtms'
+    label 'fieldopt'
     input:
     tuple val(sub), path(cortex2scalp), path(coil2cortex)
 
@@ -202,7 +202,7 @@ process get_ratio{
 
 process get_stokes_cf{
 
-    label 'rtms'
+    label 'fieldopt'
     input:
     tuple val(uuid), path(cortex2scalp), path(coil2cortex)
 
@@ -227,7 +227,7 @@ process get_stokes_cf{
 
 process matsimnibs2centre{
 
-    label 'rtms'
+    label 'fieldopt'
     input:
     tuple val(uuid), path(matsimnibs)
 
@@ -247,7 +247,7 @@ process matsimnibs2centre{
 
 process qc_cortical_distance{
 
-    label 'rtms'
+    label 'fieldopt'
     input:
     tuple val(uuid), path(mesh), path(left_surf), path(right_surf),\
     path(coil), path(mask)

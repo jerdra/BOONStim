@@ -93,7 +93,7 @@ process normalize_vol {
 
 process compute_weighted_centroid{
 
-    label 'rtms'
+    label 'fieldopt'
 
     input:
     tuple val(sub), path(vol)
@@ -132,7 +132,7 @@ process compute_weighted_centroid{
 
 process get_scalp_seed {
 
-    label 'rtms'
+    label 'fieldopt'
 
     input:
     tuple val(sub), path(mesh), path(dscalar), path(l_pial), path(r_pial)

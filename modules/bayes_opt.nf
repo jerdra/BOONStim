@@ -4,7 +4,7 @@ nextflow.preview.dsl = 2
 process bayesian_optimization{
 
     stageInMode 'copy'
-    label 'rtms'
+    label 'fieldopt'
     containerOptions "-B ${params.bin}:/scripts"
 
     input:
