@@ -2,7 +2,7 @@ nextflow.preview.dsl=2
 
 process extract_surf_patch {
 
-    label 'rtms'
+    label 'fieldopt'
     containerOptions "-B ${params.bin}:/scripts"
 
     input:
@@ -20,7 +20,7 @@ process extract_surf_patch {
 
 process parameterize_surf {
 
-    label 'rtms'
+    label 'fieldopt'
     containerOptions "-B ${params.bin}:/scripts"
 
     input:
@@ -39,7 +39,7 @@ process parameterize_surf {
 
 process qc_parameterization {
 
-    label 'rtms'
+    label 'fieldopt'
     containerOptions "-B ${params.bin}:/scripts"
 
     input:

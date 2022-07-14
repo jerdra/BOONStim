@@ -129,7 +129,7 @@ process spherical_affine{
 
 process normalize_rotation{
 
-    label 'rtms'
+    label 'fieldopt'
 
     input:
     tuple val(sub), val(hemi), path(affine)

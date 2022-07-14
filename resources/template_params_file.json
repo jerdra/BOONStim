@@ -1,0 +1,21 @@
+{
+  "coil": "PATH TO COIL FILE",
+  "license": "PATH TO FS LICENSE",
+
+  "fmriprep": "PATH TO FMRIPREP IMAGE",
+  "fmriprep_descriptor": "PATH TO FMRIPREP DESCRIPTOR",
+  "fmriprep_invocation": "PATH TO FMRIPREP INVOCATION",
+  "anat_invocation": "PATH TO FMRIPREP ANATOMICAL INVOCATION",
+
+  "ciftify": "PATH TO CIFTIFY IMAGE",
+  "ciftify_invocation": "PATH TO CIFTIFY INVOCATION",
+  "ciftify_descriptor": "PATH TO CIFTIFY DESCRIPTOR",
+
+  "connectome": "PATH TO CONNECTOME WORKBENCH IMAGE",
+
+  "freesurfer": "PATH TO FREESURFER IMAGE",
+  "simnibs": "PATH TO SIMNIBS IMAGE",
+  "fieldopt": "PATH TO FIELDOPT IMAGE",
+
+  "num_cpus": "MAX # CPUS PER PROCESS"
+}

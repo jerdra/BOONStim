@@ -68,7 +68,7 @@ process add_tet_niftis {
 
 process tetrahedral_projection {
 
-    label 'rtms'
+    label 'fieldopt'
     containerOptions "-B ${params.bin}:/scripts"
 
     input:
