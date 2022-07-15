@@ -7,13 +7,14 @@ process adm_optimization {
 *   msh - Path to gmsh .msh file
 *   target_coord - Path to numpy file containing (X,Y,Z) coordinates to target
 *   target_radius - ROI radius
+*   coil_distance - Distance of coil from head
 *   coil - Path to coil definition file
 */
 
     input:
     tuple val(sub), path(msh),\
     path(target_coord), val(target_radius),\
-    path(coil)
+    val(coil_distance), path(coil)
 
     output:
     tuple val(sub), path("${sub}_optimized_fields.msh"), emit: fields
@@ -22,7 +23,9 @@ process adm_optimization {
 
     shell:
     '''
-    /bin/adm.py !{msh} !{target_coord} !{target_radius} !{coil} \
+    /bin/adm.py !{msh} \
+    !{target_coord} !{target_radius} \
+    !{coil_distance} !{coil} \
     !{sub}_orientation.npy \
     --msh !{sub}_optimized_fields.msh \
     --geo !{sub}_optimized_geo.geo
@@ -35,6 +38,7 @@ workflow optimize_wf {
         msh
         target_coord
         target_radius
+        coil_distance
         coil
 
     main:
@@ -42,6 +46,7 @@ workflow optimize_wf {
             msh
                 .join(target_coord)
                 .spread([target_radius])
+                .spread([coil_distance])
                 .spread([coil])
         )
                 
