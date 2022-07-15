@@ -34,6 +34,7 @@ process adm_optimization {
 }
 
 workflow optimize_wf {
+
     take:
         msh
         target_coord
@@ -54,6 +55,4 @@ workflow optimize_wf {
         coil = adm_optimization.out.coil
         fields = adm_optimization.out.fields
         coords = adm_optimization.out.coords
-
-        
 }

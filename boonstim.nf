@@ -95,6 +95,10 @@ parser.addOptional("--subjects",
     "Path to subject text file containing 1 BIDS subject/line",
     "SUBJECT_FILE")
 
+parser.addOptional("--coil-distances",
+    "Path to text file containing [subject, coil distance] tuples"
+    "COIL_DISTANCES")
+
 parser.addOptional("--num_cpus",
     "Maximum number of threads to use when submitting jobs [Default: $params.num_cpus]",
     "NUM_CPUS")
