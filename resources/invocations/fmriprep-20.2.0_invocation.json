@@ -1,0 +1,13 @@
+{
+	"bids_dir": "/bids",
+	"output_dir": "/output",
+	"work_dir": "/work",
+	"analysis_level": "participant",
+	"fs_license_file": "/license/license.txt",
+	"nprocs": 4,
+	"omp_nthreads": 2,
+	"verbosity": "-vv",
+	"use_aroma": true,
+	"use_syn_sdc":true,
+        "output_spaces": ["T1w", "MNI152NLin2009cAsym", "fsaverage", "fsaverage5"]
+}

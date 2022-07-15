@@ -1,59 +1,141 @@
 nextflow.preview.dsl=2
 
-usage = file("${workflow.scriptFile.getParent()}/usage")
-bindings = ["subjects": "$params.subjects",
-            "cache_dir": "$params.cache_dir",
-            "fmriprep": "$params.fmriprep",
-            "ciftify": "$params.ciftify",
-            "connectome": "$params.connectome",
-            "bin": "$params.bin",
-            "coil": "$params.coil",
-            "license": "$params.license",
-            "fmriprep_invocation": "$params.fmriprep_invocation",
-            "fmriprep_anat_invocation": "$params.fmriprep_anat_invocation",
-            "fmriprep_descriptor": "$params.fmriprep_descriptor",
-            "ciftify_invocation": "$params.ciftify_invocation",
-            "ciftify_descriptor": "$params.ciftify_descriptor",
-            "weightworkflow" : "$params.weightworkflow"]
-engine = new groovy.text.SimpleTemplateEngine()
-toprint = engine.createTemplate(usage.text).make(bindings)
-printhelp = params.help
+include { getArgumentParser } from "./lib/args"
 
-req_param = ["--bids": "$params.bids",
-             "--out": "$params.out"]
-req_config_param = [
-                    "fmriprep": "$params.fmriprep",
-                    "ciftify": "$params.ciftify",
-                    "connectome": "$params.connectome",
-                    "bin": "$params.bin",
-                    "coil": "$params.coil",
-                    "license": "$params.license",
-                    "fmriprep_invocation": "$params.fmriprep_invocation",
-                    "fmriprep_anat_invocation": "$params.fmriprep_anat_invocation",
-                    "fmriprep_descriptor": "$params.fmriprep_descriptor",
-                    "ciftify_invocation": "$params.ciftify_invocation",
-                    "ciftify_descriptor": "$params.ciftify_descriptor",
-                    "weightworkflow" : "$params.weightworkflow"
-                   ]
-missing_req = req_param.grep{ (it.value == null || it.value == "") }
-missing_req_config = req_config_param.grep{ (it.value == null || it.value == "") }
+parser = getArgumentParser(
+    title: "BOONStim TMS Optimization Pipeline",
+    description: "An end-to-end pipeline for integrating fMRI data into TMS target\
+ derivation and optimization",
+    scriptName: "${workflow.scriptName}".toString(),
+    note: "Configuration arguments should be defined in a .nf.config file (use -c arg), or\
+ a .json file that can be used (use -params-file arg)"
+)
 
-if (missing_req){
-    log.error("Missing required command-line argument(s)!")
-    missing_req.each{ log.error("Missing ${it.key}") }
-    printhelp = true
-}
+parser.addRequired("--bids",
+    "Path to BIDS directory",
+    params.bids.toString(),
+    "BIDS_DIRECTORY")
 
-if (missing_req_config){
-    log.error("Config file missing required parameter(s)!")
-    missing_req_config.each{ log.error("Please fill ${it.key} in config") }
-    printhelp = true
-}
+parser.addRequired("--out",
+    "Path to output directory",
+    params.out.toString(),
+    "OUTPUT_DIR")
 
-if (printhelp){
-    print(toprint)
+parser.addConfigOpt("--connectome",
+    "Path to Connectome Workbench Image",
+    params.connectome.toString(),
+    "CONNECTOME_IMG")
+
+parser.addConfigOpt("--bin",
+    "Path to BOONStim bin directory",
+    params.bin.toString(),
+    "BIN_DIR")
+
+parser.addConfigOpt("--coil",
+    "Path to COIL file (.ccd or .nii.gz)",
+    params.coil.toString(),
+    "COIL_FILE")
+
+parser.addConfigOpt("--license",
+    "Path to Freesurfer license file",
+    params.license.toString(),
+    "FS_LICENSE")
+
+parser.addConfigOpt("--fmriprep",
+    "Path to fMRIPrep Image",
+    params.fmriprep.toString(),
+    "FMRIPREP_IMG")
+
+parser.addConfigOpt("--fmriprep_descriptor",
+    "Path to fMRIPrep Descriptor File",
+    params.fmriprep_descriptor.toString(),
+    "FMRIPREP_DESCRIPTOR")
+
+parser.addConfigOpt("--fmriprep_invocation",
+    "Path to fMRIPrep invocation file",
+    params.fmriprep_invocation.toString(),
+    "FMRIPREP_INVOCATION")
+
+parser.addConfigOpt("--anat_invocation",
+    "Path to fMRIPrep anatomical only invocation file",
+    params.anat_invocation.toString(),
+    "FMRIPREP_ANAT_INVOCATION")
+
+parser.addConfigOpt("--ciftify",
+    "Path to Ciftify Image",
+    params.ciftify.toString(),
+    "CIFTIFY_IMG")
+
+parser.addConfigOpt("--ciftify_invocation",
+    "Path to Ciftify invocation file",
+    params.ciftify_invocation.toString(),
+    "CIFTIFY_INVOCATION")
+
+parser.addConfigOpt("--ciftify_descriptor",
+    "Path to Ciftify descriptor file",
+    params.ciftify_descriptor.toString(),
+    "CIFTIFY_DESCRIPTOR")
+
+parser.addConfigOpt("--simnibs",
+    "Path to SimNIBS container image",
+    params.simnibs.toString(),
+    "SIMNIBS_IMG")
+
+parser.addConfigOpt("--fieldopt",
+    "Path to FieldOpt container image",
+    params.fieldopt.toString(),
+    "FIELDOPT_IMG")
+
+parser.addConfigOpt("--weightworkflow",
+    "Path to weight workflow module entrypoint",
+    params.weightworkflow.toString(),
+    "WEIGHTWORKFLOW_ENTRYPOINT")
+
+parser.addOptional("--subjects",
+    "Path to subject text file containing 1 BIDS subject/line",
+    "SUBJECT_FILE")
+
+parser.addOptional("--num_cpus",
+    "Maximum number of threads to use when submitting jobs [Default: $params.num_cpus]",
+    "NUM_CPUS")
+
+parser.addOptional("--cache_dir",
+    "Create a cache directory to store intermediate results to speed up reruns",
+    "CACHE_DIR")
+
+missingArgs = parser.isMissingRequired()
+missingConfig = parser.isMissingConfig()
+
+if (params.help) {
+    print(parser.makeDoc())
     System.exit(0)
 }
+
+if (missingArgs || missingConfig) {
+    log.error("Missing required parameters")
+    missingArgs.each{ log.error("Missing ${it}") }
+    missingConfig.each{ log.error("Missing ${it}") }
+    print(parser.makeDoc())
+    System.exit(1)
+}
+
+include {weightfunc_wf} from "${params.weightworkflow}" params(params)
+include {cifti_meshing_wf as cifti_mesh_wf} from './modules/cifti_mesh_wf.nf' params(params)
+include {make_giftis} from './modules/fs2gifti.nf' params(params)
+include {registration_wf} from './modules/register_fs2cifti_wf.nf' params(params)
+include {resample2native_wf as resamplemask_wf} from './modules/resample2native.nf' params(params)
+include {resample2native_wf as resampleweightfunc_wf} from './modules/resample2native.nf' params(params)
+include {resample2native_wf as resampledistmap_wf} from './modules/resample2native.nf' params(params)
+include {resample2native_wf as resamplesulc_wf} from './modules/resample2native.nf' params(params)
+include {centroid_radial_wf as centroid_wf} from './modules/centroid_wf.nf' params(params)
+include {tet_project_wf as tet_project_weightfunc_wf} from './modules/tetrahedral_wf.nf' params(params)
+include {tet_project_wf as tet_project_roi_wf} from './modules/tetrahedral_wf.nf' params(params)
+include {calculate_reference_field_wf} from './modules/reference_field_wf.nf' params(params)
+include {fieldscaling_wf} from './modules/field_scaling.nf' params(params)
+include {optimize_wf} from "./modules/optimization.nf" params(params)
+include {apply_mask as centroid_mask} from './modules/utils.nf' params(params)
+include {apply_mask as weightfunc_mask} from './modules/utils.nf' params(params)
+include {cifti_dilate as dilate_mask} from './modules/utils.nf' params(params)
 
 log.info("BIDS Directory: $params.bids")
 log.info("Output Directory: $params.out")
@@ -66,42 +148,13 @@ log.info("Using Invocation Files: $params.fmriprep_invocation, $params.fmriprep_
 log.info("Using containers: $params.fmriprep and $params.ciftify")
 log.info("Using user-defined ROI workflow: $params.weightworkflow")
 
-///////////////////////////////////////////////////////////////////////////////
-
-// IMPORT MODULES WORKFLOWS
-include {cifti_meshing_wf as cifti_mesh_wf} from './modules/cifti_mesh_wf.nf' params(params)
-include {make_giftis} from './modules/fs2gifti.nf' params(params)
-include {registration_wf} from './modules/register_fs2cifti_wf.nf' params(params)
-include {weightfunc_wf} from "${params.weightworkflow}" params(params)
-include {resample2native_wf as resamplemask_wf} from './modules/resample2native.nf' params(params)
-include {resample2native_wf as resampleweightfunc_wf} from './modules/resample2native.nf' params(params)
-include {resample2native_wf as resampledistmap_wf} from './modules/resample2native.nf' params(params)
-include {resample2native_wf as resamplesulc_wf} from './modules/resample2native.nf' params(params)
-include {centroid_radial_wf as centroid_wf} from './modules/centroid_wf.nf' params(params)
-include {tet_project_wf as tet_project_weightfunc_wf} from './modules/tetrahedral_wf.nf' params(params)
-include {tet_project_wf as tet_project_roi_wf} from './modules/tetrahedral_wf.nf' params(params)
-include {calculate_reference_field_wf} from './modules/reference_field_wf.nf' params(params)
-include {fieldscaling_wf} from './modules/field_scaling.nf' params(params)
-include {optimize_wf} from "./modules/optimization.nf" params(params)
-
-// IMPORT MODULES PROCESSES
-include {apply_mask as centroid_mask} from './modules/utils.nf' params(params)
-include {apply_mask as weightfunc_mask} from './modules/utils.nf' params(params)
-include {cifti_dilate as dilate_mask} from './modules/utils.nf' params(params)
-
-///////////////////////////////////////////////////////////////////////////////
-
-//// Extract subjects to run
-all_dirs = file(params.bids).list()
-input_dirs = new File(params.bids).list()
-output_dirs = new File(params.out).list()
-
 input_channel = Channel.fromPath("$params.bids/sub-*", type: 'dir')
                     .map{i -> i.getBaseName()}
 
 if (params.subjects){
     subjects_channel = Channel.fromPath(params.subjects)
                             .splitText(){it.strip()}
+
     input_channel = input_channel.join(subjects_channel)
 }
 

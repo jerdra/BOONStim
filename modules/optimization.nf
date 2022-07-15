@@ -4,7 +4,7 @@ nextflow.preview.dsl = 2
 include {optimize_wf as optimize} from "${params.optimization_module}" params(params)
 
 process qc_parameteric_surf{
-    label 'rtms'
+    label 'fieldopt'
 
     input:
     tuple val(sub), path(msh),\
@@ -25,7 +25,7 @@ process qc_parameteric_surf{
 
 process brainsight_transform{
 
-    label 'rtms'
+    label 'fieldopt'
 
     input:
     tuple val(sub), path(orientation)
@@ -68,7 +68,7 @@ process brainsight_transform{
 
 process localite_transform{
 
-    label 'rtms'
+    label 'fieldopt'
 
     input:
     tuple val(sub), path(orientation)
