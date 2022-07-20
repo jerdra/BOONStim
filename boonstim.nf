@@ -312,3 +312,6 @@ workflow scalar_workflow {
     scalar_optimization(input_channel)
 }
 
+workflow simple_workflow {
+    coordinate_optimization(input_channel)
+}
