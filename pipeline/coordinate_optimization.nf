@@ -1,39 +1,49 @@
 nextflow.preview.dsl=2
 
 include { weightfunc_wf } from "${params.weightworkflow}" params(params)
-include {cifti_meshing_wf as cifti_mesh_wf} from '../modules/cifti_mesh_wf.nf' params(params)
-include { rigidRegistration } from "../modules/utils.nf"
+include { cifti_meshing_wf as cifti_mesh_wf } from '../modules/cifti_mesh_wf.nf' params(params)
+include { rigidRegistration, coordinate_transform } from "../modules/utils.nf"
 
 // TODO: Include ADM optimization module
 
-
-// Default params 
+// Default params
 params.radius = 20 // in mm
 
-process coordinate_transform {
 
-    /*
-    * Order of transformations to points:
-    * 1. Apply T1w --> MNI nonlinear transform no Affine
-    * 2. Apply T1w --> MNI Affine transform
-    * 3. Apply SimT1 --> CiftiT1 Rigid body transform
-    * Alternatively can run surface-based resampling between
-    * CiftiMNI and CiftiT1 space
-    * Then just run RigidBody
-    */
-
-    // TODO: Test series of coordinate transforms on a sample ROI
-    // TODO: Have Surface resampling as a back-up option
+process format_for_ants {
 
     input:
-    tuple val(sub), path(coords), path(transforms)
+    tuple val(sub), path(coords)
 
     output:
-    tuple val(sub), path("${sub}_target_coord.txt"), emit: transformed
+    tuple val(sub), path("${sub}_pretransform.txt"), emit: ants_csv
 
     shell:
     """
-    
+    echo "x,y,z,t" > "${sub}_pretransform.txt"
+    echo "${x},${y},${z},0" >> "${sub}_pretransform.txt"
+    """
+}
+
+process format_from_ants {
+
+    input:
+    tuple val(sub), path(coords)
+
+    output:
+    tuple val(sub), path("${sub}_ras_coords.npy"), emit: ras_coords
+
+    shell:
+    """
+    #!/usr/bin/env python
+
+    import numpy as np
+
+    # LPS space
+    coords = np.loadtxt('${sub}_ras_coords.txt')
+    coords[0] = -coords[0]
+    coords[1] = -coords[1]
+    np.savetxt("${sub}_ras_coords.txt", coords[:-1], delim=',')
     """
 }
 
@@ -59,20 +69,22 @@ workflow coordinate_optimization {
             ]
         }
 
+
     rigidRegistration(i_rigidRegistration)
 
-    i_coordinate_transform = cifti_meshing_wf.out.cifti
-        .map { s, c -> [
-            s,
-            "${c}/MNINonLinear/xfms/T1w2StandardLinear.mat",
-            "${c}/MNINonLinear/xfms/T1w2Standard_warp_noaffine.nii.gz"
-        ]}
+    format_for_ants(weightfunc_wf.out.coordinate)
+    coordinate_transform(
+       weightfunc_wf.out.coordinates
         .join(rigidRegistration.out.transform)
-    coordinate_transform(i_coordinate_transform)
+    )
+    format_from_ants(coordinate_transform.out.transformed)
 
-    // TODO: Feed coordinate into ADM pipeline
     i_adm = cifti_meshing_wf.out.msh
-        .join(coordinate_transform.out.transformed)
+        .join(cifti_meshing_wf.out.mesh_fs)
+        .join(format_from_ants.out.ras_coords)
         .spread([params.radius])
-    // adm_wf(i_adm)
+    adm_wf(i_adm)
+
+
+    // TODO: Publish results
 }
