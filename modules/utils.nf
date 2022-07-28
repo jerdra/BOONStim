@@ -68,3 +68,28 @@ process rigidRegistration {
 
     """
 }
+
+process coordinate_transform {
+
+    /*
+    * Apply ANTS coordinate transform on input
+    * coordinates
+    * Ensure that transform being used is the forward image transformed
+    * The inverse flag is set in this function
+    */
+
+    input:
+    tuple val(sub), path(coords), path(transform)
+
+    output:
+    tuple val(sub), path("${sub}_target_coord.txt"), emit: transformed
+
+    shell:
+    """
+    antsApplyTransformToPoints \
+        -d 3 -e 0 \
+        -i ${coords} \
+        -t [${transform},1] \
+        -o ${sub}_target_coord.txt
+    """
+}
