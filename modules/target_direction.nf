@@ -2,6 +2,18 @@ nextflow.preview.dsl = 2
 
 process target_direction {
 
+    /*
+    Compute target direction at `coordinate` using Freesurfer .curv files
+    
+    Arguments:
+        sub (str): Subject ID
+        coordinate (Path): RAS coordinate file
+        fs_dir (Path): Subject Freesurfer Directory
+
+    Outputs:
+        direction (channel): (subject, direction: Path)
+    */
+
     label 'fieldopt'
     label 'bin'
 
