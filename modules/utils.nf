@@ -2,6 +2,18 @@ nextflow.preview.dsl=2
 
 process apply_mask {
 
+    /*
+    Apply a mask to a dscalar image
+
+    Arguments:
+        sub (str): Subject ID
+        dscalar (Path): Input dscalar file to mask
+        mask (Path): Mask dscalar file
+
+    Outputs:
+        masked (channel): (sub, masked: Path)
+    */
+
     label 'connectome'
     input:
     tuple val(sub), path(dscalar), path(mask)
@@ -20,6 +32,19 @@ process apply_mask {
 }
 
 process cifti_dilate {
+
+    /*
+    Dilate an input dscalar file
+
+    Arguments:
+        sub (str): Subject ID
+        dscalar (Path): Path to dscalar file
+        left (Path): Path to left surface file (midthickness typically)
+        right (Path): Path to right surface file (midthickness typically)
+
+    Outputs:
+        dilated (channel): (sub, dilated: Path)
+    */
 
     label 'connectome'
     input:
@@ -42,6 +67,21 @@ process cifti_dilate {
 }
 
 process rigidRegistration {
+
+    /*
+    Perform rigid registration between two images
+
+    Arguments:
+        sub (str): Subject ID
+        moving (Path): Path to source image
+        fixed (Path): Path to reference image
+
+    Outputs:
+        transformed (channel): (sub, transformed) Moving image transformed to Fixed
+        transform (channel): (sub, transform) Rigid-body transformation from moving
+            to fixed
+    */
+
     label 'ants'
 
     input:
@@ -58,7 +98,7 @@ process rigidRegistration {
     --winsorize-image-intensities [0.005, 0.995] \
     --use-histogram-matching 0 \
     --transform Rigid[0.1] \
-    --metric MI[$t1brain,$template,1,32,Regular,0.25] \
+    --metric MI[$moving,$fixed,1,32,Regular,0.25] \
     --convergence [1000x500x250x100,1e-6,10] \
     --shrink-factors 8x4x2x1 \
     --smoothing-sigmas 3x2x1x0vox \
@@ -72,10 +112,18 @@ process rigidRegistration {
 process coordinate_transform {
 
     /*
-    * Apply ANTS coordinate transform on input
-    * coordinates
-    * Ensure that transform being used is the forward image transformed
-    * The inverse flag is set in this function
+    Apply ANTS coordinate transform on input
+    coordinates
+    Ensure that transform being used is the forward image transformed
+    The inverse flag is set in this function
+
+    Arguments:
+        sub (str): Subject ID
+        coords (Path): input coordinates
+        transform (Path): Ants transformation file
+
+    Outputs:
+        transformed (channel): (sub, transformed: Path)
     */
 
     input:
