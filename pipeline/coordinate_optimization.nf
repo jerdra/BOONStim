@@ -4,8 +4,6 @@ include { weightfunc_wf } from "${params.weightworkflow}" params(params)
 include { cifti_meshing_wf as cifti_mesh_wf } from '../modules/cifti_mesh_wf.nf' params(params)
 include { rigidRegistration, coordinate_transform } from "../modules/utils.nf"
 
-// TODO: Include ADM optimization module
-
 // Default params
 params.radius = 20 // in mm
 
@@ -84,7 +82,4 @@ workflow coordinate_optimization {
         .join(format_from_ants.out.ras_coords)
         .spread([params.radius])
     adm_wf(i_adm)
-
-
-    // TODO: Publish results
 }
