@@ -21,6 +21,16 @@ process target_direction {
 }
 
 workflow target_direction_wf {
+    /*
+    Compute radial target direction given a coordinate
+
+    Arguments:
+        coordinate (channel):  (subject, coordinate: Path)
+        fs_dir (channel): (subject, fs_dir: Path)
+
+    Output:
+        direction (channel): (subject, target_direction: Path)
+    */
     take:
         coordinate,
         fs_dir
