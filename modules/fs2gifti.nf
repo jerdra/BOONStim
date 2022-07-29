@@ -3,6 +3,22 @@ nextflow.preview.dsl=2
 
 process convert_fs2gifti{
 
+    /*
+    Convert Freesurfer surface files to GIFTI format
+
+    Arguments:
+        sub (str): Subject ID
+        hemi (Union['L','R']): Hemisphere key
+        surf (str): Freesurfer surface type
+        fs_surf (Path): Path to surface
+
+    Parameters:
+        license (Path): Freesurfer license file
+
+    Outputs:
+        hemi_surf (channel): (subject, hemi: Union['L', 'R'], surf: Path) GIFTI surf file
+    */
+
     label 'freesurfer'
     maxForks 4
 
@@ -31,6 +47,21 @@ process convert_fs2gifti{
 
 process assign_structure {
 
+    /*
+    Assign workbench structure to GIFTI file
+
+    Arguments:
+        sub (str): Subject ID
+        hemi (Union['L', 'R']): Hemisphere key
+        surf (str): Type of surface
+        structure (str): Surface type to assign to GIFTI
+        gifti (Path): Path to GIFTI file
+
+    Outputs:
+        gifti (channel): (sub, hemi: Union['L','R'], gifti: Path) Path to
+            GIFTI file with assigned `structure`
+    */
+
     label 'connectome'
 
     input:
@@ -49,6 +80,18 @@ process assign_structure {
 }
 
 process compute_midthickness {
+    /*
+    Calculate the midthickness surface of pial/white surface
+
+    Arguments:
+        sub (str): Subject ID
+        hemi (Union['L', 'R']): Hemisphere key
+        pial (Path): Path to pial surface
+        white (Path): Path to white surface
+
+    Outputs:
+        midthickness (Path): Path to computed midthickness file
+    */
 
     label 'connectome'
 
@@ -69,7 +112,27 @@ process compute_midthickness {
 
 workflow make_giftis {
 
-    take: fs_dirs
+    /*
+    Convert Freesurfer pial, white surface files into GIFTI format. A
+    midthickness GIFTI file is also calculated
+
+    Arguments:
+        fs_dirs (channel): (subject, fs_dir: Path) Path to subject Freesurfer directory
+
+    Parameters:
+        license (Path): Path to Freesurfer license file
+
+    Outputs:
+        midthickness (channel): (subject, hemi: Union['L', 'R'], midthick: Path)
+            Midthickness GIFTI file
+        pial (channel): (subject, hemi: Union['L', 'R'],  pial: Path) Pial GIFTI files
+        white (channel): (subject, hemi: Union['L', 'R'],  white: Path) White GIFTI files
+    */
+
+
+
+    take:
+    fs_dirs
 
     main:
         // Construct pathing
