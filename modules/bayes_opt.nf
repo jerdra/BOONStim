@@ -66,6 +66,11 @@ workflow optimize_wf{
         centroid (channel): (subject, centroid) Subject seed coordinates
         coil (value): .nii.gz or .ccd Coil dA/dt or definition file respectively
 
+    Parameters:
+        bin (Path): Path to BOONStim scripts directory
+        bayes_cpus (int): Number of threads to use for simulations
+        max_iters (int): Maximum number of iterations allowed
+
     Outputs:
         fields (channel): (sub, msh: Path) Optimal E-field simulation .msh
         coil (channel): (sub, geo: Path) Optimal E-field coil position .geo

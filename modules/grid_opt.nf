@@ -3,6 +3,31 @@ nextflow.preview.dsl = 2
 // Set up grid optimization schema
 process grid_optimization{
 
+    /*
+    Grid optimization of E-field magnitude on a continuous-valued
+    scalar map and realistic head model
+
+    Arguments:
+        sub (str): Subject ID
+        msh (Path): Path to .msh file
+        weights (Path): .npy scalar map
+        centroid (Path): Path to seed coordinate
+        coil (Path): Path to .nii.gz or .ccd coil file
+
+    Parameters:
+        bin (Path): Path to BOONStim scripts directory
+        bayes_cpus (int): Number of threads to use for simulations
+        positional_grid_num (int): Number of locations to sample 
+            on each axis (a total of N X N locations will be sampled)
+        rotational_grid_num (int): Number of orientations to sample per location
+
+    Outputs:
+        fields (channel): (sub, msh: Path) Optimal E-field simulation .msh
+        coil (channel): (sub, geo: Path) Optimal E-field coil position .geo
+        coords (channel): (sub, coords: Path) Optimal coil orientation matrix
+        history (channel): (sub, history: Path) Record of scores across iterations
+    */
+
     stageInMode 'copy'
     label 'fieldopt'
     containerOptions "-B ${params.bin}:/scripts"
@@ -33,6 +58,29 @@ process grid_optimization{
 }
 
 workflow optimize_wf{
+
+    /*
+    Perform Bayesian Optimization on continuous-valued target map
+
+    Arguments:
+        msh (channel): (subject, msh) Subject msh files
+        weights (channel): (subject, wf) Subject target scalar maps
+        centroid (channel): (subject, centroid) Subject seed coordinates
+        coil (value): .nii.gz or .ccd Coil dA/dt or definition file respectively
+
+    Parameters:
+        bin (Path): Path to BOONStim scripts directory
+        bayes_cpus (int): Number of threads to use for simulations
+        positional_grid_num (int): Number of locations to sample 
+            on each axis (a total of N X N locations will be sampled)
+        rotational_grid_num (int): Number of orientations to sample per location
+
+    Outputs:
+        fields (channel): (sub, msh: Path) Optimal E-field simulation .msh
+        coil (channel): (sub, geo: Path) Optimal E-field coil position .geo
+        coords (channel): (sub, coords: Path) Optimal coil orientation matrix
+        history (channel): (sub, history: Path) Record of scores across iterations
+    */
 
     take:
        msh
