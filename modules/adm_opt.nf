@@ -1,26 +1,10 @@
 nextflow.preview.dsl=2
 
+// DEFAULT VARIABLE
 params.optimize_magnitude = true
 
-process get_coordinate_normal {
-    label 'fieldopt'
-    label 'bin'
+include { target_direction_wf } from '../modules/target_direction.nf' params(params)
 
-    input:
-    tuple val(sub), path(coord), path(msh), path(fs)
-
-    output:
-    tuple val(sub), path("${sub}_target_normal.npy"), emit: target_direction
-
-    shell:
-    """
-    /scripts/get_target_direction.py \
-        ${fs} \
-        ${msh} \
-        ${coord} \
-        ${sub}_target_normal.npy
-    """
-}
 
 process adm_optimization_radial {
 
@@ -70,38 +54,60 @@ process adm_optimization_mag {
         --sim_geo ${sub}_optimized_fields.geo \
         ${sub}_optimized_orientation.npy
     """
-} 
+}
 
 
 workflow adm_wf {
 
+    /*
+    Perform Auxiliary Dipole Method-based optimization on a single
+    target coordinate
+    
+    Arguments:
+      msh (channel): (subject, mesh_file: Path)
+      fs (channel): (subject, fs_dir: Path)
+      coord (channel): (subject, coordinate: Path)
+      radius (value): float
+    
+    Parameters:
+      optimize_magnitude (bool): Whether to optimize the magnitude of the e-field
+       or to optimize for the direction normal to the brain node closest to `coordinate`
+       [default=true] 
+
+    Outputs:
+        sim_msh (channel): (subject, sim_file: Path)
+        geo (channel): (subject, geo_file: Path)
+        matsimnibs (channel): (subject, msn_file: Path)
+        
+    */
+
     take:
-        msh
-        fs
-        coord
-        radius
+    msh
+    fs
+    coord
+    radius
 
     main:
-        if (params.optimize_magnitude) {
+    if (params.optimize_magnitude) {
 
-            adm_optimization_mag(
-                msh.join(coord) .spread([radius])
-            )
+        adm_optimization_mag(
+            msh.join(coord) .spread([radius])
+        )
 
-        } else {
+    } else {
 
-            get_coordinate_normal(coord.join(msh).join(fs)) 
-            adm_optimization_radial(
-                msh.join(coord)
-                    .join(get_coordinate_normal.out.target_direction)
-                    .spread([radius])
-            )
+        target_direction_wf(coord, fs)
+        adm_optimization_radial(
+            msh.join(coord)
+                .join(target_direction_wf.out.target_direction)
+                .spread([radius])
+        )
 
-        }
+    }
 
 
     emit:
-        sim_msh = adm_optimization.out.sim_msh
-        geo = adm_optimization.out.geo
-        matsimnibs = adm_optimization.out.matsimnibs
+    sim_msh = adm_optimization.out.sim_msh
+    geo = adm_optimization.out.geo
+    matsimnibs = adm_optimization.out.matsimnibs
 }

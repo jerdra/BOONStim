@@ -10,6 +10,17 @@ params.radius = 20 // in mm
 
 process format_for_ants {
 
+    /*
+    Format a RAS coordinate into an LPS ANTS CSV file
+
+    Arguments:
+        sub (str): Subject ID
+        coords (Path): Path to coordinate .txt file
+
+    Output:
+        ants_csv (channel): (sub, csv: Path) Ants formatted CSV file
+    */
+
     input:
     tuple val(sub), path(coords)
 
@@ -24,6 +35,17 @@ process format_for_ants {
 }
 
 process format_from_ants {
+
+    /*
+    Format an  LPS ANTS CSV file into a RAS coordinate file
+
+    Arguments:
+        sub (str): Subject ID
+        coords (Path): Path to ants coordinate .txt file
+
+    Output:
+        ras_coords (channel): (sub, npy: Path) Path to .npy file in RAS
+    */
 
     input:
     tuple val(sub), path(coords)
@@ -46,6 +68,16 @@ process format_from_ants {
 }
 
 workflow coordinate_optimization {
+
+    /*
+    Perform single-coordinate optimization with a set radius
+
+    Arguments:
+        subject_channel (channel): Subject IDs
+
+    Parameters:
+        radius (float): Radius of optimization target around derived coordinate
+    */
 
     take:
     subject_channel
