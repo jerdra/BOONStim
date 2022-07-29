@@ -1,6 +1,22 @@
+// TODO: DEPRECATED REMOVE WORKFLOW??
+
 nextflow.preview.dsl = 2
 
 process split_dscalar {
+
+    /*
+    Split a surface-based dscalar file into .shape.gii files
+
+    Arguments:
+        id (str): ID key
+        dscalar (Path): dscalar file
+
+    Outputs:
+        left (channel): (id, 'L', left: Path): Left GIFTI
+        righL (channel): (id, 'R', left: Path): Right GIFTI
+
+    Note: Subcortical volume will be discarded in this step
+    */
 
     label 'connectome'
 
@@ -25,6 +41,21 @@ process split_dscalar {
 
 process centroid_project2vol {
 
+    /*
+    Project GIFTI shape file into a ribbon-constrained volume
+
+    Arguments:
+        sub (str): Subject key
+        shape (Path): Input GIFTI file
+        pial (Path): Input pial surface
+        white (Path): Input white surface
+        midthick (Path): Input midthickness surface
+        t1 (Path): Target T1 NIFTI
+
+    Output:
+        ribbon (channel): (sub, ribbon: Path): Surface data in volume space
+    */
+
     label 'connectome'
 
     input:
@@ -48,6 +79,18 @@ process centroid_project2vol {
 
 process add_centroid_niftis {
 
+    /*
+    Add two NIFTI files together
+
+    Arguments:
+        sub (str): Subject ID
+        nifti1 (Path): First NIFTI to add
+        nifti2 (Path): Second NIFTI to add
+
+    Outputs:
+        sumvol (channel): (sub, combined: Path) Summation image
+    */
+
     label 'connectome'
 
     input:
@@ -67,6 +110,17 @@ process add_centroid_niftis {
 }
 
 process normalize_vol {
+
+    /*
+    Normalize values of the input volume such that they add up to 1
+
+    Arguments:
+        sub (str): Subject ID
+        vol (Path): NIFTI file to normalize sum on
+
+    Outputs:
+        normvol (channel): (subject, normvol: Path) Sum normalized volume NIFTI
+    */
 
     label 'connectome'
     input:
@@ -92,6 +146,17 @@ process normalize_vol {
 }
 
 process compute_weighted_centroid{
+
+    /*
+    Compute centre-of-gravity on an input volume
+
+    Arguments:
+        sub (str): Subject ID
+        vol (Path): Normalized input volume
+
+    Outputs:
+        coord (channel): (subject, coord: Path) Centre of gravity .txt coordinate file
+    */
 
     label 'fieldopt'
 
@@ -132,6 +197,21 @@ process compute_weighted_centroid{
 
 process get_scalp_seed {
 
+    /*
+    Compute a good candidate seed position given a scalar-valued map
+
+    Arguments:
+        sub (str): Subject ID 
+        mesh (Path): Realistic head model
+        dscalar (Path): Scalar-valued map
+        l_pial (Path): Left pial GIFTI surface
+        r_pial (Path): Right pial GIFTI surface
+
+    Outputs:
+        seed (channel): (sub, seed: Path) Candidate coordinate on subject scalp
+        qchtml (channel): (sub, html: Path) QC page
+    */
+
     label 'fieldopt'
 
     input:
@@ -159,6 +239,21 @@ def lr_branch = branchCriteria {
 
 workflow centroid_radial_wf{
 
+    /*
+    Compute approximate radial projection out from pial surface onto scalp
+    at a given coordinate
+
+    Arguments:
+        msh (channel): (subject, msh: Path) Subject .msh file
+        dscalar (channel): (subject, dscalar: Path) dscalar file to compute projection from
+        pial (channel): (subject, hemi: Union['L' 'R'], pial: Path) Pial file
+
+    Outputs:
+        centroid (channel): (subject, centroid: Path) Computed centroid
+        qc (channel): (subject, qchtml: Path) QC file associated with `centroid`
+    */
+        
+
     take:
         msh
         dscalar
@@ -183,6 +278,20 @@ workflow centroid_radial_wf{
 }
 
 workflow centroid_wf{
+
+    /*
+    Compute approximate weighted centroid in volume-space from a dscalar file
+
+    Arguments:
+        dscalar (channel): (subject, dscalar: Path) dscalar file to compute projection from
+        pial (channel): (subject, hemi: Union['L' 'R'], pial: Path) Pial file
+        white (channel): (subject, hemi: Union['L' 'R'], white: Path) White file
+        midthick (channel): (subject, hemi: Union['L' 'R'], midthickness: Path) Midthickness file
+        t1 (channel): (subject, t1: Path) NIFTI file to be used for volume-space projection
+
+    Outputs:
+        centroid (channel): (subject, centroid: Path) Computed centroid
+    */
 
     take:
         dscalar
@@ -227,14 +336,4 @@ workflow centroid_wf{
 
     emit:
         centroid = compute_weighted_centroid.out.coord
-
-
-
-
-
-
-
-
-
-
 }
