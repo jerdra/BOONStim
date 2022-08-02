@@ -2,6 +2,17 @@ nextflow.preview.dsl = 2
 
 process convert_pial_to_metric{
 
+    /*
+    Convert a surface file into a coordinates shape file
+    Arguments:
+        sub (str): Subject IDs
+        hemi (Union['L','R']): Hemisphere
+        pial (Path): .surf.gii pial file
+
+    Outputs:
+        shape_coords (channel): (sub, hemi, pial_coords: Path) 
+    */
+
     label 'connectome'
     input:
     tuple val(sub), val(hemi), path(pial)
@@ -22,6 +33,16 @@ process convert_pial_to_metric{
 }
 
 process join_surface_coordinates{
+    /*
+    Join left and right .shape.gii files into a .dscalar.nii file
+    Arguments:
+        sub (str): Subject ID
+        L (path): Path to left .shape.gii 
+        R (path): Path to right .shape.gii 
+
+    Outputs:
+        cifti_coords (channel): (sub, cifti_coords: Path)
+    */
 
     label 'connectome'
     input:
@@ -40,52 +61,19 @@ process join_surface_coordinates{
     '''
 }
 
-process average_coordinate{
-
-    label 'connectome'
-
-    input:
-    tuple val(sub), path(coords), path(roi),\
-    val(index), val(ori)
-
-    output:
-    tuple val(sub), val(ori), path("${ori}.txt"), emit: avg_coord
-
-    shell:
-    '''
-
-    # Apply the ROI mask to the CIFTI data
-    wb_command -cifti-math \
-        "x*y" \
-        -var "x" !{coords} \
-        -select 1 !{index} \
-        -var "y" !{roi} \
-        !{ori}.dscalar.nii
-
-    # Calculate the average coordinate within the centroid
-    wb_command -cifti-roi-average \
-        !{ori}.dscalar.nii \
-        -cifti-roi !{roi} \
-        !{ori}.txt
-    '''
-}
-
-process make_centroid{
-
-    input:
-    tuple val(uuid), path(x), path(y), path(z)
-
-    output:
-    tuple val(uuid), path("${uuid}.roi_centroid.txt"), emit: centroid
-
-    shell:
-    '''
-    paste -d '\n' !{x} !{y} !{z} > !{uuid}.roi_centroid.txt
-    '''
-
-}
 
 process threshold_roi{
+
+    /*
+    Apply thresholding to a dscalar file at 0.5
+    Arguments:
+        uuid (str): Unique ID
+        roi (Path): Path to dscalar file to threshold
+
+    Outputs:
+        mask (channel): (uuid, thresholded_dscalar: Path)
+    */
+        
 
     label 'connectome'
 
@@ -104,24 +92,20 @@ process threshold_roi{
     '''
 }
 
-// Calculate ROI --> scalp distance
-process calculate_roi2cortex{
-
-    label 'fieldopt'
-    input:
-    tuple val(uuid), path(mesh), path(centroid)
-
-    output:
-    tuple val(uuid), path("${uuid}.roi_distance.npy"), emit: distance
-
-    shell:
-    '''
-    /scripts/get_cortex_to_scalp.py !{mesh} --roi !{centroid} !{uuid}.roi_distance.npy
-    '''
-}
-
-// Alternative formulation
 process get_cortical_distance_masked{
+    /*
+    Compute a cortical distance map from an ROI to rest of the brain
+
+    Arguments:
+        uuid (str): Unique ID
+        mesh (Path): Path to .msh file
+        left_surf (Path): Path to left surface GIFTI
+        right_surf (Path): Path to right surface GIFTI
+        roi (Path): Path to dscalar file
+
+    Outputs:
+        distance (channel): (uuid, roi_distance: Path) Distance map dscalar file
+    */
 
     label 'fieldopt'
     input:
@@ -141,6 +125,20 @@ process get_cortical_distance_masked{
 
 process get_cortical_distance{
 
+    /*
+    Compute scalp to cortex distance using a set of ROI coordinates
+
+    Arguments:
+        uuid (str): Unique ID
+        mesh (Path): Path to .msh file
+        left_surf (Path): Path to left GIFTI file
+        right_surf (Path): Path to right GIFTI file
+        coilcentre (Path): Path to proposed coil location
+
+    Output:
+        distance (channel): (uuid, coil_distance: Path) 
+    */
+
     label 'fieldopt'
     input:
     tuple val(uuid), path(mesh), path(left_surf), path(right_surf), path(coilcentre)
@@ -158,49 +156,19 @@ process get_cortical_distance{
 
 }
 
-process calculate_coil2cortex{
-
-    label 'fieldopt'
-    input:
-    tuple val(uuid), path(mesh), path(coil_centre)
-
-    output:
-    tuple val(uuid), path("${uuid}.coil_distance.npy"), emit: distance
-
-    shell:
-    '''
-    /scripts/get_cortex_to_scalp.py !{mesh} --coilcentre !{coil_centre} \
-                                    !{uuid}.coil_distance.txt
-    '''
-}
-
-process get_ratio{
-
-    label 'fieldopt'
-    input:
-    tuple val(sub), path(cortex2scalp), path(coil2cortex)
-
-    output:
-    tuple val(sub), path("${sub}.scaling_factor.txt"), emit: scaling_factor
-
-    shell:
-    '''
-    #!/usr/bin/env python
-
-    import numpy as np
-
-    c2s = np.genfromtxt("!{cortex2scalp}")
-    c2c = np.genfromtxt("!{coil2cortex}")
-    ratio = c2c/c2s * 100
-
-    to_write = f"{ratio:.2f}" + "\\n"
-    with open("!{sub}.scaling_factor.txt","w") as f:
-        f.write(to_write)
-
-    '''
-}
-
 process get_stokes_cf{
+
+    /*
+    Compute stokes correction factor from treatment distance and MT distance
+
+    Arguments:
+        uuid (str): Unique ID
+        cortex2scalp (path): Text file containing MT cortex to scalp distance
+        coil2cortex (path): Text file containing treatment coil location to cortex distance
+
+    Outputs:
+        stokes_correction (channel): (uuid, stokes_correction: Path) Single value containing stokes correction value
+    */
 
     label 'fieldopt'
     input:
@@ -227,6 +195,17 @@ process get_stokes_cf{
 
 process matsimnibs2centre{
 
+    /*
+    Extract position coordinates from SimNIBS coil orientation matrix
+
+    Arguments:
+        uuid (str): Unique ID
+        matsimnibs (Path): Coil orientation matrix
+
+    Outputs:
+        coil_centre (channel): (uuid, coil_centre: Path)
+    */
+
     label 'fieldopt'
     input:
     tuple val(uuid), path(matsimnibs)
@@ -246,6 +225,21 @@ process matsimnibs2centre{
 }
 
 process qc_cortical_distance{
+
+    /*
+    Generate QC visualization of distance measurements
+    Arguments:
+        uuid (str): Unique ID
+        mesh (Path): Path to head model .msh file
+        left_surf (Path): Path to left surface GIFTI file
+        right_surf (Path): Path to right surface GIFTI file
+        coil (Path): Coil centre location text file
+        mask (Path): dscalar file to display 
+
+    Outputs:
+        qc_geo (channel): (uuid, distqc_geo: Path) GMSH file for viewing cortical distance QC
+        qc_html (channel): (uuid, distqc_html: Path) Interactive HTML file ffor viewing cortical distance QC
+    */
 
     label 'fieldopt'
     input:
@@ -275,6 +269,19 @@ def lr_branch = branchCriteria {
 
 workflow cortex2scalp_wf{
 
+    /*
+    Compute distance from a cortical region (dscalar ROI) to the scalp using radial measurements
+    Arguments:
+        mesh (channel): (sub, msh: Path) GMSH files
+        pial_left (channel): (sub, left_gii: Path) Left surface GIFTI
+        pial_right (channel): (sub, right_gii: Path) Right surface GIFTI
+        roi (channel): (sub, dscalar: Path) ROI dscalar file
+
+    Outputs:
+        scalp2cortex (channel): (sub, scalp2cortex: Path) Scalp-to-cortex distance
+    */
+        
+
     take:
         mesh
         pial_left
@@ -296,6 +303,18 @@ workflow cortex2scalp_wf{
 
 workflow coil2cortex_wf{
 
+    /*
+    Compute distance from a cortical region (dscalar ROI) to the scalp using radial measurements
+    Arguments:
+        mesh (channel): (sub, msh: Path) GMSH files
+        pial_left (channel): (sub, left_gii: Path) Left surface GIFTI
+        pial_right (channel): (sub, right_gii: Path) Right surface GIFTI
+        coil_centre (channel): (sub, coil_centre: Path) Coil location
+
+    Outputs:
+        coil2cortex (channel): (sub, coil2cortex: Path) Scalp-to-cortex distance
+    */
+
     take:
         mesh
         pial_left
@@ -314,6 +333,20 @@ workflow coil2cortex_wf{
 }
 
 workflow qc_cortical_distance_wf{
+    /*
+    Generate QC images for scalp to cortex distance measurement
+
+    Arguments:
+        mesh (channel): (sub, msh: Path) GMSH files
+        pial_left (channel): (sub, left_gii: Path) Left surface GIFTI
+        pial_right (channel): (sub, right_gii: Path) Right surface GIFTI
+        roi (channel): (sub, dscalar: Path) ROI dscalar file
+        coil_centre (channel): (sub, coil_centre: Path) Coil location
+
+    Outputs:
+        geo (channel): (uuid, distqc_geo: Path) GMSH file for viewing cortical distance QC
+        html (channel): (uuid, distqc_html: Path) Interactive HTML file ffor viewing cortical distance QC
+    */
     take:
         mesh
         pial_left
@@ -323,9 +356,7 @@ workflow qc_cortical_distance_wf{
 
     main:
 
-        // Compute mask
         threshold_roi(roi)
-
 
         i_qc_cortical_distance = mesh.join(pial_left)
                                  .join(pial_right)
@@ -341,6 +372,20 @@ workflow qc_cortical_distance_wf{
 
 
 workflow fieldscaling_wf{
+    /*
+    Compute stokes correction factor from MT measurements
+
+    Arguments:
+        mesh (channel): (sub, msh: Path) GMSH files
+        pial (channel): (sub, hemi: Union['L','R'], gii: Path) Pial surface GIFTI file
+        roi (channel): (sub, dscalar: Path) ROI dscalar file
+        matsimnibs (channel): (sub, matsimnibs: Path) Coil orientation matrix
+
+    Outputs:
+        scaling_factor (channel): (uuid, scaling_factor: Path) Stokes correction factor
+        geo (channel): (uuid, distqc_geo: Path) GMSH file for viewing cortical distance QC
+        html (channel): (uuid, distqc_html: Path) Interactive HTML file ffor viewing cortical distance QC
+    */
 
     take:
         mesh
