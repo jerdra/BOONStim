@@ -1,6 +1,18 @@
 nextflow.preview.dsl = 2
 
 process split_dscalar {
+    /*
+    Split CIFTI dscalar file into constituent
+    GIFTI shape files
+
+    Argument:
+        sub (str): Subject ID
+        dscalar (Path): .dscalar.nii to split
+
+    Outputs:
+        left (channel): (sub, 'L', left_shape: Path) Left shape file
+        right (channel): (sub, 'R', right_shape: Path) Right shape file
+    */
 
     label 'connectome'
 
@@ -24,6 +36,23 @@ process split_dscalar {
 }
 
 process tet_project2vol {
+    /*
+    Perform ribbon-constrained volume projection
+
+    Arguments:
+        sub (str): Subject ID
+        hemi (Union['L', 'R']): Hemisphere
+        shape (Path): Shape file to project to volume
+        pial (Path): Pial surface file
+        white (Path): White surface file
+        midthick (Path): Midthickness surface file
+        t1 (Path): Volume T1 to project to
+
+    Outputs:
+        ribbon (channel): (sub, hemi, ribbon: Path)
+    */
+
+
 
     label 'connectome'
 
@@ -48,6 +77,19 @@ process tet_project2vol {
 
 process add_tet_niftis {
 
+    /*
+    Add NIFTI files together
+
+    Arguments:
+        sub (str): Subject ID
+        nifti1 (Path): First NIFTI
+        nifti2 (Path): Second NIFTI
+
+    Outputs:
+        sumvol (channel): (sub, sumvol: Path)
+    */
+        
+
     label 'connectome'
 
     input:
@@ -67,6 +109,18 @@ process add_tet_niftis {
 }
 
 process tetrahedral_projection {
+    /*
+    Perform projection from volume space to realistic head model tetrahedrons
+
+    Arguments:
+        sub (str): Subject ID
+        vol (Path): Volume image to project to realistic head model
+        msh (Path): Realistic head model .msh file
+
+    Outputs:
+        fem_weights (channel): (sub, fem_weights: Path)
+    */
+        
 
     label 'fieldopt'
     containerOptions "-B ${params.bin}:/scripts"
@@ -87,6 +141,23 @@ process tetrahedral_projection {
 }
 
 workflow tet_project_wf{
+    /*
+
+    Tetrahedral projection workflow to map surface-based LR32k data onto
+    a realistic head model .msh file
+
+    Arguments:
+        dscalar (channel): (sub, dscalar: Path) Input dscalar file to map to realistic head model        
+        pial (channel): (sub, pial: Path) Grey matter surface file
+        white (channel): (sub, white: Path) White matter surface file
+        midthick (channel): (sub, midthick: Path) Midthickness surface file
+        t1 (channel): (sub, t1: Path) T1 volume image to use to volume project
+        msh (channel): (sub, msh: Path) Realistic head model .msh file
+
+    Outputs:
+        fem_weights (channel): (sub, fem_weights: Path) .dscalar.nii file projected into realistic head model
+
+    */
 
     take:
         dscalar
@@ -98,10 +169,8 @@ workflow tet_project_wf{
 
     main:
 
-        //Split into shapes
         split_dscalar(dscalar)
 
-        //Formulate inputs and mix
         left_project_input = split_dscalar.out.left
                                         .join(pial, by:[0,1])
                                         .join(white, by:[0,1])
@@ -114,23 +183,17 @@ workflow tet_project_wf{
                                         .join(midthick, by:[0,1])
                                         .join(t1, by:0)
 
-        //Combine into one stream
         project_input = left_project_input.mix(right_project_input)
         tet_project2vol(project_input)
 
-        //Gather together T1 outputs and sum to form full image
         add_niftis_input = tet_project2vol.out.ribbon
                                     .groupTuple(by: 0, size: 2)
                                     .map{ s,h,n -> [ s,n[0],n[1] ] }
         add_tet_niftis(add_niftis_input)
 
-        //Tetrahedral projection
         tet_inputs = add_tet_niftis.out.sumvol.join(msh, by: 0)
         tetrahedral_projection(tet_inputs)
 
     emit:
         fem_weights = tetrahedral_projection.out.fem_weights
-
-
-
 }
