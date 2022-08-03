@@ -2,6 +2,20 @@ nextflow.preview.dsl = 2
 
 process split_dscalar{
 
+    /*
+    Split a surface-based dscalar file into .shape.gii files
+
+    Arguments:
+        id (str): ID key
+        dscalar (Path): dscalar file
+
+    Outputs:
+        left (channel): (id, 'L', left: Path): Left GIFTI
+        righL (channel): (id, 'R', left: Path): Right GIFTI
+
+    Note: Subcortical volume will be discarded in this step
+    */
+
     label 'connectome'
 
     input:
@@ -23,6 +37,21 @@ process split_dscalar{
 }
 
 process resample_surf{
+
+    /*
+    Perform surface-based resampling
+
+    Arguments:
+        id (str): ID Key
+        hemi (Union['L', 'R']): Hemisphere key
+        shape (Path): GIFTI shape file to resample
+        source_sphere (Path): Sphere associated with GIFTI shape file (fsaverage_LR32k)
+        target_sphere (Path): Sphere to resample to
+
+    Outputs:
+        resampled (channel): (id, hemi: Union['L','R'], resampled: Path) 
+            `shape` resampled to `target_sphere` mesh
+    */
 
     label 'connectome'
 
@@ -47,6 +76,19 @@ process resample_surf{
 
 process recombine {
 
+    /*
+    Combine two shape files into a surface-based dscalar file
+
+    Arguments:
+        id (str): ID key
+        left (Path): Left shape file
+        right (Path): Right shape file
+
+    Output:
+        dscalar (channel): (id, dscalar: Path)
+    */
+
+
     label 'connectome'
 
     input:
@@ -66,8 +108,22 @@ process recombine {
 
 }
 
-// Workflow to take fsaverage_LR32k surfaces and resample them to native space
+
 workflow resample2native_wf {
+
+    /*
+    Perform fsaverage_LR32k to T1w native space resampling using
+    MSMSulc-computed registration sphere
+
+    Arguments:
+        dscalar (channel): (subject, dscalar: Path) Subject dscalar file in fsaverage_LR32k
+        msm_sphere (channel): (subject, hemisphere: Union('L','R'), sphere: Path)
+            msm_sphere for a given hemisphere and subject
+
+    Outputs:
+        resampled (channel): (subject, resampled: Path) `dscalar` in T1w space
+    */
+        
 
     take:
         dscalar
@@ -111,9 +167,6 @@ workflow resample2native_wf {
         // Re-form the original structure of the input
         output = udscalar.map2id.join(recombine.out.dscalar, by: 0)
                         .map{u, s, ids, d -> [s, ids, d].flatten()}
-
-        //udscalar.map2id.join(recombine.out.dscalar, by: 0) | view
-
 
         emit:
             resampled = output

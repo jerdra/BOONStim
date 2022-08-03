@@ -4,6 +4,21 @@ nextflow.preview.dsl = 2
 include {optimize_wf as optimize} from "${params.optimization_module}" params(params)
 
 process qc_parameteric_surf{
+    /*
+    Generate QC image of the parameterized sampling domain
+    over the head
+
+    Arguments:
+        sub (str): Subject key
+        msh (Path): Path to .msh file
+        centroid (Path): Path to seed coordinate
+        dscalar (Path): scalar-values target map
+
+    Outputs:
+        qc_parameteric (channel): (sub, qc: Path) HTML QC file of parameteric surface
+    */
+
+
     label 'fieldopt'
 
     input:
@@ -24,6 +39,18 @@ process qc_parameteric_surf{
 
 
 process brainsight_transform{
+
+    /*
+    Compute BrainSight X, Y, Z, AP, LR, Twist coordinates
+    from a coil orientation matrix
+
+    Arguments:
+        sub (str): Subject ID
+        orientation (Path): Coil orientation matsimnibs matrix
+
+    Outputs:
+        brainsight_coords (channel): (sub, brainsight: Path) Brainsight coordinates
+    */
 
     label 'fieldopt'
 
@@ -67,6 +94,16 @@ process brainsight_transform{
 }
 
 process localite_transform{
+    /*
+    Compute Localite affine matrix from a coil orientation matrix
+
+    Arguments:
+        sub (str): Subject ID
+        orientation (Path): Coil orientation matsimnibs matrix
+
+    Outputs:
+        localite_coords (channel): (sub, localite: Path) Localite affine matrix
+    */
 
     label 'fieldopt'
 
@@ -96,6 +133,27 @@ process localite_transform{
 }
 
 workflow optimize_wf{
+
+    /*
+    Perform TMS coil position optimization over a scalar-valued target map
+
+    Arguments:
+        msh (channel): (subject, msh: Path) .msh file
+        weights (channel): (subject, wf) Subject target scalar maps
+        centroid (channel): (subject, centroid) Subject seed coordinates
+        coil (value): .nii.gz or .ccd Coil dA/dt or definition file respectively
+
+    Outputs:
+        fields (channel): (sub, msh: Path) Optimal E-field simulation .msh
+        coil (channel): (sub, geo: Path) Optimal E-field coil position .geo
+        coords (channel): (sub, coords: Path) Optimal coil orientation matrix
+        history (channel): (sub, history: Path) Record of scores across iterations
+        localite (channel): (sub, localite: Path) Localite affine matrix
+        brainsight (channel): (sub, brainsight: Path) BrainSight coordinates
+        matsimnibs (channel): (sub, matsimnibs: Path) Optimal matsimnibs coil orientation matrix
+        qc_parsurf (channel): (sub, qchtml: Path) Parameteric domain QC page
+    */
+
 
     take:
        msh

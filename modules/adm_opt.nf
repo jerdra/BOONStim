@@ -7,6 +7,21 @@ include { target_direction_wf } from '../modules/target_direction.nf' params(par
 
 
 process adm_optimization_radial {
+    /*
+    Direction optimization variant of ADM
+
+    Arguments:
+        sub (str): Subject ID
+        coord (Path): Path to target coordinate file
+        direction (Path): Path to direction vector .npy file
+        msh (Path): Path to .msh file
+        radius (float): Optimization target radius
+
+    Outputs:
+        sim_msh (channel): (sub, sim_msh: Path) Optimized E-field simulation .msh
+        geo (channel): (sub, geo: Path) Optimized E-Field coil placement
+        matsimnibs (channel): (sub, msn: Path) Optimal coil orientation matrix
+    */
 
     label 'fieldopt'
     label 'bin'
@@ -33,6 +48,20 @@ process adm_optimization_radial {
 }
 
 process adm_optimization_mag {
+    /*
+    Magnitude optimization variant of ADM
+
+    Arguments:
+        sub (str): Subject ID
+        coord (Path): Path to target coordinate file
+        msh (Path): Path to .msh file
+        radius (float): Optimization target radius
+
+    Outputs:
+        sim_msh (channel): (sub, sim_msh: Path) Optimized E-field simulation .msh
+        geo (channel): (sub, geo: Path) Optimized E-Field coil placement
+        matsimnibs (channel): (sub, msn: Path) Optimal coil orientation matrix
+    */
     label 'fieldopt'
     label 'bin'
 
@@ -62,23 +91,23 @@ workflow adm_wf {
     /*
     Perform Auxiliary Dipole Method-based optimization on a single
     target coordinate
-    
+
     Arguments:
       msh (channel): (subject, mesh_file: Path)
       fs (channel): (subject, fs_dir: Path)
       coord (channel): (subject, coordinate: Path)
       radius (value): float
-    
+
     Parameters:
       optimize_magnitude (bool): Whether to optimize the magnitude of the e-field
        or to optimize for the direction normal to the brain node closest to `coordinate`
-       [default=true] 
+       [default=true]
 
     Outputs:
         sim_msh (channel): (subject, sim_file: Path)
         geo (channel): (subject, geo_file: Path)
         matsimnibs (channel): (subject, msn_file: Path)
-        
+
     */
 
     take:

@@ -2,6 +2,16 @@ nextflow.preview.dsl=2
 
 process ciftify_invocation{
 
+    /*
+    Create subject-specific ciftify invocation file
+
+    Arguments:
+        sub (str): Subject ID
+
+    Outputs:
+        json (channel): (sub, json: Path) Subject ciftify invocation file
+    */
+
     input:
     val sub
 
@@ -33,6 +43,21 @@ process ciftify_invocation{
 
 process ciftify{
 
+    /*
+    Subject-specific Ciftify preprocessing pipeline
+
+    Arguments:
+        sub (str): Subject ID
+        fmriprep (Path): Subject fMRIPrep folder
+        freesurfer (Path): Subject Freesurfer folder
+
+    Outputs:
+        ciftify (channel): (sub, ciftify: Path) Subject Ciftify folder
+        zz_templates (channel): Path ZZ templates folder
+        qc_recon (channel): (sub, qc_recon: Path) Subjec recon QC folder
+        qc_fmri (channel): (sub, qc_fmri: Path) Subjec fMRI QC folder
+    */
+
     stageInMode 'copy'
 
     input:
@@ -59,8 +84,16 @@ process ciftify{
 }
 
 
-// fMRIPrep anat invocation
 process fmriprep_invocation{
+    /*
+    Create subject-specific fmriprep invocation file
+
+    Arguments:
+        sub (str): Subject ID
+
+    Outputs:
+        json (channel): (sub, json: Path) Subject fmriprep invocation file
+    */
 
     input:
     tuple val(sub), path(invocation)
@@ -96,6 +129,17 @@ process fmriprep_invocation{
 
 process fmriprep_anat{
 
+    /*
+    Subject-specific fMRIPrep anatomical only pipeline
+
+    Arguments:
+        sub (str): Subject ID
+        json (Path): Path to fMRIPrep invocation file with anat_only
+
+    Output:
+        preproc_t1 (channel): (sub, preproc: Path) Preprocessed T1 file
+    */
+
     module 'slurm'
 
     input:
@@ -127,6 +171,19 @@ process fmriprep_anat{
 
 process run_fmriprep{
 
+    /*
+    Subject-specific fMRIPrep pipeline
+
+    Arguments:
+        sub (str): Subject ID
+        json (Path): Path to fMRIPrep invocation file with anat_only
+
+    Output:
+        freesurfer (channel): (subject, fs_dir: Path) Subject freesurfer directory
+        fmriprep (channel): (subject, fmriprep: Path) Subject fMRIPrep directory
+        html (channel): (subject, fmriprep_html: Path) Subject fMRIPrep HTML file
+    */
+
     module 'slurm'
 
     input:
@@ -154,6 +211,18 @@ process run_fmriprep{
 
 process mri2mesh {
 
+    /*
+    Subject-specific SimNIB mri2mesh pipeline
+
+    Arguments:
+        sub (str): Subject ID
+        t1 (Path): Path to input T1 file
+
+    Output:
+        freesurfer (channel): (subject, fs_dir: Path) Subject freesurfer directory
+        fmriprep (channel): (subject, fmriprep: Path) Subject fMRIPrep directory
+        html (channel): (subject, fmriprep_html: Path) Subject fMRIPrep HTML file
+    */
 
     input:
     tuple val(sub), path(t1)
@@ -164,7 +233,6 @@ process mri2mesh {
     tuple val(sub), path("${sub}.geo"), emit: geo
     tuple val(sub), path("${sub}_T1fs_conform.nii.gz"), emit: T1
 
-    // Within container run command
     shell:
     '''
     set +u
@@ -177,6 +245,20 @@ process mri2mesh {
 }
 
 process update_msh{
+
+    /*
+    Downgrade the GMSH version of a mesh file to v2
+    This is so the file is more usable within the Gmsh python API
+
+    Arguments:
+        sub (str): Subject ID
+        geo (Path): Subject .geo file
+        m2m (Path): Subject mri2mesh m2m directory
+
+    Outputs:
+        mesh (channel): (sub, mesh: Path) Path to v2 .msh file
+    */
+
 
     label 'gmsh4'
 
@@ -196,6 +278,25 @@ process update_msh{
 }
 
 workflow fmriprep_anat_wf{
+
+    /*
+    fMRIPrep anatomical only pipeline
+
+    Arguments:
+        subs (channel): Subject IDs
+
+    Parameters:
+        bids: Path to BIDS dataset
+        fmriprep: Path to fMRIPrep descriptor file
+        fmriprep_anat_invocation: Path to fMRIprep anatomical invocation file
+        fmriprep_invocation: Path to fMRIprep invocation file
+        license: Path to Freesurfer license file
+        resources: Path to additional resources folder
+
+    Output:
+        preproc_t1 (channel): (sub, preproc: Path) Preprocessed T1 file
+    */
+
     take:
         subs
 
@@ -208,6 +309,26 @@ workflow fmriprep_anat_wf{
 }
 
  workflow fmriprep_wf{
+
+    /*
+    fMRIPrep pipeline
+
+    Arguments:
+        subs (channel): Subject IDs
+
+    Parameters:
+        bids: Path to BIDS dataset
+        fmriprep: Path to fMRIPrep descriptor file
+        fmriprep_anat_invocation: Path to fMRIprep anatomical invocation file
+        fmriprep_invocation: Path to fMRIprep invocation file
+        license: Path to Freesurfer license file
+        resources: Path to additional resources folder
+
+    Output:
+        freesurfer (channel): (subject, fs_dir: Path) Subject freesurfer directory
+        fmriprep (channel): (subject, fmriprep: Path) Subject fMRIPrep directory
+        html (channel): (subject, fmriprep_html: Path) Subject fMRIPrep HTML file
+    */
 
      take:
          subs
@@ -224,6 +345,34 @@ workflow fmriprep_anat_wf{
 
 // Workflow definition
 workflow cifti_meshing_wf {
+    /*
+    Perform full fMRI data preprocessing and SimNIBS mesh reconstruction (mri2mesh)
+
+    Arguments:
+        sub (channel): Subject IDs
+
+    Parameters:
+        bids: Path to BIDS dataset
+        fmriprep: Path to fMRIPrep descriptor file
+        fmriprep_anat_invocation: Path to fMRIprep anatomical invocation file
+        fmriprep_invocation: Path to fMRIprep invocation file
+        ciftify_descriptor: Path to Ciftify descriptor
+        ciftify_invocation: Path to Ciftify invocation file
+        license: Path to Freesurfer license file
+        resources: Path to additional resources folder
+
+    Outputs:
+        cifti (channel): (subject, cifti: Path) Ciftify subject output path
+        cifti_qc_fmri (channel): (subject, cifti_qc: Path) Ciftify fmri QC path
+        cifti_qc_recon (channel): (subject, cifti_qc: Path) Ciftfy anatomical QC path
+        freesurfer (channel): (subject, fs_dir: Path) Subject freesurfer directory
+        fmriprep (channel): (subject, fmriprep: Path) Subject fMRIPrep directory
+        fmriprep_html (channel): (subject, fmriprep_html: Path) Subject fMRIPrep HTML file
+        mesh_fs (channel): (subject, mesh_fs: Path) mri2mesh Freesurfer path
+        mesh_m2m (channel): (subject, mesh_m2m: Path) m2m Subject folder
+        msh (channel): (subject, mesh_file: Path) Subject .msh file
+        t1fs_conform (channel): (subject, t1fs: Path) Subject T1fs conform file
+    */
 
     take:
         subs
