@@ -2,7 +2,7 @@ nextflow.preview.dsl=2
 
 include { weightfunc_wf } from "${params.weightworkflow}" params(params)
 include { cifti_meshing_wf as cifti_mesh_wf } from '../modules/cifti_mesh_wf.nf' params(params)
-include { rigidRegistration, coordinate_transform } from "../modules/utils.nf"
+include { rigidRegistration, coordinate_transform, map_coordinate } from "../modules/transformation.nf"
 
 // Default params
 params.radius = 20 // in mm
@@ -101,17 +101,11 @@ workflow coordinate_optimization {
 
 
     rigidRegistration(i_rigidRegistration)
-
-    format_for_ants(weightfunc_wf.out.coordinate)
-    coordinate_transform(
-       weightfunc_wf.out.coordinates
-        .join(rigidRegistration.out.transform)
-    )
-    format_from_ants(coordinate_transform.out.transformed)
+    map_coordinate(weightfunc_wf.out.coordinate, rigidRegistration.out.transform)
 
     i_adm = cifti_meshing_wf.out.msh
         .join(cifti_meshing_wf.out.mesh_fs)
-        .join(format_from_ants.out.ras_coords)
+        .join(map_coordinate.out.ras_coords)
         .spread([params.radius])
     adm_wf(i_adm)
 }
