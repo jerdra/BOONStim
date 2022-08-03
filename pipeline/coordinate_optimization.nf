@@ -7,66 +7,6 @@ include { rigidRegistration, coordinate_transform, map_coordinate } from "../mod
 // Default params
 params.radius = 20 // in mm
 
-
-process format_for_ants {
-
-    /*
-    Format a RAS coordinate into an LPS ANTS CSV file
-
-    Arguments:
-        sub (str): Subject ID
-        coords (Path): Path to coordinate .txt file
-
-    Output:
-        ants_csv (channel): (sub, csv: Path) Ants formatted CSV file
-    */
-
-    input:
-    tuple val(sub), path(coords)
-
-    output:
-    tuple val(sub), path("${sub}_pretransform.txt"), emit: ants_csv
-
-    shell:
-    """
-    echo "x,y,z,t" > "${sub}_pretransform.txt"
-    echo "${x},${y},${z},0" >> "${sub}_pretransform.txt"
-    """
-}
-
-process format_from_ants {
-
-    /*
-    Format an  LPS ANTS CSV file into a RAS coordinate file
-
-    Arguments:
-        sub (str): Subject ID
-        coords (Path): Path to ants coordinate .txt file
-
-    Output:
-        ras_coords (channel): (sub, npy: Path) Path to .npy file in RAS
-    */
-
-    input:
-    tuple val(sub), path(coords)
-
-    output:
-    tuple val(sub), path("${sub}_ras_coords.npy"), emit: ras_coords
-
-    shell:
-    """
-    #!/usr/bin/env python
-
-    import numpy as np
-
-    # LPS space
-    coords = np.loadtxt('${sub}_ras_coords.txt')
-    coords[0] = -coords[0]
-    coords[1] = -coords[1]
-    np.savetxt("${sub}_ras_coords.txt", coords[:-1], delim=',')
-    """
-}
-
 workflow coordinate_optimization {
 
     /*
