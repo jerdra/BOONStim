@@ -2,6 +2,9 @@ import argparse
 import numpy as np
 from simnibs import opt_struct
 
+from fieldopt.objective import FieldFunc
+from fieldopt.geometry.mesh_wrapper import HeadModel
+
 
 def main():
     p = argparse.ArgumentParser(description="Run ADM optimization")
@@ -49,6 +52,21 @@ def main():
     tms_opt.distance = args.distance
     tms_opt.target_size = args.radius
     tms_opt.method = "ADM"
-    tms_opt.run(cpus=args.ncpus)
+    tms_opt.solver_options = "pardiso"
+    tms_opt.angle_resolution = 1
+    tms_opt.open_in_gmsh = False
 
-    # TODO: Run this and rename outputs sensibly
+    msn = tms_opt.run(cpus=args.ncpus)
+    msn.save(args.orientation)
+
+    # Run visualization in FieldOpt, simnibs is difficult..
+    model = HeadModel(tms_opt.mesh)
+    target_region = tms_opt._get_target_region()
+
+    wf = np.zeros(tms_opt.mesh.elm.nr)
+    wf[target_region - 1] = 1
+
+    f = FieldFunc(model, None, args.coil, tet_weights=wf)
+    f.visualize_evaluate(matsimnibs=msn,
+                         out_sim=args.sim_result,
+                         out_geo=args.sim_geo)
