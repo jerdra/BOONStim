@@ -1,4 +1,4 @@
-include { rigidRegistration, coordinate_transform } from "../modules/utils.nf"
+nextflow.preview.dsl=2
 
 process rigidRegistration {
 
