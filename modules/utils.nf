@@ -63,5 +63,41 @@ process cifti_dilate {
                 -right-surface !{right} \
                 !{sub}.dilated.dscalar.nii
     '''
+}
 
+process numpy2txt {
+
+    label 'numpy'
+
+    input:
+    tuple val(id), path(numpy)
+
+    output:
+    tuple val(id), path("numpyastxt.txt"), emit: txt
+
+    shell:
+    """
+    #!/usr/bin/env python
+    import numpy as np    
+    arr = np.load('${numpy}')
+    np.savetxt('numpyastxt.txt', arr, delimiter=',')
+    """
+}
+
+process txt2numpy {
+    label 'numpy'
+
+    input:
+    tuple val(id), path(txt)
+
+    output:
+    tuple valid(id), path("txtasnumpy.npy"), emit: npy
+
+    shell:
+    """
+    #!/usr/bin/env python
+    import numpy as np    
+    arr = np.load('${numpy}')
+    arr.save('txtasnumpy.npy')
+    """
 }
