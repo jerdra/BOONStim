@@ -103,7 +103,7 @@ process prepare_parameters {
     */
 
     input:
-    tuple val(subject), val(opt_spec), val(target_spec)
+    tuple val(subject), val(settings)
 
     output:
     path("${subject}.json"), emit: json
@@ -111,7 +111,8 @@ process prepare_parameters {
     exec:
 
 
-    def final_map = opt_spec + target_spec
+    // Add history empty map
+    def final_map = settings + [history: [:]]
     def json_str = JsonOutput.toJson(final_map)
     def json_beauty = JsonOutput.prettyPrint(json_str)
     File file = new File(subject)
