@@ -91,7 +91,6 @@ process adm_optimize {
 }
 
 
-
 workflow adm_wf {
 
     /*
@@ -105,6 +104,7 @@ workflow adm_wf {
       fs (channel): (subject, fs_dir: Path)
       coord (channel): (subject, coordinate: Path)
       radius (value): float
+      coil (value): Coil definition file (.ccd) to use
 
     Parameters:
       optimize_magnitude (bool): Whether to optimize the magnitude of the e-field
@@ -124,6 +124,7 @@ workflow adm_wf {
     fs
     coord
     radius
+    coil
 
     main:
 
@@ -157,7 +158,12 @@ workflow adm_wf {
 
     // Prepare ADM parameters into JSON file
     prepare_parameters(subject_spec.join(target_spec))
-    adm_optimize( prepare_parameters.out.json.join(msh).spread([radius]) )
+    adm_optimize(
+        prepare_parameters.out.json
+            .join(msh)
+            .spread([radius])
+            .spread([coil])
+    )
 
     emit:
     sim_msh = adm_optimization.out.sim_msh
