@@ -65,6 +65,18 @@ workflow dosage_adjustment_wf {
         use_magnitude
 
     main:
+        adjust_dosage(
+            spec_sheet
+                .join(sim_msh)
+                .join(m2m_dir)
+                .spread([reference])
+                .spread([use_magnitude])
+        )
+
+    emit:
+        didt = adjust_dosage.out.didt
+
+            
          
 
 
