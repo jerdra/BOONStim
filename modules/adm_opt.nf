@@ -1,21 +1,63 @@
 nextflow.preview.dsl=2
 
+import groovy.json.JsonOutput
+
+
 // DEFAULT VARIABLE
 params.optimize_magnitude = true
 
 include { target_direction_wf } from '../modules/target_direction.nf' params(params)
+include { numpy2txt } from "./utils.nf" params(params)
 
 
-process adm_optimization_radial {
+process prepare_parameters {
+    /*
+    Build DB storing parameters to be used for
+    optimization
+
+    Arguments:
+        subject (str): Subject ID
+        opt_spec (Map<str, Union[str,int,float,bool]>): Optimization specs
+        target_spec (Map<str, float>): Target specification. The following
+            keys are supported:
+            ['pos_x', 'pos_y', 'pos_z', 'dir_x', 'dir_y', 'dir_z']
+
+    Output:
+        json (val): (json: Path) JSON containing parameters to use for optimization
+    */
+
+    input:
+    tuple val(subject), val(settings)
+
+    output:
+    path("${subject}.json"), emit: json
+
+    exec:
+
+
+    // Add history empty map
+    def final_map = settings + [history: [:]]
+    def json_str = JsonOutput.toJson(final_map)
+    def json_beauty = JsonOutput.prettyPrint(json_str)
+    File file = new File(subject)
+    file.write(json_beauty)
+}
+
+process adm_optimize {
+
+    label 'fieldopt'
+
     /*
     Direction optimization variant of ADM
 
     Arguments:
         sub (str): Subject ID
-        coord (Path): Path to target coordinate file
-        direction (Path): Path to direction vector .npy file
+        json (path): JSON containing inputs to ADM
         msh (Path): Path to .msh file
         radius (float): Optimization target radius
+
+    Parameters:
+        optimize_magnitude (bool): Whether to optimize for magnitude or not
 
     Outputs:
         sim_msh (channel): (sub, sim_msh: Path) Optimized E-field simulation .msh
@@ -23,67 +65,31 @@ process adm_optimization_radial {
         matsimnibs (channel): (sub, msn: Path) Optimal coil orientation matrix
     */
 
-    label 'fieldopt'
-    label 'bin'
-
     input:
-    tuple val(sub), path(coord), path(direction), path(msh), val(radius)
+    tuple val(sub), path(json), path(msh), val(radius)
 
     output:
     tuple val(sub), path("${sub}_optimized_fields.msh"), emit: sim_msh
     tuple val(sub), path("${sub}_optimized_fields.geo"), emit: geo
     tuple val(sub), path("${sub}_optimized_orientation.npy"), emit: matsimnibs
 
-    shell:
+    script:
+    
+    def direction = (params.optimize_magnitude) ? "magnitude" : "direction"
+
     """
     /scripts/adm_optimize.py \
         ${msh} \
-        ${coord} \
-        --direction ${direction} \
+        ${json} \
         --radius ${radius} \
         --sim_result ${sub}_optimized_fields.msh \
         --sim_geo ${sub}_optimized_fields.geo \
-        ${sub}_optimized_orientation.npy
+        ${sub}_optimized_orientation.npy \
+        ${direction}
     """
+    
 }
 
-process adm_optimization_mag {
-    /*
-    Magnitude optimization variant of ADM
-
-    Arguments:
-        sub (str): Subject ID
-        coord (Path): Path to target coordinate file
-        msh (Path): Path to .msh file
-        radius (float): Optimization target radius
-
-    Outputs:
-        sim_msh (channel): (sub, sim_msh: Path) Optimized E-field simulation .msh
-        geo (channel): (sub, geo: Path) Optimized E-Field coil placement
-        matsimnibs (channel): (sub, msn: Path) Optimal coil orientation matrix
-    */
-    label 'fieldopt'
-    label 'bin'
-
-    input:
-    tuple val(sub), path(coord), path(msh), val(radius)
-
-    output:
-    tuple val(sub), path("${sub}_optimized_fields.msh"), emit: sim_msh
-    tuple val(sub), path("${sub}_optimized_fields.geo"), emit: geo
-    tuple val(sub), path("${sub}_optimized_orientation.npy"), emit: matsimnibs
-
-    shell:
-    """
-    /scripts/adm_optimize.py \
-        ${msh} \
-        ${coord} \
-        --radius ${radius} \
-        --sim_result ${sub}_optimized_fields.msh \
-        --sim_geo ${sub}_optimized_fields.geo \
-        ${sub}_optimized_orientation.npy
-    """
-}
 
 
 workflow adm_wf {
@@ -93,6 +99,8 @@ workflow adm_wf {
     target coordinate
 
     Arguments:
+      subject_spec (channel): (subject, params: Map) Subject parameters for
+        running optimization
       msh (channel): (subject, mesh_file: Path)
       fs (channel): (subject, fs_dir: Path)
       coord (channel): (subject, coordinate: Path)
@@ -111,29 +119,45 @@ workflow adm_wf {
     */
 
     take:
+    subject_spec
     msh
     fs
     coord
     radius
 
     main:
-    if (params.optimize_magnitude) {
 
-        adm_optimization_mag(
-            msh.join(coord) .spread([radius])
-        )
+    // Prepare ADM parameters
+    target_direction_wf(coord, fs)
 
-    } else {
+    // Read coordinates into map
+    coord_map = numpy2txt(coord)
+        .map { sub, coords -> [
+            sub,
+            coords.text.strip("\n").split(",")
+        ]}
+        .map { sub, c -> [
+            sub,
+            [pos_x: c[0], pos_y: c[1], pos_z: c[2]]
+        ]}
 
-        target_direction_wf(coord, fs)
-        adm_optimization_radial(
-            msh.join(coord)
-                .join(target_direction_wf.out.target_direction)
-                .spread([radius])
-        )
+    direction_map = numpy2txt(target_direction_wf.out.direction)
+        .map { sub, direction -> [
+            sub,
+            direction.text.strip("\n").split(",")
+        ]}
+        .map { sub, d -> [
+            sub,
+            [dir_x: d[0], dir_y: d[1], dir_z: d[2]]
+        ]}
 
-    }
+    // Merge target specs into single map
+    target_spec = coord_map.join(direction_map)
+        .map { s, c, d -> [s, c + d] }
 
+    // Prepare ADM parameters into JSON file
+    prepare_parameters(subject_spec.join(target_spec))
+    adm_optimize( prepare_parameters.out.json.join(msh).spread([radius]) )
 
     emit:
     sim_msh = adm_optimization.out.sim_msh

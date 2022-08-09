@@ -91,8 +91,9 @@ parser.addConfigOpt("--weightworkflow",
     params.weightworkflow.toString(),
     "WEIGHTWORKFLOW_ENTRYPOINT")
 
-parser.addOptional("--subjects",
-    "Path to subject text file containing 1 BIDS subject/line",
+parser.addOptional("--subject_sheet",
+    "Path to subject CSV file containing at least a 'name' column and" +
+    " additional columns for custom use in a pipeline",
     "SUBJECT_FILE")
 
 parser.addOptional("--num_cpus",
@@ -136,11 +137,12 @@ log.info("Using user-defined ROI workflow: $params.weightworkflow")
 input_channel = Channel.fromPath("$params.bids/sub-*", type: 'dir')
                     .map{i -> i.getBaseName()}
 
-if (params.subjects){
-    subjects_channel = Channel.fromPath(params.subjects)
-                            .splitText(){it.strip()}
+if (params.subject_sheet){
+    subjects_channel = Channel.fromPath(params.subject_sheet)
+                            .splitCsv(header: true)
+                            .map{ a -> [a.name, a] }
 
-    input_channel = input_channel.join(subjects_channel)
+    input_channel = input_channel.join(subjects_channel, by: 0)
 }
 
 if (!params.rewrite){
@@ -148,9 +150,9 @@ if (!params.rewrite){
                     .map{o -> [o.getBaseName(), "o"]}
                     .ifEmpty(["", "o"])
 
-    input_channel = input_channel.join(out_channel, remainder: true)
+    input_channel = input_channel.join(out_channel, by:0, remainder: true)
                         .filter{it.last() == null}
-                        .map{i,n -> i}
+                        .map{i,p,n -> [i,p]}
 }
 
 process publish_base{
@@ -309,7 +311,7 @@ def lr_branch = branchCriteria {
                 }
 
 workflow scalar_workflow {
-    scalar_optimization(input_channel)
+    scalar_optimization(input_channel.map{s, _ -> s})
 }
 
 workflow simple_workflow {
