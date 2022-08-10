@@ -155,7 +155,7 @@ workflow neuronav_wf {
     Outputs:
         brainsight (channel): (subject, brainsight: Path) Brainsight coordinates
         localite (channel): (subject, localite: Path) Localite matrix
-        flip_current (channel): (subject, flip: bool) Should current be flipped?
+        isflipped (channel): (subject, flip: bool) Should current be flipped?
 
     Note:
         `flip` will be set to true if a coil orientation flip (180 deg) is required
@@ -173,5 +173,5 @@ workflow neuronav_wf {
     emit:
         brainsight = brainsight_transform.out.brainsight_coords
         localite = localite_transform.out.localite_coords
-        flipped = reorient_coil.out.flipped
+        isflipped = reorient_coil.out.flipped
 }

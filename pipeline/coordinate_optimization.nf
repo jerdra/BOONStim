@@ -5,6 +5,8 @@ include { weightfunc_wf } from "${params.weightworkflow}" params(params)
 include { cifti_meshing_wf as cifti_mesh_wf } from '../modules/cifti_mesh_wf.nf' params(params)
 include { rigidRegistration; coordinate_transform; map_coordinate } from "../modules/transformation.nf" params(params)
 include { dosage_adjustment_wf } from "../modules/dosage_wf.nf" params(params)
+inclue { neuronav_wf } from "../modules/neuronav.nf" params(params)
+
 
 workflow coordinate_optimization {
 
@@ -57,4 +59,5 @@ workflow coordinate_optimization {
         params.reference_magnitude
     )
 
+    neuronav_wf(adm_wf.out.matsimnibs)
 }
