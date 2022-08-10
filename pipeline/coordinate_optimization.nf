@@ -4,6 +4,7 @@ params.radius = 20 // in mm
 include { weightfunc_wf } from "${params.weightworkflow}" params(params)
 include { cifti_meshing_wf as cifti_mesh_wf } from '../modules/cifti_mesh_wf.nf' params(params)
 include { rigidRegistration; coordinate_transform; map_coordinate } from "../modules/transformation.nf" params(params)
+include { dosage_adjustment_wf } from "../modules/dosage_wf.nf" params(params)
 
 workflow coordinate_optimization {
 
@@ -48,4 +49,12 @@ workflow coordinate_optimization {
         weightfunc_wf.out.coordinate,
         params.radius
     )
+
+    dosage_adjustment_wf(
+        adm_wf.out.parameters,
+        cifti_mesh_wf.out.msh,
+        cifti_mesh_wf.out.mesh_m2m,
+        params.reference_magnitude
+    )
+
 }
