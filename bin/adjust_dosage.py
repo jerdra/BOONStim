@@ -20,7 +20,6 @@ def main():
 
     parser.add_argument("sim_msh", help="Simulation mesh", type=str)
     parser.add_argument("m2m_dir", help="mri2mesh directory", type=str)
-    parser.add_argument("reference", help="E100 reference value", type=float)
     parser.add_argument("output", help="Output file", type=str)
     parser.add_argument("--direction-json",
                         help="Use a JSON file containing direction info",
@@ -53,7 +52,7 @@ def main():
         target_e = image.load_img(TMP_E).get_fdata()[roi_inds]
 
         # Compute magnitude of radial
-        radial_mags = target_e @ direction
+        radial_mags = np.abs(target_e @ direction)
         e100 = np.sort(radial_mags)[-100]
 
     np.savetxt(args.output, e100)
