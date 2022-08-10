@@ -54,6 +54,8 @@ process scale_didt {
         didt (channel): (subject, didt: Path) dI/dt to use for subject
     */
 
+    label 'fieldopt'
+
     input:
     tuple val(subject), val(didt), path(metric), val(reference)
 

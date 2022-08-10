@@ -67,7 +67,7 @@ process cifti_dilate {
 
 process numpy2txt {
 
-    label 'numpy'
+    label 'fieldopt'
 
     input:
     tuple val(id), path(numpy)
@@ -85,7 +85,7 @@ process numpy2txt {
 }
 
 process txt2numpy {
-    label 'numpy'
+    label 'fieldopt'
 
     input:
     tuple val(id), path(txt)
