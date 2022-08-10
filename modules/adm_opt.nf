@@ -169,4 +169,5 @@ workflow adm_wf {
     sim_msh = adm_optimization.out.sim_msh
     geo = adm_optimization.out.geo
     matsimnibs = adm_optimization.out.matsimnibs
+    parameters = prepare_parameters.out.json
 }
