@@ -2,7 +2,7 @@ nextflow.preview.dsl=2
 
 process reorient_coil {
 
-    label 'numpy'
+    label 'fieldopt'
 
     /*
     Re-orient coil so that handle is pointing posterior

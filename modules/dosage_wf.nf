@@ -5,7 +5,6 @@ params.use_magnitude = true
 process calculate_e100 {
 
     label 'fieldopt'
-    label 'bin'
     /*
     Calculate E100 metric (100th largest field magnitude)
 
@@ -54,6 +53,8 @@ process scale_didt {
     Outputs:
         didt (channel): (subject, didt: Path) dI/dt to use for subject
     */
+
+    label 'fieldopt'
 
     input:
     tuple val(subject), val(didt), path(metric), val(reference)

@@ -81,6 +81,11 @@ parser.addConfigOpt("--simnibs",
     params.simnibs.toString(),
     "SIMNIBS_IMG")
 
+parser.addConfigOpt("--ants",
+    "Path to ANTS container image",
+    params.ants.toString(),
+    "ANTS_IMG")
+
 parser.addConfigOpt("--fieldopt",
     "Path to FieldOpt container image",
     params.fieldopt.toString(),
