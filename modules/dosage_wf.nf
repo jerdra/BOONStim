@@ -5,7 +5,6 @@ params.use_magnitude = true
 process calculate_e100 {
 
     label 'fieldopt'
-    label 'bin'
     /*
     Calculate E100 metric (100th largest field magnitude)
 

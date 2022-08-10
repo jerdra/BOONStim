@@ -15,7 +15,6 @@ process target_direction {
     */
 
     label 'fieldopt'
-    label 'bin'
 
     input:
     tuple val(sub), path(coordinate), path(fs_dir)
