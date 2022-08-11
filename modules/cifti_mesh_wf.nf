@@ -162,7 +162,7 @@ process fmriprep_anat{
     -v !{params.resources}:/resources \
     !{params.fmriprep_descriptor} $(pwd)/!{json} \
     --imagepath !{params.fmriprep} -x --stream
-
+t
     # Find anat file and link to current folder
     find fmriprep/!{sub}/ -type f -name "*preproc_T1w.nii.gz" | \
     grep -v MNI152 | xargs -I [] cp [] .
@@ -288,7 +288,7 @@ workflow fmriprep_anat_wf{
     Parameters:
         bids: Path to BIDS dataset
         fmriprep: Path to fMRIPrep descriptor file
-        fmriprep_anat_invocation: Path to fMRIprep anatomical invocation file
+        anat_invocation: Path to fMRIprep anatomical invocation file
         fmriprep_invocation: Path to fMRIprep invocation file
         license: Path to Freesurfer license file
         resources: Path to additional resources folder
@@ -301,7 +301,7 @@ workflow fmriprep_anat_wf{
         subs
 
     main:
-        fmriprep_invocation(subs.combine(["$params.fmriprep_anat_invocation"]))
+        fmriprep_invocation(subs.combine(["$params.anat_invocation"]))
         fmriprep_anat(fmriprep_invocation.out.json)
 
     emit:
