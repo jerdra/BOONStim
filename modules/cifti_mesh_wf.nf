@@ -1,5 +1,35 @@
 nextflow.preview.dsl=2
 
+// To allow for optional inputs
+params.null_file = "NULL"
+
+def try_fetch_t2 (path) {
+
+    /*
+    Attempt to locate files in <path>, select first one if 1 or more findings
+    Else return a mock file
+    */
+
+    def t2s = file(path)
+
+    if (!params.include_t2w.toBoolean()) {
+        log.info("params.include_t2w set to not true, skipping T2 inclusion")
+        file(params.null_file)
+    }
+    else if (t2s.size()) > 1 {
+        log.info("Found ${t2s.size())} items for ${path}, selecting first!")
+        t2s[0]
+    }
+    else if (t2s.size()) == 0 {
+        log.error("No matches for ${path}, skipping T2 inclusion!")
+        file(params.null_file)
+    }
+    else {
+        log.info("Found 1 T2 for ${path}")
+        t2s[0]
+    }
+}
+
 process ciftify_invocation{
 
     /*
@@ -164,7 +194,7 @@ process fmriprep_anat{
     --imagepath !{params.fmriprep} -x --stream
 t
     # Find anat file and link to current folder
-    find fmriprep/!{sub}/ -type f -name "*preproc_T1w.nii.gz" | \
+    find fmriprep/!{sub}/ -type f -name "*preproc_T*w.nii.gz" | \
     grep -v MNI152 | xargs -I [] cp [] .
     '''
 }
@@ -217,6 +247,7 @@ process mri2mesh {
     Arguments:
         sub (str): Subject ID
         t1 (Path): Path to input T1 file
+        optional_t2 (Path): Optional T2 input file. [Set to file("NULL") if excluding]
 
     Output:
         freesurfer (channel): (subject, fs_dir: Path) Subject freesurfer directory
@@ -225,7 +256,7 @@ process mri2mesh {
     */
 
     input:
-    tuple val(sub), path(t1)
+    tuple val(sub), path(t1), path(optional_t2)
 
     output:
     tuple val(sub), path("fs_${sub}"), emit: freesurfer
@@ -233,14 +264,15 @@ process mri2mesh {
     tuple val(sub), path("${sub}.geo"), emit: geo
     tuple val(sub), path("${sub}_T1fs_conform.nii.gz"), emit: T1
 
-    shell:
-    '''
+    script:
+    def t2 = (optional_t2.getName() != params.null_file) ? optional_t2 : ""
+    """
     set +u
     export FS_LICENSE=/license/license.txt
-    source $FREESURFER_HOME/SetUpFreeSurfer.sh
-    source $FSLDIR/etc/fslconf/fsl.sh
-    mri2mesh --all !{sub} !{t1}
-    '''
+    source \$FREESURFER_HOME/SetUpFreeSurfer.sh
+    source \$FSLDIR/etc/fslconf/fsl.sh
+    mri2mesh --all !{sub} !{t1} !{t2}
+    """
 
 }
 
@@ -412,6 +444,7 @@ workflow cifti_meshing_wf {
         ciftify_invocation: Path to Ciftify invocation file
         license: Path to Freesurfer license file
         resources: Path to additional resources folder
+        include_t2w (bool): Include T2w image from BIDS directory in mri2mesh reconstruction
 
     Outputs:
         cifti (channel): (subject, cifti: Path) Ciftify subject output path
@@ -432,7 +465,11 @@ workflow cifti_meshing_wf {
     main:
         // Set up fMRIPrep anatomical pre-processing
         fmriprep_anat_wf(subs)
-        mri2mesh(fmriprep_anat_wf.out.preproc_t1)
+        mri2mesh(
+            fmriprep_anat_wf.out.preproc_t1.map { s, t1 ->
+                [ s, t1, try_fetch_t2("${params.bids}/${s}/**/*T2w.nii.gz") ]
+            }
+        )
 
         // Full fmriprep/ciftify pipeline
         fmriprep_wf(subs)

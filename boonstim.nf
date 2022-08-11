@@ -113,6 +113,8 @@ parser.addOptional("--use-scratch",
     "Use a scratch directory, can provide a path, an empty string ('') to disable"
     + ", note that by default it will use the system default temporary directory",
     "SCRATCH")
+parser.addOptional("--include_t2",
+    "Attempt to pull a T2w image from BIDS directory when reconstructing the head model")
 
 missingArgs = parser.isMissingRequired()
 missingConfig = parser.isMissingConfig()
