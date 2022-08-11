@@ -98,8 +98,10 @@ process format_for_ants {
 
     shell:
     """
-    echo "x,y,z,t" > "${sub}_pretransform.txt"
-    echo "${x},${y},${z},0" >> "${sub}_pretransform.txt"
+    echo 'x,y,z,t' > ${sub}_pretransform.txt
+
+    cat ${coords} | tr -d '\\n' >> ${sub}_pretransform.txt
+    echo -n ',0' >> ${sub}_pretransform.txt
     """
 }
 
@@ -129,7 +131,7 @@ process format_from_ants {
     import numpy as np
 
     # LPS space
-    coords = np.loadtxt('${sub}_ras_coords.txt')
+    coords = np.loadtxt('${coords}.txt')
     coords[0] = -coords[0]
     coords[1] = -coords[1]
     np.savetxt("${sub}_ras_coords.txt", coords[:-1], delim=',')
