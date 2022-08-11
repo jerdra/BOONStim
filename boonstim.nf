@@ -308,13 +308,6 @@ process publish_cifti{
     '''
 }
 
-def lr_branch = branchCriteria {
-                left: it[1] == 'L'
-                    return [it[0], it[2]]
-                right: it[1] == 'R'
-                    return [it[0],it[2]]
-                }
-
 workflow scalar_workflow {
     scalar_optimization(input_channel.map{s, _ -> s})
 }
