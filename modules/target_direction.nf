@@ -1,5 +1,7 @@
 nextflow.preview.dsl = 2
 
+include { numpy2txt } from "../modules/utils.nf" params(params)
+
 process target_direction {
 
     /*
@@ -24,7 +26,7 @@ process target_direction {
 
     shell:
     """
-    /scripts/get_target_direction.py \
+    python /scripts/get_target_direction.py \
         ${coordinate} \
         ${fs_dir} \
         ${sub}_target_normal.npy
@@ -43,11 +45,16 @@ workflow target_direction_wf {
         direction (channel): (subject, target_direction: Path)
     */
     take:
-        coordinate,
+        coordinate
         fs_dir
 
     main:
-        target_direction(coordinate.join(fs_dir))
+        numpy2txt(coordinate)
+        
+        target_direction(
+            numpy2txt.out.txt
+                .join(fs_dir)
+        )
 
     emit:
         direction = target_direction.out.direction
