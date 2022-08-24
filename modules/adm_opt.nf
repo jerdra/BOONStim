@@ -27,16 +27,17 @@ process prepare_parameters {
     */
 
     input:
-    tuple val(subject), val(settings)
+    tuple val(subject), val(settings), val(target_spec)
 
     output:
-    path("${subject}.json"), emit: json
+    tuple val(subject), path("${subject}.json"), emit: json
 
     exec:
-    def final_map = settings + [history: [:]]
+    def final_map = settings + [history: []] + target_spec
     def json_str = JsonOutput.toJson(final_map)
     def json_beauty = JsonOutput.prettyPrint(json_str)
-    File file = new File(subject)
+    File file = new File("${task.workDir}/${subject}.json")
+    println task.workDir
     file.write(json_beauty)
 }
 
@@ -63,7 +64,7 @@ process adm_optimize {
     */
 
     input:
-    tuple val(sub), path(json), path(msh), val(radius)
+    tuple val(sub), path(json), path(msh), val(radius), path(coil)
 
     output:
     tuple val(sub), path("${sub}_optimized_fields.msh"), emit: sim_msh
@@ -78,6 +79,7 @@ process adm_optimize {
     /scripts/adm_optimize.py \
         ${msh} \
         ${json} \
+        ${coil} \
         --radius ${radius} \
         --sim_result ${sub}_optimized_fields.msh \
         --sim_geo ${sub}_optimized_fields.geo \
@@ -132,39 +134,44 @@ workflow adm_wf {
     coord_map = coord2txt(coord)
         .map { sub, coords -> [
             sub,
-            coords.text.strip("\n").split(",")
-        ]} | view
-   //      .map { sub, c -> [
-   //          sub,
-   //          [pos_x: c[0], pos_y: c[1], pos_z: c[2]]
-   //      ]}
+            coords.text.split("\n")
+        ]}
+        .map { sub, c -> [
+            sub,
+            [pos_x: c[0], pos_y: c[1], pos_z: c[2]]
+        ]}
 
-   //  direction_map = direction2txt(target_direction_wf.out.direction)
-   //      .map { sub, direction -> [
-   //          sub,
-   //          direction.text.strip("\n").split(",")
-   //      ]}
-   //      .map { sub, d -> [
-   //          sub,
-   //          [dir_x: d[0], dir_y: d[1], dir_z: d[2]]
-   //      ]}
+   direction_map = direction2txt(target_direction_wf.out.direction)
+       .map { sub, direction -> [
+           sub,
+           direction.text.split("\n")
+       ]}
+       .map { sub, d -> [
+           sub,
+           [dir_x: d[0], dir_y: d[1], dir_z: d[2]]
+       ]}
 
-   //  // Merge target specs into single map
-   //  target_spec = coord_map.join(direction_map)
-   //      .map { s, c, d -> [s, c + d] }
+   // Merge target specs into single map
+   target_spec = coord_map.join(direction_map)
+       .map { s, c, d -> [s, c + d] }
+       .map { s, spec -> [
+            s,
+            spec.collectEntries{ key, value -> [key, value as float]}
+        ]}
 
-   //  // Prepare ADM parameters into JSON file
-   //  prepare_parameters(subject_spec.join(target_spec))
-   //  adm_optimize(
-   //      prepare_parameters.out.json
-   //          .join(msh)
-   //          .spread([radius])
-   //          .spread([coil])
-   //  )
+   // Prepare ADM parameters into JSON file
+   prepare_parameters(subject_spec.join(target_spec))
 
-   //  emit:
-   //  sim_msh = adm_optimize.out.sim_msh
-   //  geo = adm_optimize.out.geo
-   //  matsimnibs = adm_optimize.out.matsimnibs
-   //  parameters = prepare_parameters.out.json
+   adm_optimize(
+       prepare_parameters.out.json
+           .join(msh)
+           .combine(radius)
+           .combine(coil)
+   )
+
+   emit:
+   sim_msh = adm_optimize.out.sim_msh
+   geo = adm_optimize.out.geo
+   matsimnibs = adm_optimize.out.matsimnibs
+   parameters = prepare_parameters.out.json
 }

@@ -5,8 +5,25 @@ include { weightfunc_wf } from "${params.weightworkflow}" params(params)
 include { cifti_meshing_wf as cifti_mesh_wf } from '../modules/cifti_mesh_wf.nf' params(params)
 include { rigidRegistration; coordinate_transform; map_coordinate } from "../modules/transformation.nf" params(params)
 include { dosage_adjustment_wf } from "../modules/dosage_wf.nf" params(params)
-inclue { neuronav_wf } from "../modules/neuronav.nf" params(params)
+include { adm_wf } from "../modules/adm_opt.nf" params(params)
+// include { neuronav_wf } from "../modules/neuronav.nf" params(params)
 
+def try_as_numeric(map){
+
+    /*
+    Attempt to transform values of a map
+    to numeric values
+    */
+
+    map.collectEntries { key, value ->
+        try {
+            def new_value = value as float
+        } catch(NumberFormatException e){
+            def new_value = value
+        }
+        [key, value]
+    }
+}
 
 workflow coordinate_optimization {
 
@@ -25,16 +42,17 @@ workflow coordinate_optimization {
     subject_spec
 
     main:
+    formatted_subject_spec = subject_spec.map{s, p -> [s, try_as_numeric(p)]}
     subject_channel = subject_spec.map { s, p -> s }
-    cifti_meshing_wf(subject_channel)
+    cifti_mesh_wf(subject_channel)
 
     weightfunc_input = cifti_mesh_wf.out.fmriprep
-                                        .join( cifti_mesh_wf.out.cifti, by : 0 )
+                                         .join( cifti_mesh_wf.out.cifti, by : 0 )
     weightfunc_input
     weightfunc_wf(weightfunc_input)
 
-    i_rigidRegistration = cifti_meshing_wf.out.cifti
-        .join(cifti_meshing_wf.out.mesh_m2m, by: 0)
+    i_rigidRegistration = cifti_mesh_wf.out.cifti
+        .join(cifti_mesh_wf.out.mesh_m2m, by: 0)
         .map{ s, c, m2m -> [
             s,
             "${c}/T1w/T1w.nii.gz",
@@ -45,19 +63,20 @@ workflow coordinate_optimization {
     rigidRegistration(i_rigidRegistration)
     map_coordinate(weightfunc_wf.out.coordinate, rigidRegistration.out.transform)
     adm_wf(
-        subject_spec,
-        cifti_meshing_wf.out.msh,
-        cifti_meshing_wf.out.mesh_fs,
-        weightfunc_wf.out.coordinate,
-        params.radius
-    )
-
-    dosage_adjustment_wf(
-        adm_wf.out.parameters,
+        formatted_subject_spec,
         cifti_mesh_wf.out.msh,
-        cifti_mesh_wf.out.mesh_m2m,
-        params.reference_magnitude
+        cifti_mesh_wf.out.mesh_fs,
+        map_coordinate.out.transformed,
+        Channel.from(params.radius),
+        Channel.fromPath(params.coil)
     )
 
-    neuronav_wf(adm_wf.out.matsimnibs)
+    // dosage_adjustment_wf(
+    //     adm_wf.out.parameters,
+    //     cifti_mesh_wf.out.msh,
+    //     cifti_mesh_wf.out.mesh_m2m,
+    //     params.reference_magnitude
+    // )
+
+    // neuronav_wf(adm_wf.out.matsimnibs)
 }
