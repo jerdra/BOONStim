@@ -25,7 +25,7 @@ def generate_opt_config(fjson, use_direction):
         tms_opt.target_direction = np.array(
             [spec['dir_x'], spec['dir_y'], spec['dir_z']], dtype=float)
 
-    tms_opt.distance = spec['hairthickness']
+    tms_opt.distance = float(spec['thickness'])
 
     return tms_opt
 
@@ -67,9 +67,10 @@ def main():
     tms_opt.method = "ADM"
     tms_opt.solver_options = "pardiso"
     tms_opt.angle_resolution = 1
+    tms_opt.open_in_gmsh = False
 
     msn = tms_opt.run(cpus=args.ncpus)
-    msn.save(args.orientation)
+    np.save(args.orientation, msn)
 
     # Run visualization in FieldOpt, simnibs is difficult..
     model = HeadModel(tms_opt.mesh)
