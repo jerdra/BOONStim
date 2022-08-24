@@ -36,7 +36,7 @@ process rigidRegistration {
     --convergence [1000x500x250x100,1e-6,10] \
     --shrink-factors 8x4x2x1 \
     --smoothing-sigmas 3x2x1x0vox \
-    --output [${sub}_transformed_,warped.nii.gz]
+    --output [${sub}_transformed_,${sub}_transformed.nii.gz]
 
     mv ${sub}_transformed_0GenericAffine.mat ${sub}_transformation.mat
 
@@ -60,19 +60,21 @@ process coordinate_transform {
         transformed (channel): (sub, transformed: Path)
     */
 
+    label 'ants'
+
     input:
     tuple val(sub), path(coords), path(transform)
 
     output:
-    tuple val(sub), path("${sub}_target_coord.txt"), emit: transformed
+    tuple val(sub), path("${sub}_target_coord.csv"), emit: transformed
 
     shell:
     """
-    antsApplyTransformToPoints \
-        -d 3 -e 0 \
+    antsApplyTransformsToPoints \
+        -d 3 \
         -i ${coords} \
         -t [${transform},1] \
-        -o ${sub}_target_coord.txt
+        -o ${sub}_target_coord.csv
     """
 }
 
@@ -94,14 +96,14 @@ process format_for_ants {
     tuple val(sub), path(coords)
 
     output:
-    tuple val(sub), path("${sub}_pretransform.txt"), emit: ants_csv
+    tuple val(sub), path("${sub}_pretransform.csv"), emit: ants_csv
 
     shell:
     """
-    echo 'x,y,z,t' > ${sub}_pretransform.txt
+    echo 'x,y,z,t,label' > ${sub}_pretransform.csv
 
-    cat ${coords} | tr -d '\\n' >> ${sub}_pretransform.txt
-    echo -n ',0' >> ${sub}_pretransform.txt
+    cat ${coords} | tr -d '\\n' >> ${sub}_pretransform.csv
+    echo ',0,nolabel' >> ${sub}_pretransform.csv
     """
 }
 
@@ -118,6 +120,8 @@ process format_from_ants {
         ras_coords (channel): (sub, npy: Path) Path to .npy file in RAS
     */
 
+    label 'fieldopt'
+
     input:
     tuple val(sub), path(coords)
 
@@ -131,10 +135,10 @@ process format_from_ants {
     import numpy as np
 
     # LPS space
-    coords = np.loadtxt('${coords}.txt')
+    coords = np.loadtxt('${coords}', skiprows=1, usecols=(0,1,2,3), delimiter=',')
     coords[0] = -coords[0]
     coords[1] = -coords[1]
-    np.savetxt("${sub}_ras_coords.txt", coords[:-1], delim=',')
+    np.save("${sub}_ras_coords.npy", coords[:-1])
     """
 }
 
@@ -152,18 +156,18 @@ workflow map_coordinate {
 
     */
 
-    
     take:
         coordinates
         transforms
 
     main:
-
         format_for_ants(coordinates)
-        coordinate_transform(coordinates.join(transforms))
+        coordinate_transform(
+            format_for_ants.out.ants_csv.join(transforms)
+        )
         format_from_ants(coordinate_transform.out.transformed)
 
     emit:
-        transformed = format_from_ants.ras_coords
+        transformed = format_from_ants.out.ras_coords
 
 }
