@@ -7,7 +7,7 @@ import groovy.json.JsonOutput
 params.optimize_magnitude = true
 
 include { target_direction_wf } from '../modules/target_direction.nf' params(params)
-include { numpy2txt } from "./utils.nf" params(params)
+include { numpy2txt as coord2txt; numpy2txt as direction2txt } from "./utils.nf" params(params)
 
 
 process prepare_parameters {
@@ -33,9 +33,6 @@ process prepare_parameters {
     path("${subject}.json"), emit: json
 
     exec:
-
-
-    // Add history empty map
     def final_map = settings + [history: [:]]
     def json_str = JsonOutput.toJson(final_map)
     def json_beauty = JsonOutput.prettyPrint(json_str)
@@ -132,42 +129,42 @@ workflow adm_wf {
     target_direction_wf(coord, fs)
 
     // Read coordinates into map
-    coord_map = numpy2txt(coord)
+    coord_map = coord2txt(coord)
         .map { sub, coords -> [
             sub,
             coords.text.strip("\n").split(",")
-        ]}
-        .map { sub, c -> [
-            sub,
-            [pos_x: c[0], pos_y: c[1], pos_z: c[2]]
-        ]}
+        ]} | view
+   //      .map { sub, c -> [
+   //          sub,
+   //          [pos_x: c[0], pos_y: c[1], pos_z: c[2]]
+   //      ]}
 
-    direction_map = numpy2txt(target_direction_wf.out.direction)
-        .map { sub, direction -> [
-            sub,
-            direction.text.strip("\n").split(",")
-        ]}
-        .map { sub, d -> [
-            sub,
-            [dir_x: d[0], dir_y: d[1], dir_z: d[2]]
-        ]}
+   //  direction_map = direction2txt(target_direction_wf.out.direction)
+   //      .map { sub, direction -> [
+   //          sub,
+   //          direction.text.strip("\n").split(",")
+   //      ]}
+   //      .map { sub, d -> [
+   //          sub,
+   //          [dir_x: d[0], dir_y: d[1], dir_z: d[2]]
+   //      ]}
 
-    // Merge target specs into single map
-    target_spec = coord_map.join(direction_map)
-        .map { s, c, d -> [s, c + d] }
+   //  // Merge target specs into single map
+   //  target_spec = coord_map.join(direction_map)
+   //      .map { s, c, d -> [s, c + d] }
 
-    // Prepare ADM parameters into JSON file
-    prepare_parameters(subject_spec.join(target_spec))
-    adm_optimize(
-        prepare_parameters.out.json
-            .join(msh)
-            .spread([radius])
-            .spread([coil])
-    )
+   //  // Prepare ADM parameters into JSON file
+   //  prepare_parameters(subject_spec.join(target_spec))
+   //  adm_optimize(
+   //      prepare_parameters.out.json
+   //          .join(msh)
+   //          .spread([radius])
+   //          .spread([coil])
+   //  )
 
-    emit:
-    sim_msh = adm_optimization.out.sim_msh
-    geo = adm_optimization.out.geo
-    matsimnibs = adm_optimization.out.matsimnibs
-    parameters = prepare_parameters.out.json
+   //  emit:
+   //  sim_msh = adm_optimize.out.sim_msh
+   //  geo = adm_optimize.out.geo
+   //  matsimnibs = adm_optimize.out.matsimnibs
+   //  parameters = prepare_parameters.out.json
 }
