@@ -9,7 +9,7 @@ import simnibs.msh.transformations as transformations
 TMP_VOL_FILE = "fields.nii.gz"
 TMP_NORME = "fields_normE.nii.gz"
 TMP_E = "fields_E.nii.gz"
-TMP_TARGET = "fields_Target.nii.gz"
+TMP_TARGET = "fields_weightfunction.nii.gz"
 
 
 def main():
@@ -55,7 +55,8 @@ def main():
         radial_mags = np.abs(target_e @ direction)
         e100 = np.sort(radial_mags)[-100]
 
-    np.savetxt(args.output, e100)
+    with open(args.output, 'w') as f:
+        f.write(str(e100))
 
 
 if __name__ == '__main__':
