@@ -32,7 +32,7 @@ process calculate_e100 {
     def direction_arg = (params.use_magnitude) ? "" : "--direction-json ${json}"
 
     """
-    /scripts/adjust_dosage.py \
+    python /scripts/adjust_dosage.py \
         ${sim_msh} \
         ${m2m_dir} ${direction_arg} \
         ${subject}_e100.txt
@@ -57,7 +57,7 @@ process scale_didt {
     label 'fieldopt'
 
     input:
-    tuple val(subject), val(didt), path(metric), val(reference)
+    tuple val(subject), path(metric), val(reference), val(didt)
 
     output:
     tuple val(subject), path("${subject}_didt.txt"), emit: didt
@@ -67,10 +67,13 @@ process scale_didt {
     #!/usr/bin/env python
 
     import numpy as np
+
     metric = np.loadtxt('${metric}')
-    scaling_factor = reference / np.abs(metric)
+    scaling_factor = ${reference} / np.abs(metric)
     scaled_didt = scaling_factor * ${didt}
-    np.savetxt('${subject}_didt.txt', scaled_didt)
+
+    with open('${subject}_didt.txt', 'w') as f:
+        f.write(str(scaled_didt))
     """
 
 }
@@ -102,12 +105,11 @@ workflow dosage_adjustment_wf {
         sim_msh
         m2m_dir
         reference
-        use_magnitude
 
     main:
-        adjust_dosage( spec_sheet.join(sim_msh).join(m2m_dir) )
+        calculate_e100( spec_sheet.join(sim_msh).join(m2m_dir) )
         scale_didt (
-            adjust_dosage.out.e100
+            calculate_e100.out.e100
                 .spread([reference])
                 .spread([params.didt])
         )
