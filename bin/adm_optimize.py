@@ -76,8 +76,15 @@ def main():
     model = HeadModel(tms_opt.mesh)
     target_region = tms_opt._get_target_region()
 
-    weightfunc = np.zeros(tms_opt.mesh.elm.nr)
-    weightfunc[target_region - 1] = 1
+    # Get IDs for GM tetrahedrons
+    gm_ids = model.get_tet_ids(2)[0]
+
+    # Shift target regions to be 0 at start of grey matter
+    # Subtract by one to account for SimNIBS weirdness
+    adjusted_target = target_region - gm_ids.min() - 1
+
+    weightfunc = np.zeros(gm_ids.shape[0])
+    weightfunc[adjusted_target] = 1
 
     func = FieldFunc(model, None, args.coil, tet_weights=weightfunc)
     func.visualize_evaluate(matsimnibs=msn,
