@@ -6,7 +6,7 @@ include { cifti_meshing_wf as cifti_mesh_wf } from '../modules/cifti_mesh_wf.nf'
 include { rigidRegistration; coordinate_transform; map_coordinate } from "../modules/transformation.nf" params(params)
 include { dosage_adjustment_wf } from "../modules/dosage_wf.nf" params(params)
 include { adm_wf } from "../modules/adm_opt.nf" params(params)
-// include { neuronav_wf } from "../modules/neuronav.nf" params(params)
+include { neuronav_wf } from "../modules/neuronav.nf" params(params)
 
 def try_as_numeric(map){
 
@@ -71,12 +71,12 @@ workflow coordinate_optimization {
         Channel.fromPath(params.coil)
     )
 
-    // dosage_adjustment_wf(
-    //     adm_wf.out.parameters,
-    //     cifti_mesh_wf.out.msh,
-    //     cifti_mesh_wf.out.mesh_m2m,
-    //     params.reference_magnitude
-    // )
+    dosage_adjustment_wf(
+        adm_wf.out.parameters,
+        adm_wf.out.sim_msh,
+        cifti_mesh_wf.out.mesh_m2m,
+        params.reference_magnitude
+    )
 
-    // neuronav_wf(adm_wf.out.matsimnibs)
+    neuronav_wf(adm_wf.out.matsimnibs)
 }
