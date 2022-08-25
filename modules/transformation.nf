@@ -73,7 +73,7 @@ process coordinate_transform {
     antsApplyTransformsToPoints \
         -d 3 \
         -i ${coords} \
-        -t [${transform},1] \
+        -t [${transform},0] \
         -o ${sub}_target_coord.csv
     """
 }
@@ -92,6 +92,8 @@ process format_for_ants {
         ants_csv (channel): (sub, csv: Path) Ants formatted CSV file
     */
 
+    label 'fieldopt'
+
     input:
     tuple val(sub), path(coords)
 
@@ -100,10 +102,24 @@ process format_for_ants {
 
     shell:
     """
-    echo 'x,y,z,t,label' > ${sub}_pretransform.csv
+    #!/usr/bin/env python
 
-    cat ${coords} | tr -d '\\n' >> ${sub}_pretransform.csv
-    echo ',0,nolabel' >> ${sub}_pretransform.csv
+    import numpy as np
+
+    # Read in RAS, convert to LPS
+    coords = np.loadtxt('${coords}', delimiter=',')
+    coords[0] = -coords[0]
+    coords[1] = -coords[1]
+
+    # Save with ANTS header
+    header = 'x,y,z,t,label'
+    coords_as_txt = ','.join([str(x) for x in coords])
+
+    # ANTS wants a label column
+    coords_as_txt += ",0,nolabel"
+
+    with open('${sub}_pretransform.csv', 'w') as f:
+        f.writelines([header, '\\n', coords_as_txt, '\\n'])
     """
 }
 
