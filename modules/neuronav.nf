@@ -1,8 +1,7 @@
 nextflow.preview.dsl=2
 
-process reorient_coil {
+process reorient_coil{
 
-    label 'fieldopt'
 
     /*
     Re-orient coil so that handle is pointing posterior
@@ -17,12 +16,15 @@ process reorient_coil {
         flipped (channel): (sub, flipped: Path)  Whether the coil handle was flipped 
             or not
     */
+
+    label 'fieldopt'
+
     input:
     tuple val(sub), path(msn)
 
     output:
     tuple val(sub), path("${sub}_reoriented.npy"), emit: reoriented
-    tuple val(sub), path("${sub)_isflip.txt"), emit: flipped
+    tuple val(sub), path("${sub}_isflip.txt"), emit: flipped
 
     shell:
     """
@@ -42,7 +44,7 @@ process reorient_coil {
         msn[:, 0] *= -1
         isflip = 1
 
-    msn.save('${sub}_reoriented.npy')
+    np.save('${sub}_reoriented.npy', msn)
     with open('${sub}_isflip.txt', 'w') as f:
         f.write(str(isflip))
     """
