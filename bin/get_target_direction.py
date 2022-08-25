@@ -47,7 +47,7 @@ def main():
     min_curv_vert = two_ring[min_curv_ind]
 
     normal = get_normals(min_curv_vert, range(trigs.shape[0]), verts, trigs)
-    np.save(args.output, normal)
+    np.save(args.output, -normal)
 
 
 if __name__ == '__main__':
