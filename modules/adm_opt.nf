@@ -76,7 +76,7 @@ process adm_optimize {
     def direction = (params.optimize_magnitude) ? "magnitude" : "direction"
 
     """
-    /scripts/adm_optimize.py \
+    python /scripts/adm_optimize.py \
         ${msh} \
         ${json} \
         ${coil} \
