@@ -1,7 +1,5 @@
 nextflow.preview.dsl=2
 
-params.optimize_magnitude = true
-
 process calculate_e100 {
 
     label 'fieldopt'
@@ -10,7 +8,6 @@ process calculate_e100 {
 
     Arguments:
         subject (str): Subject ID
-        json (Path): Subject target specification JSON
         sim_msh (Path): Simulation mesh
         m2m_dir (Path): M2M directory
 
@@ -22,15 +19,12 @@ process calculate_e100 {
     */
 
     input:
-    tuple val(subject), path(json),\
-    path(sim_msh), path(m2m_dir)
+    tuple val(subject), path(sim_msh), path(m2m_dir)
 
     output:
     tuple val(subject), path("${subject}_e100.txt"), emit: e100
 
-    script:
-    def direction_arg = (params.optimize_magnitude.toBoolean()) ? "" : "--direction-json ${json}"
-
+    shell:
     """
     python /scripts/adjust_dosage.py \
         ${sim_msh} \
@@ -84,8 +78,6 @@ workflow dosage_adjustment_wf {
     Workflow to adjust dosage to match a reference E-field value
 
     Arguments:
-        spec_json (channel): (subject: Str, spec: Path) Subject spec json
-            must contain: ['dir_x', 'dir_y', 'dir_z'] if [optimize_magnitude=False]
         sim_msh (channel): (subject: Str, msh: Path) Simulation result file
         m2m_dir (channel): (subject: Str, m2m: Path) Subject m2m directory
         reference (value: float): Reference value to match dosage to
@@ -101,13 +93,12 @@ workflow dosage_adjustment_wf {
     */
 
     take:
-        spec_sheet
         sim_msh
         m2m_dir
         reference
 
     main:
-        calculate_e100( spec_sheet.join(sim_msh).join(m2m_dir) )
+        calculate_e100(sim_msh.join(m2m_dir))
         scale_didt (
             calculate_e100.out.e100
                 .spread([reference])
