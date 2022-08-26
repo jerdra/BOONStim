@@ -1,6 +1,6 @@
 nextflow.preview.dsl=2
 
-params.use_magnitude = true
+params.optimize_magnitude = true
 
 process calculate_e100 {
 
@@ -15,7 +15,7 @@ process calculate_e100 {
         m2m_dir (Path): M2M directory
 
     Parameters:
-        use_magnitude (bool): Whether to use normE vs direction in json
+        optimize_magnitude (bool): Whether to use normE vs direction in json
 
     Outputs:
         e100 (channel): (subject, e100: Path): E100
@@ -29,7 +29,7 @@ process calculate_e100 {
     tuple val(subject), path("${subject}_e100.txt"), emit: e100
 
     script:
-    def direction_arg = (params.use_magnitude) ? "" : "--direction-json ${json}"
+    def direction_arg = (params.optimize_magnitude.toBoolean()) ? "" : "--direction-json ${json}"
 
     """
     python /scripts/adjust_dosage.py \
@@ -85,13 +85,13 @@ workflow dosage_adjustment_wf {
 
     Arguments:
         spec_json (channel): (subject: Str, spec: Path) Subject spec json
-            must contain: ['dir_X', 'dir_Y', 'dir_Z'] if [use_magnitude=False]
+            must contain: ['dir_x', 'dir_y', 'dir_z'] if [optimize_magnitude=False]
         sim_msh (channel): (subject: Str, msh: Path) Simulation result file
         m2m_dir (channel): (subject: Str, m2m: Path) Subject m2m directory
         reference (value: float): Reference value to match dosage to
 
     Parameters:
-        use_magnitude (value: bool): Whether to match magnitude or direction
+        optimize_magnitude (value: bool): Whether to match magnitude or direction
             [default=True]
         didt (value: float): dI/dt used in simulations
         max_stim_didt (value: float): Maximum dI/dt of stimulator
