@@ -42,7 +42,7 @@ def main():
         # Pull direction of radial
         with open(args.direction_json, 'r') as fhandle:
             spec = json.load(fhandle)
-        direction = np.array([spec['dir_X'], spec['dir_Y'], spec['dir_Z']],
+        direction = np.array([spec['dir_x'], spec['dir_y'], spec['dir_z']],
                              dtype=float).reshape((3, 1))
 
         # Ensure direction is unit vector
