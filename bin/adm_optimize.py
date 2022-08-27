@@ -86,7 +86,11 @@ def main():
     weightfunc = np.zeros(gm_ids.shape[0])
     weightfunc[adjusted_target] = 1
 
-    func = FieldFunc(model, None, args.coil, tet_weights=weightfunc)
+    func = FieldFunc(model,
+                     None,
+                     args.coil,
+                     tet_weights=weightfunc,
+                     direction=tms_opt.target_direction)
     func.visualize_evaluate(matsimnibs=msn,
                             out_sim=args.sim_result,
                             out_geo=args.sim_geo)
