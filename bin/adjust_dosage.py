@@ -8,6 +8,7 @@ import simnibs.msh.transformations as transformations
 TMP_VOL_FILE = "fields.nii.gz"
 TMP_NORME = "fields_normE.nii.gz"
 TMP_TARGET = "fields_weightfunction.nii.gz"
+TMP_DIRECTION = "fields_direction_normE.nii.gz"
 
 
 def main():
@@ -28,7 +29,14 @@ def main():
     roi = image.load_img(TMP_TARGET).get_fdata().astype(bool)
     roi_inds = np.where(roi)
 
-    img = image.load_img(TMP_NORME)
+    try:
+        img = image.load_img(TMP_NORME)
+    except ValueError:
+        try:
+            img = image.load_img(TMP_DIRECTION)
+        except ValueError:
+            raise
+
     e_in_targ = img.get_fdata()[roi_inds]
     e100 = np.sort(e_in_targ)[-100]
 
