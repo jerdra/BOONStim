@@ -72,8 +72,8 @@ process adm_optimize {
     tuple val(sub), path("${sub}_optimized_orientation.npy"), emit: matsimnibs
 
     script:
-    
-    def direction = (params.optimize_magnitude) ? "magnitude" : "direction"
+
+    def direction = (params.optimize_magnitude.toBoolean()) ? "magnitude" : "direction"
 
     """
     python /scripts/adm_optimize.py \
@@ -86,7 +86,48 @@ process adm_optimize {
         ${sub}_optimized_orientation.npy \
         ${direction}
     """
-    
+
+}
+
+process make_adm_qc {
+    /*
+    Generate a quality control image from ADM outputs
+
+    Arguments:
+        sub (str): Subject ID
+        sim_msh (Path): Simulation mesh containing fields + target
+        msn (Path): Optimal coil position
+        json (Path): Optimization settings containing coordinates and
+            optionally, direction vectors
+
+    Parameters:
+        optimize_magnitude (bool): If optimize magnitude is enabled
+            will omit showing direction vector as it would not
+            have been used for optimization
+
+    Outputs:
+        qc_html (Path): Interactive QC HTML file
+        qc_img (Path): Static QC image
+    */
+    label 'fieldopt'
+
+    input:
+    tuple val(sub), path(sim_msh), path(msn), path(json)
+
+    output:
+    tuple val(sub), path("${sub}_desc-qc.png"), emit: img
+
+    script:
+    def direction = (params.optimize_magnitude.toBoolean()) ? "magnitude" : "direction"
+
+    """
+    python /scripts/adm_qc.py \
+        ${sim_msh} \
+        ${msn} \
+        ${json} \
+        ${sub}_desc-qc.png \
+        ${direction}
+    """
 }
 
 
@@ -169,9 +210,18 @@ workflow adm_wf {
            .combine(coil)
    )
 
+   // Generate a quality control image of optimization
+   make_adm_qc(
+    adm_optimize.out.sim_msh
+        .join(adm_optimize.out.matsimnibs)
+        .join(prepare_parameters.out.json)
+   )
+
+
    emit:
    sim_msh = adm_optimize.out.sim_msh
    geo = adm_optimize.out.geo
    matsimnibs = adm_optimize.out.matsimnibs
    parameters = prepare_parameters.out.json
+   qc_img = make_adm_qc.out.img
 }
