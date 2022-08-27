@@ -28,7 +28,7 @@ process calculate_e100 {
     """
     python /scripts/adjust_dosage.py \
         ${sim_msh} \
-        ${m2m_dir} ${direction_arg} \
+        ${m2m_dir} \
         ${subject}_e100.txt
     """
 }
