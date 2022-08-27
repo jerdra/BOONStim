@@ -72,7 +72,6 @@ workflow coordinate_optimization {
     )
 
     dosage_adjustment_wf(
-        adm_wf.out.parameters,
         adm_wf.out.sim_msh,
         cifti_mesh_wf.out.mesh_m2m,
         params.reference_magnitude
