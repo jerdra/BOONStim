@@ -109,6 +109,11 @@ parser.addOptional("--cache_dir",
     "Create a cache directory to store intermediate results to speed up reruns",
     "CACHE_DIR")
 
+parser.addOptional("--use-scratch",
+    "Use a scratch directory, can provide a path, an empty string ('') to disable"
+    + ", note that by default it will use the system default temporary directory",
+    "SCRATCH")
+
 missingArgs = parser.isMissingRequired()
 missingConfig = parser.isMissingConfig()
 
@@ -212,26 +217,6 @@ process publish_surfs{
 
 }
 
-process publish_mri2mesh{
-
-    publishDir path: "${params.out}/boonstim/${sub}", \
-               mode: 'move', \
-               overwrite: true
-
-    input:
-    tuple val(sub),\
-    path(m2m), path(fs)
-
-    output:
-    tuple val(sub), path(m2m), path(fs)
-
-    shell:
-    '''
-    #!/bin/bash
-    echo "Transferring !{m2m} and !{fs} to boonstim/!{sub} folder..."
-    '''
-}
-
 process publish_opt{
 
     publishDir path: "${params.out}/boonstim/${sub}/results", \
@@ -278,35 +263,6 @@ process publish_scaleref{
 
 }
 
-process publish_cifti{
-
-    stageInMode 'copy'
-
-    publishDir path: "$params.out",\
-               mode: 'move'
-
-    input:
-    tuple val(sub),\
-    path("ciftify/${sub}"), path("ciftify/qc_fmri/*"),\
-    path("ciftify/qc_recon_all/${sub}"),\
-    path("fmriprep/*"), path(html),\
-    path("freesurfer/*"),\
-    path("ciftify/zz_templates")
-
-    output:
-    tuple path("ciftify/${sub}"),
-    path("ciftify/qc_fmri/${sub}*", includeInputs: true),\
-    path("ciftify/qc_recon_all/${sub}"),\
-    path("fmriprep/${sub}"), path("fmriprep/${sub}.html"),\
-    path("freesurfer/${sub}"), path("ciftify/zz_templates")
-
-    shell:
-    '''
-    echo "Copying fMRIPrep_Ciftify outputs"
-    mv !{html} fmriprep/
-
-    '''
-}
 
 workflow scalar_workflow {
     scalar_optimization(input_channel.map{s, _ -> s})

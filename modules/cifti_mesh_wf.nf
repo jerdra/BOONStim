@@ -277,6 +277,58 @@ process update_msh{
     '''
 }
 
+
+process publish_mri2mesh{
+
+    publishDir path: "${params.out}/mri2mesh/${sub}", \
+               mode: 'move', \
+               overwrite: true
+
+    input:
+    tuple val(sub),\
+    path(m2m), path(fs)
+
+    output:
+    tuple val(sub), path(m2m), path(fs)
+
+    shell:
+    '''
+    #!/bin/bash
+    echo "Transferring !{m2m} and !{fs} to boonstim/!{sub} folder..."
+    '''
+}
+
+process publish_cifti{
+
+    stageInMode 'copy'
+
+    publishDir path: "$params.out",\
+               mode: 'move'
+
+    input:
+    tuple val(sub),\
+    path("ciftify/${sub}"), path("ciftify/qc_fmri/*"),\
+    path("ciftify/qc_recon_all/${sub}"),\
+    path("fmriprep/*"), path(html),\
+    path("freesurfer/*"),\
+    path("ciftify/zz_templates")
+
+    output:
+    tuple path("ciftify/${sub}"),
+    path("ciftify/qc_fmri/${sub}*", includeInputs: true),\
+    path("ciftify/qc_recon_all/${sub}"),\
+    path("fmriprep/${sub}"), path("fmriprep/${sub}.html"),\
+    path("freesurfer/${sub}"), path("ciftify/zz_templates")
+
+    shell:
+    '''
+    echo "Copying fMRIPrep_Ciftify outputs"
+    mv !{html} fmriprep/
+
+    '''
+}
+
+
 workflow fmriprep_anat_wf{
 
     /*
@@ -396,6 +448,22 @@ workflow cifti_meshing_wf {
         // Add m2m
         update_msh_input = mri2mesh.out.geo.join(mri2mesh.out.mri2mesh)
         update_msh(update_msh_input)
+
+        // Publish outputs
+        publish_cifti(
+            ciftify.out.ciftify
+                .join(ciftify.out.qc_fmri)
+                .join(ciftify.out.qc_recon)
+                .join(fmriprep_wf.out.fmriprep)
+                .join(fmriprep_wf.out.html)
+                .join(fmriprep_wf.out.freesurfer)
+                .combine(["$params.zz"])
+        )
+
+        publish_mri2mesh(
+            mri2mesh.out.mri2mesh
+                .join(mri2mesh.out.freesurfer)
+        )
 
     emit:
         cifti = ciftify.out.ciftify
