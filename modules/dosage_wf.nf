@@ -72,6 +72,36 @@ process scale_didt {
 
 }
 
+process publish_dosage_adjustment {
+    /*
+    Publish outputs from dosage adjustment into
+    params.out directory
+
+    Arguments:
+        sub (str): Subject ID
+        e100 (Path): Calculated E100 metric
+        didt (Path): Adjusted DIDT value
+
+    Parameters:
+        out (Path): Output directory
+    */
+
+    publishDir  path: "${params.out}/boonstim/${sub}/dosage", \
+                mode: 'move', \
+                overwrite: true
+
+    input:
+    tuple val(sub), path(e100), path(didt)
+
+    output:
+    tuple val(sub), path(e100), path(didt)
+
+    shell:
+    """
+    echo 'Publishing dosage adjustment outputs to ${params.out}/boonstim/${sub}/dosage'
+    """
+}
+
 workflow dosage_adjustment_wf {
 
     /*
@@ -103,6 +133,11 @@ workflow dosage_adjustment_wf {
             calculate_e100.out.e100
                 .spread([reference])
                 .spread([params.didt])
+        )
+
+        publish_dosage_adjustment (
+            calculate_e100.out.e100
+                .join(scale_didt.out.didt)
         )
 
     emit:
