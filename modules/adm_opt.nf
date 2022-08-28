@@ -255,7 +255,7 @@ workflow adm_wf {
 
    publish_adm(
     adm_optimize.out.sim_msh
-        .join(adm_optimize.out.sim_geo)
+        .join(adm_optimize.out.geo)
         .join(adm_optimize.out.matsimnibs)
         .join(make_adm_qc.out.img)
         .join(prepare_parameters.out.json)
