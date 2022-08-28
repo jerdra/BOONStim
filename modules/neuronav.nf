@@ -13,7 +13,7 @@ process reorient_coil{
     Outputs:
         reoriented (channel): (sub, reoriented: Path) Matsimnibs reoriented so that
             coil handle is pointing posterior
-        flipped (channel): (sub, flipped: Path)  Whether the coil handle was flipped 
+        flipped (channel): (sub, flipped: Path)  Whether the coil handle was flipped
             or not
     */
 
@@ -48,7 +48,7 @@ process reorient_coil{
     with open('${sub}_isflip.txt', 'w') as f:
         f.write(str(isflip))
     """
-        
+
 }
 
 process brainsight_transform{
@@ -145,6 +145,42 @@ process localite_transform{
     '''
 }
 
+process publish_neuronav {
+    /*
+    Publish outputs from NeuroNavigation workflow into
+    output directory
+
+    Arguments:
+        sub (str): Subject ID
+        brainsight (Path): BrainSight coordinates file
+        localite (Path): Localite Orientation matrix
+        flip (Path): File containing boolean value on whether
+            coil orientation was flipped to ensure handle
+            points posteriorly
+
+    Parameters:
+        out (Path): Output directory
+    */
+
+    publishDir  path: "${params.out}/boonstim/${sub}/neuronav", \
+                mode: 'move', \
+                overwrite: true
+
+    input:
+    tuple val(sub), path(brainsight), path(localite),\
+    path(flip)
+
+    output:
+    tuple val(sub), path(brainsight), path(localite),\
+    path(flip)
+
+    shell:
+    """
+    echo 'Publishing NeuroNavigation outputs to ${params.out}/boonstim/${sub}/neuronav!'
+    """
+
+}
+
 workflow neuronav_wf {
 
     /*
@@ -171,6 +207,12 @@ workflow neuronav_wf {
         reorient_coil(msn)
         brainsight_transform(reorient_coil.out.reoriented)
         localite_transform(reorient_coil.out.reoriented)
+
+        publish_neuronav(
+            brainsight_transform.out.brainsight_coords
+                .join(localite_transform.out.localite_coords)
+                .join(reorient_coil.out.flipped)
+        )
 
     emit:
         brainsight = brainsight_transform.out.brainsight_coords
