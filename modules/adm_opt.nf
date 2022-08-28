@@ -130,6 +130,42 @@ process make_adm_qc {
     """
 }
 
+process publish_adm {
+    
+    /*
+    Publish outputs from ADM optimization and quality control
+    into the output directory
+
+    Arguments:
+        sub (str): Subject ID
+        sim_msh (Path): Simulation mesh
+        sim_geo (Path): Coil dipole .geo
+        matsimnibs (Path): Optimal coil placement matrix
+        qc (Path): QC image for optimization
+        spec (Path): Optimization settings used JSON file
+
+    Parameters:
+        out (Path): Base output directory
+    */
+
+    publishDir  path: "${params.out}/boonstim/${sub}/adm", \
+                mode: 'move', \
+                overwrite: true
+
+    input:
+    tuple val(sub), path(sim_msh), path(sim_geo),\
+    path(matsimnibs), path(qc), path(spec)
+
+    output:
+    tuple val(sub), path(sim_msh), path(sim_geo),\
+    path(matsimnibs), path(qc), path(spec)
+
+    shell:
+    """
+    echo 'Moving data into ${params.out}/boonstim/${sub}/adm!'
+    """
+
+}
 
 workflow adm_wf {
 
@@ -214,6 +250,14 @@ workflow adm_wf {
    make_adm_qc(
     adm_optimize.out.sim_msh
         .join(adm_optimize.out.matsimnibs)
+        .join(prepare_parameters.out.json)
+   )
+
+   publish_adm(
+    adm_optimize.out.sim_msh
+        .join(adm_optimize.out.sim_geo)
+        .join(adm_optimize.out.matsimnibs)
+        .join(make_adm_qc.out.img)
         .join(prepare_parameters.out.json)
    )
 
