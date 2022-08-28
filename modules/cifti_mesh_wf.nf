@@ -286,10 +286,10 @@ process publish_mri2mesh{
 
     input:
     tuple val(sub),\
-    path(m2m), path(fs)
+    path(t1fs), path(m2m), path(fs)
 
     output:
-    tuple val(sub), path(m2m), path(fs)
+    tuple val(sub), path(t1fs), path(m2m), path(fs)
 
     shell:
     '''
@@ -461,7 +461,8 @@ workflow cifti_meshing_wf {
         )
 
         publish_mri2mesh(
-            mri2mesh.out.mri2mesh
+            mri2mesh.out.T1
+                .join(mri2mesh.out.mri2mesh)
                 .join(mri2mesh.out.freesurfer)
         )
 
