@@ -149,7 +149,7 @@ process publish_adm {
     */
 
     publishDir  path: "${params.out}/boonstim/${sub}/adm", \
-                mode: 'move', \
+                mode: 'copy', \
                 overwrite: true
 
     input:

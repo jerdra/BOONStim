@@ -281,7 +281,7 @@ process update_msh{
 process publish_mri2mesh{
 
     publishDir path: "${params.out}/mri2mesh/${sub}", \
-               mode: 'move', \
+               mode: 'copy', \
                overwrite: true
 
     input:
@@ -303,7 +303,7 @@ process publish_cifti{
     stageInMode 'copy'
 
     publishDir path: "$params.out",\
-               mode: 'move'
+               mode: 'copy'
 
     input:
     tuple val(sub),\

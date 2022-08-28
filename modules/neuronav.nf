@@ -163,7 +163,7 @@ process publish_neuronav {
     */
 
     publishDir  path: "${params.out}/boonstim/${sub}/neuronav", \
-                mode: 'move', \
+                mode: 'copy', \
                 overwrite: true
 
     input:

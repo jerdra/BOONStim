@@ -87,7 +87,7 @@ process publish_dosage_adjustment {
     */
 
     publishDir  path: "${params.out}/boonstim/${sub}/dosage", \
-                mode: 'move', \
+                mode: 'copy', \
                 overwrite: true
 
     input:
