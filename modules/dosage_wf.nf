@@ -64,7 +64,7 @@ process scale_didt {
 
     metric = np.loadtxt('${metric}')
     scaling_factor = ${reference} / np.abs(metric)
-    scaled_didt = scaling_factor * ${didt}
+    scaled_didt = scaling_factor * ${didt} / 1e6
 
     with open('${subject}_didt.txt', 'w') as f:
         f.write(str(scaled_didt))
