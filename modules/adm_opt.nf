@@ -116,6 +116,7 @@ process make_adm_qc {
 
     output:
     tuple val(sub), path("${sub}_desc-qc.png"), emit: img
+    tuple val(sub), path("${sub}_desc-qc.html"), emit: html
 
     script:
     def direction = (params.optimize_magnitude.toBoolean()) ? "magnitude" : "direction"
@@ -125,7 +126,8 @@ process make_adm_qc {
         ${sim_msh} \
         ${msn} \
         ${json} \
-        ${sub}_desc-qc.png \
+        --export-img ${sub}_desc-qc.png \
+        --export-html ${sub}_desc-qc.html \
         ${direction}
     """
 }
@@ -154,11 +156,13 @@ process publish_adm {
 
     input:
     tuple val(sub), path(sim_msh), path(sim_geo),\
-    path(matsimnibs), path(qc), path(spec)
+    path(matsimnibs), path(qc_img), path(qc_html), path(spec),\
+    path(dir_qc_img), path(dir_qc_html)
 
     output:
     tuple val(sub), path(sim_msh), path(sim_geo),\
-    path(matsimnibs), path(qc), path(spec)
+    path(matsimnibs), path(qc_img), path(qc_html), path(spec),\
+    path(dir_qc_img), path(dir_qc_html)
 
     shell:
     """
@@ -258,7 +262,10 @@ workflow adm_wf {
         .join(adm_optimize.out.geo)
         .join(adm_optimize.out.matsimnibs)
         .join(make_adm_qc.out.img)
+        .join(make_adm_qc.out.html)
         .join(prepare_parameters.out.json)
+        .join(target_direction_wf.out.qc_img)
+        .join(target_direction_wf.out.qc_html)
    )
 
 
@@ -268,4 +275,7 @@ workflow adm_wf {
    matsimnibs = adm_optimize.out.matsimnibs
    parameters = prepare_parameters.out.json
    qc_img = make_adm_qc.out.img
+   qc_html = make_adm_qc.out.html
+   direction_qc_img = target_direction_wf.out.qc_img
+   direction_qc_html = target_direction_wf.out.qc_html
 }

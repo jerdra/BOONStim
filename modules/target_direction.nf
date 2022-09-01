@@ -23,13 +23,17 @@ process target_direction {
 
     output:
     tuple val(sub), path("${sub}_target_normal.npy"), emit: direction
+    tuple val(sub), path("${sub}_target_normal.png"), emit: qc_img
+    tuple val(sub), path("${sub}_target_normal.html"), emit: qc_html
 
     shell:
     """
     python /scripts/get_target_direction.py \
         ${coordinate} \
         ${fs_dir} \
-        ${sub}_target_normal.npy
+        ${sub}_target_normal.npy \
+        --qc-img ${sub}_target_normal.png \
+        --qc-html ${sub}_target_normal.html
     """
 }
 
@@ -58,4 +62,6 @@ workflow target_direction_wf {
 
     emit:
         direction = target_direction.out.direction
+        qc_html = target_direction.out.qc_html
+        qc_img = target_direction.out.qc_img
 }
