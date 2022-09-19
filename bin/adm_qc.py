@@ -120,7 +120,8 @@ def main():
     p.add_argument("sim_spec_json",
                    help="Path to simulation specification JSON file",
                    type=str)
-    p.add_argument("qc_img", help="QC image to output")
+    p.add_argument("--export-img", help="QC image to output")
+    p.add_argument("--export-html", help="Interactive HTML to output")
     p.add_argument("optimization_type", type=OptType, choices=list(OptType))
 
     args = p.parse_args()
@@ -161,7 +162,12 @@ def main():
                color="white",
                shadow=True,
                font_size=15)
-    p.screenshot(args.qc_img)
+
+    if args.export_img:
+        p.screenshot(args.export_img)
+
+    if args.export_html:
+        p.export_html(args.export_html)
 
 
 if __name__ == '__main__':
