@@ -1,5 +1,8 @@
 nextflow.preview.dsl=2
 
+// Parameter that will allow the coil angle to point posteriorly
+params.coil_handle_can_point_anterior = false
+
 process reorient_coil{
 
 
@@ -189,6 +192,10 @@ workflow neuronav_wf {
 
     Arguments:
         msn (channel): (subject, msn: Path) Optimal matsimnibs matrix
+    
+    Params:
+        coil_handle_can_point_anterior (bool): Allow coil angle to point anteriorly
+            Default is to constrain it to point posteriorly
 
     Outputs:
         brainsight (channel): (subject, brainsight: Path) Brainsight coordinates
@@ -204,8 +211,15 @@ workflow neuronav_wf {
         msn
 
     main:
-        reorient_coil(msn)
-        brainsight_transform(reorient_coil.out.reoriented)
+        
+        if ( params.coil_handle_can_point_anterior.toBoolean() ) {
+            final_orientation = msn
+        } else {
+            reorient_coil(msn)
+            final_orientation =reorient_coil.out.reoriented
+        }
+
+        brainsight_transform(final_orientation)
         localite_transform(reorient_coil.out.reoriented)
 
         publish_neuronav(

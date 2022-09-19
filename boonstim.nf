@@ -109,10 +109,14 @@ parser.addOptional("--cache_dir",
     "Create a cache directory to store intermediate results to speed up reruns",
     "CACHE_DIR")
 
-parser.addOptional("--use-scratch",
+parser.addOptional("--use_scratch",
     "Use a scratch directory, can provide a path, an empty string ('') to disable"
     + ", note that by default it will use the system default temporary directory",
     "SCRATCH")
+
+parser.addOptional("--coil_handle_can_point_anterior",
+    "Allow the final coil handle orientation to be able to point anteriorly. Otherwise"
+    + " will be flipped to ensure it is always pointing posterior")
 
 missingArgs = parser.isMissingRequired()
 missingConfig = parser.isMissingConfig()
