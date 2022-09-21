@@ -12,8 +12,8 @@ def try_fetch_t2 (path) {
 
     def t2s = file(path)
 
-    if (!params.include_t2w.toBoolean()) {
-        log.info("params.include_t2w set to not true, skipping T2 inclusion")
+    if (!params.include_t2.toBoolean()) {
+        log.info("params.include_t2 set to not true, skipping T2 inclusion")
         file(params.null_file)
     }
     else if (t2s.size()) > 1 {
@@ -444,7 +444,7 @@ workflow cifti_meshing_wf {
         ciftify_invocation: Path to Ciftify invocation file
         license: Path to Freesurfer license file
         resources: Path to additional resources folder
-        include_t2w (bool): Include T2w image from BIDS directory in mri2mesh reconstruction
+        include_t2 (bool): Include T2w image from BIDS directory in mri2mesh reconstruction
 
     Outputs:
         cifti (channel): (subject, cifti: Path) Ciftify subject output path
