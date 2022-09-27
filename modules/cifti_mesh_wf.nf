@@ -12,15 +12,17 @@ def try_fetch_t2 (path) {
 
     def t2s = file(path)
 
-    if (!params.include_t2.toBoolean()) {
+    def include_t2 = (params.include_t2) ? params.include_t2 : false
+
+    if (!include_t2.toBoolean()) {
         log.info("params.include_t2 set to not true, skipping T2 inclusion")
         file(params.null_file)
     }
-    else if (t2s.size()) > 1 {
-        log.info("Found ${t2s.size())} items for ${path}, selecting first!")
+    else if (t2s.size() > 1) {
+        log.info("Found ${t2s.size()} items for ${path}, selecting first!")
         t2s[0]
     }
-    else if (t2s.size()) == 0 {
+    else if (t2s.size() == 0) {
         log.error("No matches for ${path}, skipping T2 inclusion!")
         file(params.null_file)
     }
@@ -271,7 +273,7 @@ process mri2mesh {
     export FS_LICENSE=/license/license.txt
     source \$FREESURFER_HOME/SetUpFreeSurfer.sh
     source \$FSLDIR/etc/fslconf/fsl.sh
-    mri2mesh --all !{sub} !{t1} !{t2}
+    mri2mesh --all ${sub} ${t1} ${t2}
     """
 
 }
@@ -465,11 +467,12 @@ workflow cifti_meshing_wf {
     main:
         // Set up fMRIPrep anatomical pre-processing
         fmriprep_anat_wf(subs)
-        mri2mesh(
-            fmriprep_anat_wf.out.preproc_t1.map { s, t1 ->
-                [ s, t1, try_fetch_t2("${params.bids}/${s}/**/*T2w.nii.gz") ]
-            }
-        )
+
+        mri2mesh_input = fmriprep_anat_wf.out.preproc_t1.map { s, t1 ->
+            [ s, t1, try_fetch_t2("${params.bids}/${s}/**/*T2w.nii.gz") ]
+        } | view
+
+        mri2mesh(mri2mesh_input)
 
         // Full fmriprep/ciftify pipeline
         fmriprep_wf(subs)
