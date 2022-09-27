@@ -468,11 +468,10 @@ workflow cifti_meshing_wf {
         // Set up fMRIPrep anatomical pre-processing
         fmriprep_anat_wf(subs)
 
-        mri2mesh_input = fmriprep_anat_wf.out.preproc_t1.map { s, t1 ->
+        mri2mesh(
+        fmriprep_anat_wf.out.preproc_t1.map { s, t1 ->
             [ s, t1, try_fetch_t2("${params.bids}/${s}/**/*T2w.nii.gz") ]
-        } | view
-
-        mri2mesh(mri2mesh_input)
+        })
 
         // Full fmriprep/ciftify pipeline
         fmriprep_wf(subs)
