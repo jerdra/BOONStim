@@ -5,8 +5,9 @@ include { weightfunc_wf } from "${params.weightworkflow}" params(params)
 include { cifti_meshing_wf as cifti_mesh_wf } from '../modules/cifti_mesh_wf.nf' params(params)
 include { rigidRegistration; coordinate_transform; map_coordinate } from "../modules/transformation.nf" params(params)
 include { dosage_adjustment_wf } from "../modules/dosage_wf.nf" params(params)
-include { adm_wf } from "../modules/adm_opt.nf" params(params)
+include { adm_wf ; adm_qc } from "../modules/adm_opt.nf" params(params)
 include { neuronav_wf } from "../modules/neuronav.nf" params(params)
+include { flip_direction_spec } from "../modules/utils.nf" params(params)
 
 def try_as_numeric(map){
 
@@ -78,4 +79,14 @@ workflow coordinate_optimization {
     )
 
     neuronav_wf(adm_wf.out.matsimnibs)
+
+    // ADM QC
+    flip_direction_spec(adm_wf.out.parameters.join(neuronav_wf.out.isflipped))
+
+    adm_qc(
+        flip_direction_spec.out.spec,
+        cifti_mesh_wf.out.msh,
+        neuronav_wf.out.msn,
+        Channel.fromPath(params.coil)
+    )
 }
