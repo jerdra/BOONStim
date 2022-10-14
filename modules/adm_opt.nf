@@ -89,6 +89,51 @@ process adm_optimize {
 
 }
 
+process evaluate_fieldmaps {
+
+    label 'fieldopt'
+
+    /*
+    Run a simulation on a msh file with a matsimnibs orientation
+    matrix
+
+    Arguments:
+        sub (str): Subject ID
+        msh (Path): Path to .msh file
+        json (path): JSON containing inputs to ADM
+        coil (Path): Coil definition file
+
+    Parameters:
+        optimize_magnitude (bool): Whether to optimize for magnitude or not
+
+    Outputs:
+        sim_msh (channel): (sub, sim_msh: Path) Optimized E-field simulation .msh
+        geo (channel): (sub, geo: Path) Optimized E-Field coil placement
+    */
+
+    input:
+    tuple val(sub), path(json), path(msh), path(msn), path(coil)
+
+    output:
+    tuple val(sub), path("${sub}_fields.msh"), emit: sim_msh
+    tuple val(sub), path("${sub}_fields.geo"), emit: sim_geo
+
+    script:
+    def direction = (params.optimize_magnitude.toBoolean()) ? "magnitude" : "direction"
+
+    """
+    python /scripts/evaluate_position.py \
+        ${msh} \
+        ${msn} \
+        ${json} \
+        ${coil} \
+        ${sub}_fields.msh \
+        ${sub}_fields.geo \
+        ${direction}
+    """
+
+}
+
 process make_adm_qc {
     /*
     Generate a quality control image from ADM outputs
@@ -112,7 +157,7 @@ process make_adm_qc {
     label 'fieldopt'
 
     input:
-    tuple val(sub), path(sim_msh), path(msn), path(json)
+    tuple val(sub), path(msh), path(msn), path(json)
 
     output:
     tuple val(sub), path("${sub}_desc-qc.png"), emit: img
@@ -123,7 +168,7 @@ process make_adm_qc {
 
     """
     python /scripts/adm_qc.py \
-        ${sim_msh} \
+        ${msh} \
         ${msn} \
         ${json} \
         --export-img ${sub}_desc-qc.png \
@@ -133,7 +178,7 @@ process make_adm_qc {
 }
 
 process publish_adm {
-    
+
     /*
     Publish outputs from ADM optimization and quality control
     into the output directory
@@ -156,18 +201,100 @@ process publish_adm {
 
     input:
     tuple val(sub), path(sim_msh), path(sim_geo),\
-    path(matsimnibs), path(qc_img), path(qc_html), path(spec),\
-    path(dir_qc_img), path(dir_qc_html)
+    path(matsimnibs), path(spec)
 
     output:
     tuple val(sub), path(sim_msh), path(sim_geo),\
-    path(matsimnibs), path(qc_img), path(qc_html), path(spec),\
-    path(dir_qc_img), path(dir_qc_html)
+    path(matsimnibs), path(spec)
 
     shell:
     """
     echo 'Moving data into ${params.out}/boonstim/${sub}/adm!'
     """
+
+}
+
+process publish_adm_qc {
+
+    /*
+    Publish outputs from ADM quality control
+    into the output directory
+
+    Arguments:
+        sub (str): Subject ID
+        qc (Path): QC image for optimization
+
+    Parameters:
+        out (Path): Base output directory
+    */
+
+    publishDir  path: "${params.out}/boonstim/${sub}/adm", \
+                mode: 'copy', \
+                overwrite: true
+
+    input:
+    tuple val(sub), path(qc_img), path(qc_html)
+
+    output:
+    tuple val(sub), path(qc_img), path(qc_html)
+
+    shell:
+    """
+    echo 'Moving data into ${params.out}/boonstim/${sub}/adm!'
+    """
+
+}
+
+workflow adm_qc {
+    /*
+    Generate a quality control image from ADM outputs
+
+    Arguments:
+        sub (channel): (subject) Subject ID
+        sim_msh (channel): (subject, sim_msh: Path) Simulation mesh containing fields + target
+        msn (channel): (subject, msn: Path) Optimal coil position
+        json (Path): (subject, json: Path) Optimization settings containing coordinates and
+            optionally, direction vectors
+
+    Parameters:
+        optimize_magnitude (bool): If optimize magnitude is enabled
+            will omit showing direction vector as it would not
+            have been used for optimization
+
+    Outputs:
+        qc_html (Path): Interactive QC HTML file
+        qc_img (Path): Static QC image
+    */
+    take:
+    subject_spec
+    msh
+    msn
+    coil
+
+    main:
+
+    evaluate_fieldmaps(
+        subject_spec
+            .join(msh)
+            .join(msn)
+            .combine(coil)
+    )
+
+    make_adm_qc(
+     evaluate_fieldmaps.out.sim_msh
+         .join(msn)
+         .join(subject_spec)
+    )
+
+    publish_adm_qc(
+        make_adm_qc.out.img
+        .join(make_adm_qc.out.html)
+    )
+
+    emit:
+    qc_img = make_adm_qc.out.img
+    qc_html = make_adm_qc.out.html
+
 
 }
 
@@ -261,11 +388,7 @@ workflow adm_wf {
     adm_optimize.out.sim_msh
         .join(adm_optimize.out.geo)
         .join(adm_optimize.out.matsimnibs)
-        .join(make_adm_qc.out.img)
-        .join(make_adm_qc.out.html)
         .join(prepare_parameters.out.json)
-        .join(target_direction_wf.out.qc_img)
-        .join(target_direction_wf.out.qc_html)
    )
 
 
@@ -274,8 +397,6 @@ workflow adm_wf {
    geo = adm_optimize.out.geo
    matsimnibs = adm_optimize.out.matsimnibs
    parameters = prepare_parameters.out.json
-   qc_img = make_adm_qc.out.img
-   qc_html = make_adm_qc.out.html
    direction_qc_img = target_direction_wf.out.qc_img
    direction_qc_html = target_direction_wf.out.qc_html
 }
