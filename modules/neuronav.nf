@@ -54,6 +54,31 @@ process reorient_coil{
 
 }
 
+process mock_flip{
+    /*
+    Create a coil flip text file where the
+    the value is always 0
+
+    Arguments:
+        subject (str): Subject ID
+
+    Outputs:
+        isflipped (channel): (subject, isflipped: Path) Text file with 0
+
+    */
+
+    input:
+    val(subject)
+
+    output:
+    tuple val(subject), path("${subject}_isflip.txt"), emit: flipped
+
+    shell:
+    """
+    echo -n 0 > ${subject}_isflip.txt
+    """
+}
+
 process brainsight_transform{
 
     /*
@@ -213,23 +238,28 @@ workflow neuronav_wf {
     main:
         
         if ( params.coil_handle_can_point_anterior.toBoolean() ) {
+            mock_flip(msn.map{ s,m -> s })
+
+            final_flip = mock_flip.out.flipped
             final_orientation = msn
         } else {
             reorient_coil(msn)
-            final_orientation =reorient_coil.out.reoriented
+            final_flip = reorient_coil.out.flipped
+            final_orientation = reorient_coil.out.reoriented
         }
 
         brainsight_transform(final_orientation)
-        localite_transform(reorient_coil.out.reoriented)
+        localite_transform(final_orientation)
 
         publish_neuronav(
             brainsight_transform.out.brainsight_coords
                 .join(localite_transform.out.localite_coords)
-                .join(reorient_coil.out.flipped)
+                .join(final_orientation)
         )
 
     emit:
+        msn = final_orientation
+        isflipped = final_flip
         brainsight = brainsight_transform.out.brainsight_coords
         localite = localite_transform.out.localite_coords
-        isflipped = reorient_coil.out.flipped
 }
