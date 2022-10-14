@@ -23,10 +23,8 @@ def get_field_data(elm_ids):
 
     _, norm_inds, norms, *_ = gmsh.view.get_homogeneous_model_data(tag=ENORM,
                                                                    step=0)
-    _, wf_inds, wf, *_ = gmsh.view.get_homogeneous_model_data(tag=WEIGHTFUNC,
-                                                              step=0)
 
-    return (norms[elm_ids], wf[elm_ids])
+    return norms[elm_ids]
 
 
 def create_brain_model(mesh_file):
@@ -53,11 +51,11 @@ def create_brain_model(mesh_file):
     celltypes[:] = vtk.VTK_TETRA
 
     grid = pv.UnstructuredGrid(cells, celltypes, points)
-    norms, wf = get_field_data([elm_ids - 1])
+    norms = get_field_data([elm_ids - 1])
 
     gmsh.clear()
     gmsh.finalize()
-    return grid, norms, wf
+    return grid, norms
 
 
 def make_coil_stick(orientation):
@@ -132,9 +130,8 @@ def main():
     coilstick = make_coil_stick(msn)
     camera = camera_from_msn(msn)
 
-    grid, norms, wf = create_brain_model(args.sim_msh)
+    grid, norms = create_brain_model(args.sim_msh)
     grid.cell_data['norms (V/m)'] = norms
-    # grid.cell_data['target'] = wf
 
     p = pv.Plotter(polygon_smoothing=True, off_screen=True)
     p.add_mesh(grid, cmap="jet", smooth_shading=True)
