@@ -78,7 +78,7 @@ process numpy2txt {
     shell:
     """
     #!/usr/bin/env python
-    import numpy as np    
+    import numpy as np
     arr = np.load('${numpy}')
     np.savetxt('numpyastxt.txt', arr, delimiter=',')
     """
@@ -91,13 +91,46 @@ process txt2numpy {
     tuple val(id), path(txt)
 
     output:
-    tuple valid(id), path("txtasnumpy.npy"), emit: npy
+    tuple val(id), path("txtasnumpy.npy"), emit: npy
 
     shell:
     """
     #!/usr/bin/env python
-    import numpy as np    
+    import numpy as np
     arr = np.load('${numpy}')
     arr.save('txtasnumpy.npy')
+    """
+}
+
+process flip_direction_spec {
+    label 'fieldopt'
+
+    input:
+    tuple val(id), path(json), path(flip)
+
+    output:
+    tuple val(id), path("${id}_flipped.json"), emit: spec
+
+    shell:
+    """
+    #!/usr/bin/env python
+    import json
+
+    with open('${json}', 'r') as f:
+        spec = json.load(f)
+
+    with open('${flip}', 'r') as f:
+        value = f.read()
+
+    if value:
+        value = int(value)
+
+    if 'dir_x' in spec.keys() and value == 1:
+        spec['dir_x'] = -spec['dir_x']
+        spec['dir_y'] = -spec['dir_y']
+        spec['dir_z'] = -spec['dir_z']
+
+    with open('${id}_flipped.json', 'w') as f:
+        json.dump(spec, f, indent=3)
     """
 }
