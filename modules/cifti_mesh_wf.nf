@@ -108,6 +108,8 @@ process ciftify{
     -v !{params.bids}:/bids \
     -v $(pwd):/output \
     -v $(pwd)/work:/work \
+    -v $(pwd)/fmriprep:/fmriprep \
+    -v $(pwd)/freesurfer:/freesurfer \
     -v !{params.license}:/license \
     -v !{params.resources}:/resources \
     !{params.ciftify_descriptor} $(pwd)/!{json} \
@@ -470,7 +472,7 @@ workflow cifti_meshing_wf {
 
         mri2mesh(
         fmriprep_anat_wf.out.preproc_t1.map { s, t1 ->
-            [ s, t1, try_fetch_t2("${params.bids}/${s}/**/*T2w.nii.gz") ]
+            [ s, t1, try_fetch_t2("${params.bids}/${s}/*/*/*T2w.nii.gz") ]
         })
 
         // Full fmriprep/ciftify pipeline

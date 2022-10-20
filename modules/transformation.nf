@@ -107,7 +107,7 @@ process format_for_ants {
     import numpy as np
 
     # Read in RAS, convert to LPS
-    coords = np.loadtxt('${coords}', delimiter=',')
+    coords = np.loadtxt('${coords}', delimiter=' ')
     coords[0] = -coords[0]
     coords[1] = -coords[1]
 
