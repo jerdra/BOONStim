@@ -68,7 +68,7 @@ def main():
 
     # Get two-ring around minimum curvature to compute normal
     _, ind = closest_node(coordinate, proximity_coords)
-    normal_ring = mesh.get_ring(ind, display_trigs, 2)
+    normal_ring = mesh.get_ring(ind, display_trigs, 5)
     normal = mesh.get_normals(normal_ring, display_inds, proximity_coords,
                               display_trigs)
     np.save(args.output, -normal)
@@ -82,7 +82,9 @@ def main():
         face_arr = face_arr.flatten()
 
         surf = pv.PolyData(proximity_coords, face_arr)
-        surf.point_data['curvature'] = np.clip(display_curv, a_min=-0.5, a_max=0.5)
+        surf.point_data['curvature'] = np.clip(display_curv,
+                                               a_min=-0.5,
+                                               a_max=0.5)
 
         opacity_arr = np.ones_like(display_curv) * 0.65
         opacity_arr[normal_ring] = 0
