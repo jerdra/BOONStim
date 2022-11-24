@@ -39,6 +39,10 @@ process prepare_parameters {
     File file = new File("${task.workDir}/${subject}.json")
     println task.workDir
     file.write(json_beauty)
+    if (task.storeDir) {
+        File storeFile = new File("${task.storeDir}/${subject}.json")
+        storeFile.write(json_beauty)
+    }
 }
 
 process adm_optimize {
