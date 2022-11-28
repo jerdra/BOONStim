@@ -67,7 +67,7 @@ def main():
     display_curv = curv[proximity_ring]
 
     # Get two-ring around minimum curvature to compute normal
-    _, ind = closest_node(coordinate, proximity_coords)
+    _, ind = closest_node(min_curv_vert, proximity_coords)
     normal_ring = mesh.get_ring(ind, display_trigs, 5)
     normal = mesh.get_normals(normal_ring, display_inds, proximity_coords,
                               display_trigs)

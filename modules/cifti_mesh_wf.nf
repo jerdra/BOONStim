@@ -194,7 +194,7 @@ process fmriprep_anat{
     -v !{params.resources}:/resources \
     !{params.fmriprep_descriptor} $(pwd)/!{json} \
     --imagepath !{params.fmriprep} -x --stream
-t
+
     # Find anat file and link to current folder
     find fmriprep/!{sub}/ -type f -name "*preproc_T*w.nii.gz" | \
     grep -v MNI152 | xargs -I [] cp [] .
