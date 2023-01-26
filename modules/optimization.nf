@@ -3,34 +3,43 @@ nextflow.preview.dsl = 2
 
 include {optimize_wf as optimize} from "${params.optimization_module}" params(params)
 
-process evaluate_fem{
+process publish_opt{
 
-    label 'rtms'
+    publishDir path: "${params.out}/boonstim/${sub}/optimization", \
+               mode: 'move', \
+               overwrite: true
 
     input:
-    tuple val(sub), path(msh),\
-    path(weights), path(centroid),\
-    path(orientation), path(coil)
+    tuple val(sub),\
+    path(fields), path(coil), path(history)
 
     output:
-    tuple val(sub), path("${sub}_optimized_fields.msh"), emit: fields
-    tuple val(sub), path("${sub}_optimized_coil.geo"), emit: coil
-    tuple val(sub), path("${sub}_optimized_coords.npy"), emit: coords
+    tuple path(fields), path(coil), path(history)
 
     shell:
     '''
-    /scripts/evaluate_fem.py !{msh} !{orientation} \
-                            !{centroid} !{weights} \
-                            !{coil} \
-                            !{sub}_optimized_fields.msh \
-                            !{sub}_optimized_coil.geo \
-                            !{sub}_optimized_coords.npy
+    #!/bin/bash
+    echo "Transferring optimization results to boonstim/!{sub}/optimization..."
     '''
-
 }
 
 process qc_parameteric_surf{
-    label 'rtms'
+    /*
+    Generate QC image of the parameterized sampling domain
+    over the head
+
+    Arguments:
+        sub (str): Subject key
+        msh (Path): Path to .msh file
+        centroid (Path): Path to seed coordinate
+        dscalar (Path): scalar-values target map
+
+    Outputs:
+        qc_parameteric (channel): (sub, qc: Path) HTML QC file of parameteric surface
+    */
+
+
+    label 'fieldopt'
 
     input:
     tuple val(sub), path(msh),\
@@ -51,7 +60,19 @@ process qc_parameteric_surf{
 
 process brainsight_transform{
 
-    label 'rtms'
+    /*
+    Compute BrainSight X, Y, Z, AP, LR, Twist coordinates
+    from a coil orientation matrix
+
+    Arguments:
+        sub (str): Subject ID
+        orientation (Path): Coil orientation matsimnibs matrix
+
+    Outputs:
+        brainsight_coords (channel): (sub, brainsight: Path) Brainsight coordinates
+    */
+
+    label 'fieldopt'
 
     input:
     tuple val(sub), path(orientation)
@@ -93,8 +114,18 @@ process brainsight_transform{
 }
 
 process localite_transform{
+    /*
+    Compute Localite affine matrix from a coil orientation matrix
 
-    label 'rtms'
+    Arguments:
+        sub (str): Subject ID
+        orientation (Path): Coil orientation matsimnibs matrix
+
+    Outputs:
+        localite_coords (channel): (sub, localite: Path) Localite affine matrix
+    */
+
+    label 'fieldopt'
 
     input:
     tuple val(sub), path(orientation)
@@ -123,6 +154,27 @@ process localite_transform{
 
 workflow optimize_wf{
 
+    /*
+    Perform TMS coil position optimization over a scalar-valued target map
+
+    Arguments:
+        msh (channel): (subject, msh: Path) .msh file
+        weights (channel): (subject, wf) Subject target scalar maps
+        centroid (channel): (subject, centroid) Subject seed coordinates
+        coil (value): .nii.gz or .ccd Coil dA/dt or definition file respectively
+
+    Outputs:
+        fields (channel): (sub, msh: Path) Optimal E-field simulation .msh
+        coil (channel): (sub, geo: Path) Optimal E-field coil position .geo
+        coords (channel): (sub, coords: Path) Optimal coil orientation matrix
+        history (channel): (sub, history: Path) Record of scores across iterations
+        localite (channel): (sub, localite: Path) Localite affine matrix
+        brainsight (channel): (sub, brainsight: Path) BrainSight coordinates
+        matsimnibs (channel): (sub, matsimnibs: Path) Optimal matsimnibs coil orientation matrix
+        qc_parsurf (channel): (sub, qchtml: Path) Parameteric domain QC page
+    */
+
+
     take:
        msh
        weights
@@ -134,24 +186,22 @@ workflow optimize_wf{
         // Run optimization routine
         optimize(msh, weights, centroid, coil)
 
-        // Evaluate optimal mesh
-        i_evaluate_fem = msh.join(weights)
-                            .join(centroid)
-                            .join(optimize.out.orientation)
-                            .spread([coil])
-        evaluate_fem(i_evaluate_fem)
-        brainsight_transform(evaluate_fem.out.coords)
-        localite_transform(evaluate_fem.out.coords)
+        brainsight_transform(optimize.out.coords)
+        localite_transform(optimize.out.coords)
         i_qc_parameteric_surf = msh.join(centroid)
                                    .join(weights)
         qc_parameteric_surf(i_qc_parameteric_surf)
 
+        i_publish_out = optimize.out.fields
+            .join(optimize.out.coil)
+            .join(optimize.out.history)
+        publish_opt(i_publish_out)
+
+
     emit:
         history = optimize.out.history
-        fields = evaluate_fem.out.fields
-        coil = evaluate_fem.out.coil
-        localite = localite_transform.out.localite_coords
-        brainsight = brainsight_transform.out.brainsight_coords
-        matsimnibs = evaluate_fem.out.coords
+        fields = optimize.out.fields
+        coil = optimize.out.coil
+        matsimnibs = optimize.out.coords
         qc_parsurf = qc_parameteric_surf.out.qc_parameteric
 }

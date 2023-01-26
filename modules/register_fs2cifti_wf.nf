@@ -2,6 +2,19 @@ nextflow.preview.dsl=2
 
 
 process convert_sulcal{
+    /*
+    Convert sulcal depth map to GIFTI
+
+    Arguments:
+        sub (str): Subject ID
+        hemi (Union['L', 'R']): Hemisphere code
+        sulc (Path): Sulcal depth file
+        white (Path): Freesurfer white surface file
+
+    Outputs:
+        white_gifti (channel): (sub, white_gifti: Path) 
+    */
+        
 
     label 'freesurfer'
     containerOptions "-B ${params.license}:/license"
@@ -21,6 +34,19 @@ process convert_sulcal{
 
 process assign_sulcal{
 
+    /*
+    Assign structure to white sulcal depth GIFTI file
+
+    Arguments:
+        sub (str): Subject ID
+        hemi (Union['L', 'R']): Hemisphere
+        structure (str): Structure to assign to GIFTI file
+        sulc (Path): Sulcal depth GIFTI file
+
+    Output:
+        assigned_sulc (channel): (sub, hemi, assigned_sulc: Path)
+    */
+
     label 'connectome'
 
     input:
@@ -38,6 +64,17 @@ process assign_sulcal{
 }
 
 process invert_sulcal{
+    /*
+    Invert a sulcal depth map to a sulcal height map
+
+    Arguments:
+        sub (str): Subject ID
+        hemi (Union['L', 'R']): Hemisphere
+        sulc (Path): Sulcal depth GIFTI file
+
+    Output:
+        inverted_sulc (channel): (sub, hemi, inverted_sulc: Path)
+    */
 
     label 'connectome'
 
@@ -53,6 +90,18 @@ process invert_sulcal{
 }
 
 process convert_sphere{
+    /*
+    Convert a Freesurfer sphere to GIFTI format
+
+    Arguments:
+        sub (str): Subject ID
+        hemi (Union['L', 'R']): Hemisphere
+        sphere (Path): Input sphere to convert
+        output (str): Name to assign to sphere
+
+    Outputs:
+        converted_sphere (channel): (sub, hemi, converted_sphere: Path)
+    */
 
     label 'freesurfer'
     containerOptions "-B ${params.license}:/license"
@@ -73,6 +122,19 @@ process convert_sphere{
 
 process assign_sphere{
 
+    /*
+    Assign structure to registration sphere GIFTI file
+
+    Arguments:
+        sub (str): Subject ID
+        hemi (Union['L', 'R']): Hemisphere
+        structure (str): Structure to assign to GIFTI file
+        sphere (Path): Registration sphere GIFTI file
+
+    Output:
+        assigned_sphere (channel): (sub, hemi, assigned_sphere: Path)
+    */
+
     label 'connectome'
 
     input:
@@ -89,6 +151,18 @@ process assign_sphere{
 }
 
 process deform_sphere{
+
+    /*
+    Perform registration-sphere based deformation to 164k fsLR
+
+    Arguments:
+        sub (str): Subject ID
+        hemi (Union['L', 'R']): Hemisphere
+        sphere (path): Registation sphere to deform to 164k
+
+    Outputs:
+        reg_LR_sphere (channel): (sub, hemi, reg_LR: Path)
+    */
 
     label 'connectome'
 
@@ -111,6 +185,19 @@ process deform_sphere{
 
 process spherical_affine{
 
+    /*
+    Perform affine alignment of registration spheres
+
+    Arguments:
+        sub (str): Subject ID
+        hemi (Union['L', 'R']): Hemisphere
+        sphere (Path): Registration sphere
+        reg_LR_sphere (Path): Deformed registration sphere
+
+    Outputs:
+        affine (channel): (sub, hemi, affine: Path)
+    */
+
     label 'connectome'
 
     input:
@@ -128,8 +215,20 @@ process spherical_affine{
 }
 
 process normalize_rotation{
+    /*
+    Normalize rotation matrix to have det(A) = 1
 
-    label 'rtms'
+    Arguments:
+        sub (str): Subject ID
+        hemi (Union['L', 'R']): Hemisphere
+        affine (Path): Affine to normalize
+
+    Outputs:
+        normalized_affine (channel): (sub, hemi, norm_affine: Path)
+    */
+        
+
+    label 'fieldopt'
 
     input:
     tuple val(sub), val(hemi), path(affine)
@@ -156,6 +255,18 @@ process normalize_rotation{
 }
 
 process apply_affine{
+    /*
+    Apply affine transformation to a sphere
+
+    Arguments:
+        sub (str): Subject ID
+        hemi (Union['L' ,'R']): Hemisphere
+        sphere (Path): Sphere to transform
+        affine (Path): Normalized affine transformation
+
+    Output:
+        rot_sphere (channel): (sub, hemi, sphere_rot: Path)
+    */
 
     label 'connectome'
 
@@ -180,6 +291,20 @@ process apply_affine{
 }
 
 process msm_sulc{
+    /*
+    Perform MSM-Sulcal depth-based registration to 164k fsLR sphere
+
+    Arguments:
+        sub (str): Subject ID
+        hemi (Union['L', 'R']): Hemisphere
+        sphere (Path): Registration sphere 
+        sulc (Path): Sulcal height map
+        structure (str): Structure to assign to resultant sphere
+
+    Outputs:
+        reg_msm (channel): (sub, hemi, sphere, reg_msm: Path) MSM registration sphere 
+    */
+
 
     label 'connectome'
 
@@ -210,6 +335,20 @@ process msm_sulc{
 
 process areal_distortion{
 
+    /*
+    Compute areal surface distortion map from an MSM registration
+
+    Arguments:
+        sub (str): Subject ID        
+        hemi (Union['L', 'R']): Hemisphere
+        sphere (Path): Input registration sphere
+        msm_sphere (Path): MSM registration sphere
+
+    Outputs:
+        areal_distortion (channel): (sub, hemi, areal: Path)
+    */
+        
+
     label 'connectome'
 
     input:
@@ -231,6 +370,16 @@ process areal_distortion{
 }
 
 workflow registration_wf {
+    /*
+    Perform MSM surface-based registration between Freesurfer native sphere to fs_LR 164k
+
+    Arguments:
+        fs_dirs (channel): (sub, fs_dir: Path) Freesurfer directory for subject
+
+    Outputs:
+        msm_sphere (channel): (sub, hemi: Union['L', 'R'], msm_sphere: Path) Hemispheric MSM registration sphere
+    */
+
 
     take:
         fs_dirs

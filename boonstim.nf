@@ -1,59 +1,143 @@
 nextflow.preview.dsl=2
 
-usage = file("${workflow.scriptFile.getParent()}/usage")
-bindings = ["subjects": "$params.subjects",
-            "cache_dir": "$params.cache_dir",
-            "fmriprep": "$params.fmriprep",
-            "ciftify": "$params.ciftify",
-            "connectome": "$params.connectome",
-            "bin": "$params.bin",
-            "coil": "$params.coil",
-            "license": "$params.license",
-            "fmriprep_invocation": "$params.fmriprep_invocation",
-            "fmriprep_anat_invocation": "$params.fmriprep_anat_invocation",
-            "fmriprep_descriptor": "$params.fmriprep_descriptor",
-            "ciftify_invocation": "$params.ciftify_invocation",
-            "ciftify_descriptor": "$params.ciftify_descriptor",
-            "weightworkflow" : "$params.weightworkflow"]
-engine = new groovy.text.SimpleTemplateEngine()
-toprint = engine.createTemplate(usage.text).make(bindings)
-printhelp = params.help
+include { getArgumentParser } from "./lib/args"
 
-req_param = ["--bids": "$params.bids",
-             "--out": "$params.out"]
-req_config_param = [
-                    "fmriprep": "$params.fmriprep",
-                    "ciftify": "$params.ciftify",
-                    "connectome": "$params.connectome",
-                    "bin": "$params.bin",
-                    "coil": "$params.coil",
-                    "license": "$params.license",
-                    "fmriprep_invocation": "$params.fmriprep_invocation",
-                    "fmriprep_anat_invocation": "$params.fmriprep_anat_invocation",
-                    "fmriprep_descriptor": "$params.fmriprep_descriptor",
-                    "ciftify_invocation": "$params.ciftify_invocation",
-                    "ciftify_descriptor": "$params.ciftify_descriptor",
-                    "weightworkflow" : "$params.weightworkflow"
-                   ]
-missing_req = req_param.grep{ (it.value == null || it.value == "") }
-missing_req_config = req_config_param.grep{ (it.value == null || it.value == "") }
+parser = getArgumentParser(
+    title: "BOONStim TMS Optimization Pipeline",
+    description: "An end-to-end pipeline for integrating fMRI data into TMS target\
+ derivation and optimization",
+    scriptName: "${workflow.scriptName}".toString(),
+    note: "Configuration arguments should be defined in a .nf.config file (use -c arg), or\
+ a .json file that can be used (use -params-file arg)"
+)
 
-if (missing_req){
-    log.error("Missing required command-line argument(s)!")
-    missing_req.each{ log.error("Missing ${it.key}") }
-    printhelp = true
-}
+parser.addRequired("--bids",
+    "Path to BIDS directory",
+    params.bids.toString(),
+    "BIDS_DIRECTORY")
 
-if (missing_req_config){
-    log.error("Config file missing required parameter(s)!")
-    missing_req_config.each{ log.error("Please fill ${it.key} in config") }
-    printhelp = true
-}
+parser.addRequired("--out",
+    "Path to output directory",
+    params.out.toString(),
+    "OUTPUT_DIR")
 
-if (printhelp){
-    print(toprint)
+parser.addConfigOpt("--connectome",
+    "Path to Connectome Workbench Image",
+    params.connectome.toString(),
+    "CONNECTOME_IMG")
+
+parser.addConfigOpt("--bin",
+    "Path to BOONStim bin directory",
+    params.bin.toString(),
+    "BIN_DIR")
+
+parser.addConfigOpt("--coil",
+    "Path to COIL file (.ccd or .nii.gz)",
+    params.coil.toString(),
+    "COIL_FILE")
+
+parser.addConfigOpt("--license",
+    "Path to Freesurfer license file",
+    params.license.toString(),
+    "FS_LICENSE")
+
+parser.addConfigOpt("--fmriprep",
+    "Path to fMRIPrep Image",
+    params.fmriprep.toString(),
+    "FMRIPREP_IMG")
+
+parser.addConfigOpt("--fmriprep_descriptor",
+    "Path to fMRIPrep Descriptor File",
+    params.fmriprep_descriptor.toString(),
+    "FMRIPREP_DESCRIPTOR")
+
+parser.addConfigOpt("--fmriprep_invocation",
+    "Path to fMRIPrep invocation file",
+    params.fmriprep_invocation.toString(),
+    "FMRIPREP_INVOCATION")
+
+parser.addConfigOpt("--anat_invocation",
+    "Path to fMRIPrep anatomical only invocation file",
+    params.anat_invocation.toString(),
+    "FMRIPREP_ANAT_INVOCATION")
+
+parser.addConfigOpt("--ciftify",
+    "Path to Ciftify Image",
+    params.ciftify.toString(),
+    "CIFTIFY_IMG")
+
+parser.addConfigOpt("--ciftify_invocation",
+    "Path to Ciftify invocation file",
+    params.ciftify_invocation.toString(),
+    "CIFTIFY_INVOCATION")
+
+parser.addConfigOpt("--ciftify_descriptor",
+    "Path to Ciftify descriptor file",
+    params.ciftify_descriptor.toString(),
+    "CIFTIFY_DESCRIPTOR")
+
+parser.addConfigOpt("--simnibs",
+    "Path to SimNIBS container image",
+    params.simnibs.toString(),
+    "SIMNIBS_IMG")
+
+parser.addConfigOpt("--ants",
+    "Path to ANTS container image",
+    params.ants.toString(),
+    "ANTS_IMG")
+
+parser.addConfigOpt("--fieldopt",
+    "Path to FieldOpt container image",
+    params.fieldopt.toString(),
+    "FIELDOPT_IMG")
+
+parser.addConfigOpt("--weightworkflow",
+    "Path to weight workflow module entrypoint",
+    params.weightworkflow.toString(),
+    "WEIGHTWORKFLOW_ENTRYPOINT")
+
+parser.addOptional("--subject_sheet",
+    "Path to subject CSV file containing at least a 'name' column and" +
+    " additional columns for custom use in a pipeline",
+    "SUBJECT_FILE")
+
+parser.addOptional("--num_cpus",
+    "Maximum number of threads to use when submitting jobs [Default: $params.num_cpus]",
+    "NUM_CPUS")
+
+parser.addOptional("--cache_dir",
+    "Create a cache directory to store intermediate results to speed up reruns",
+    "CACHE_DIR")
+
+parser.addOptional("--use_scratch",
+    "Use a scratch directory, can provide a path, an empty string ('') to disable"
+    + ", note that by default it will use the system default temporary directory",
+    "SCRATCH")
+parser.addOptional("--include_t2",
+    "Attempt to pull a T2w image from BIDS directory when reconstructing the head model")
+
+parser.addOptional("--coil_handle_can_point_anterior",
+    "Allow the final coil handle orientation to be able to point anteriorly. Otherwise"
+    + " will be flipped to ensure it is always pointing posterior")
+
+missingArgs = parser.isMissingRequired()
+missingConfig = parser.isMissingConfig()
+
+if (params.help) {
+    print(parser.makeDoc())
     System.exit(0)
 }
+
+if (missingArgs || missingConfig) {
+    log.error("Missing required parameters")
+    missingArgs.each{ log.error("Missing ${it}") }
+    missingConfig.each{ log.error("Missing ${it}") }
+    print(parser.makeDoc())
+    System.exit(1)
+}
+
+include {scalar_optimization} from "./pipeline/scalar_optimization.nf" params(params)
+include {coordinate_optimization} from "./pipeline/coordinate_optimization.nf" params(params)
 
 log.info("BIDS Directory: $params.bids")
 log.info("Output Directory: $params.out")
@@ -66,43 +150,15 @@ log.info("Using Invocation Files: $params.fmriprep_invocation, $params.fmriprep_
 log.info("Using containers: $params.fmriprep and $params.ciftify")
 log.info("Using user-defined ROI workflow: $params.weightworkflow")
 
-///////////////////////////////////////////////////////////////////////////////
-
-// IMPORT MODULES WORKFLOWS
-include {cifti_meshing_wf as cifti_mesh_wf} from './modules/cifti_mesh_wf.nf' params(params)
-include {make_giftis} from './modules/fs2gifti.nf' params(params)
-include {registration_wf} from './modules/register_fs2cifti_wf.nf' params(params)
-include {weightfunc_wf} from "${params.weightworkflow}" params(params)
-include {resample2native_wf as resamplemask_wf} from './modules/resample2native.nf' params(params)
-include {resample2native_wf as resampleweightfunc_wf} from './modules/resample2native.nf' params(params)
-include {resample2native_wf as resampledistmap_wf} from './modules/resample2native.nf' params(params)
-include {resample2native_wf as resamplesulc_wf} from './modules/resample2native.nf' params(params)
-include {centroid_radial_wf as centroid_wf} from './modules/centroid_wf.nf' params(params)
-include {tet_project_wf as tet_project_weightfunc_wf} from './modules/tetrahedral_wf.nf' params(params)
-include {tet_project_wf as tet_project_roi_wf} from './modules/tetrahedral_wf.nf' params(params)
-include {calculate_reference_field_wf} from './modules/reference_field_wf.nf' params(params)
-include {fieldscaling_wf} from './modules/field_scaling.nf' params(params)
-include {optimize_wf} from "./modules/optimization.nf" params(params)
-
-// IMPORT MODULES PROCESSES
-include {apply_mask as centroid_mask} from './modules/utils.nf' params(params)
-include {apply_mask as weightfunc_mask} from './modules/utils.nf' params(params)
-include {cifti_dilate as dilate_mask} from './modules/utils.nf' params(params)
-
-///////////////////////////////////////////////////////////////////////////////
-
-//// Extract subjects to run
-all_dirs = file(params.bids).list()
-input_dirs = new File(params.bids).list()
-output_dirs = new File(params.out).list()
-
 input_channel = Channel.fromPath("$params.bids/sub-*", type: 'dir')
                     .map{i -> i.getBaseName()}
 
-if (params.subjects){
-    subjects_channel = Channel.fromPath(params.subjects)
-                            .splitText(){it.strip()}
-    input_channel = input_channel.join(subjects_channel)
+if (params.subject_sheet){
+    subjects_channel = Channel.fromPath(params.subject_sheet)
+                            .splitCsv(header: true)
+                            .map{ a -> [a.name, a] }
+
+    input_channel = input_channel.join(subjects_channel, by: 0)
 }
 
 if (!params.rewrite){
@@ -110,9 +166,9 @@ if (!params.rewrite){
                     .map{o -> [o.getBaseName(), "o"]}
                     .ifEmpty(["", "o"])
 
-    input_channel = input_channel.join(out_channel, remainder: true)
+    input_channel = input_channel.join(out_channel, by:0, remainder: true)
                         .filter{it.last() == null}
-                        .map{i,n -> i}
+                        .map{i,p,n -> [i,p]}
 }
 
 process publish_base{
@@ -167,26 +223,6 @@ process publish_surfs{
 
 }
 
-process publish_mri2mesh{
-
-    publishDir path: "${params.out}/boonstim/${sub}", \
-               mode: 'move', \
-               overwrite: true
-
-    input:
-    tuple val(sub),\
-    path(m2m), path(fs)
-
-    output:
-    tuple val(sub), path(m2m), path(fs)
-
-    shell:
-    '''
-    #!/bin/bash
-    echo "Transferring !{m2m} and !{fs} to boonstim/!{sub} folder..."
-    '''
-}
-
 process publish_opt{
 
     publishDir path: "${params.out}/boonstim/${sub}/results", \
@@ -233,164 +269,11 @@ process publish_scaleref{
 
 }
 
-process publish_cifti{
 
-    stageInMode 'copy'
-
-    publishDir path: "$params.out",\
-               mode: 'move'
-
-    input:
-    tuple val(sub),\
-    path("ciftify/${sub}"), path("ciftify/qc_fmri/*"),\
-    path("ciftify/qc_recon_all/${sub}"),\
-    path("fmriprep/*"), path(html),\
-    path("freesurfer/*"),\
-    path("ciftify/zz_templates")
-
-    output:
-    tuple path("ciftify/${sub}"),
-    path("ciftify/qc_fmri/${sub}*", includeInputs: true),\
-    path("ciftify/qc_recon_all/${sub}"),\
-    path("fmriprep/${sub}"), path("fmriprep/${sub}.html"),\
-    path("freesurfer/${sub}"), path("ciftify/zz_templates")
-
-    shell:
-    '''
-    echo "Copying fMRIPrep_Ciftify outputs"
-    mv !{html} fmriprep/
-
-    '''
+workflow scalar_workflow {
+    scalar_optimization(input_channel.map{s, _ -> s})
 }
 
-def lr_branch = branchCriteria {
-                left: it[1] == 'L'
-                    return [it[0], it[2]]
-                right: it[1] == 'R'
-                    return [it[0],it[2]]
-                }
-
-workflow {
-
-    main:
-
-        // Main preprocessing routine
-        cifti_mesh_wf(input_channel)
-        make_giftis(cifti_mesh_wf.out.mesh_fs)
-        registration_wf(cifti_mesh_wf.out.mesh_fs)
-
-        // User-defined weightfunction workflow
-        weightfunc_input = cifti_mesh_wf.out.fmriprep
-                                            .join( cifti_mesh_wf.out.cifti, by : 0 )
-        weightfunc_input
-        weightfunc_wf(weightfunc_input)
-
-        // Calculate centroid on resampled data
-        centroid_mask_input = weightfunc_wf.out.weightfunc
-                                            .join(weightfunc_wf.out.mask)
-        centroid_mask(centroid_mask_input)
-        resamplemask_wf(centroid_mask.out.masked, registration_wf.out.msm_sphere)
-
-        // Tetrahedral workflow
-
-        // Resample the weightfunction
-        dilate_mask_input = weightfunc_wf.out.mask
-                                            .join(cifti_mesh_wf.out.cifti, by: 0)
-                                            .map{ s,w,c ->  [
-                                                                s,w,
-                                                                "${c}/MNINonLinear/fsaverage_LR32k/${s}.L.midthickness.32k_fs_LR.surf.gii",
-                                                                "${c}/MNINonLinear/fsaverage_LR32k/${s}.R.midthickness.32k_fs_LR.surf.gii"
-                                                            ]
-                                                }
-        dilate_mask(dilate_mask_input)
-        weightfunc_mask_input = weightfunc_wf.out.weightfunc
-                                            .join(dilate_mask.out.dilated, by: 0)
-        weightfunc_mask(weightfunc_mask_input)
-        resampleweightfunc_wf(weightfunc_mask.out.masked, registration_wf.out.msm_sphere)
-
-        // Calculate a scalp seed
-        centroid_wf(cifti_mesh_wf.out.msh,
-                    resampleweightfunc_wf.out.resampled,
-                    make_giftis.out.pial)
-
-        tet_project_weightfunc_wf(resampleweightfunc_wf.out.resampled,
-                        make_giftis.out.pial,
-                        make_giftis.out.white,
-                        make_giftis.out.midthickness,
-                        cifti_mesh_wf.out.t1fs_conform,
-                        cifti_mesh_wf.out.msh)
-
-        // Gather inputs for optimization
-        optimize_wf(
-                    cifti_mesh_wf.out.msh,
-                    tet_project_weightfunc_wf.out.fem_weights,
-                    centroid_wf.out.centroid,
-                    params.coil
-                   )
-
-        // Calculate scaling factor between coil and cortex across multiple references
-        calculate_reference_field_wf(cifti_mesh_wf.out.cifti,
-                                     Channel.from(params.ref_coords))
-        resampledistmap_wf(
-            calculate_reference_field_wf.out.rois,
-            registration_wf.out.msm_sphere
-        )
-
-        fieldscaling_wf(
-                        optimize_wf.out.fields,
-                        make_giftis.out.pial,
-                        resampledistmap_wf.out.resampled,
-                        optimize_wf.out.matsimnibs
-                      )
-
-        // Gather BOONStim outputs for publishing
-        registration_wf.out.msm_sphere.branch(lr_branch).set { msm }
-        make_giftis.out.pial.branch(lr_branch).set { pial }
-        make_giftis.out.white.branch(lr_branch).set { white }
-        make_giftis.out.midthickness.branch(lr_branch).set { midthick }
-
-        /* Step 1: Publish base outputs */
-        i_publish_base = cifti_mesh_wf.out.t1fs_conform
-                                .join(centroid_wf.out.centroid)
-                                .join(tet_project_weightfunc_wf.out.fem_weights)
-                                .join(resampleweightfunc_wf.out.resampled)
-        publish_base(i_publish_base)
-
-        /* Step 2: Publish native space surfaces used to map out
-        weight function
-        */
-        i_publish_surfs = pial.left.join(pial.right)
-                            .join(white.left).join(white.right)
-                            .join(midthick.left).join(midthick.right)
-                            .join(msm.left).join(msm.right)
-        publish_surfs(i_publish_surfs)
-
-        /* Step 3: Publish meshing results from mri2mesh */
-        i_publish_mri2mesh = cifti_mesh_wf.out.mesh_m2m
-                                .join(cifti_mesh_wf.out.mesh_fs)
-        publish_mri2mesh(i_publish_mri2mesh)
-
-        /* Step 4: Publish optimization results */
-        i_publish_opt = optimize_wf.out.fields
-                            .join(optimize_wf.out.coil)
-                            .join(optimize_wf.out.history)
-                            .join(optimize_wf.out.brainsight)
-                            .join(optimize_wf.out.localite)
-        publish_opt(i_publish_opt)
-
-        /* Step 5: Publish the reference scaling values */
-        i_publish_scaleref = fieldscaling_wf.out.scaling_factor
-                                            .join(fieldscaling_wf.out.qc_html, by: [0,1])
-                                            .join(fieldscaling_wf.out.qc_geo, by: [0,1])
-        publish_scaleref(i_publish_scaleref)
-
-        // Publish Ciftify outputs
-        publish_cifti_input = cifti_mesh_wf.out.cifti
-                                    .join(cifti_mesh_wf.out.cifti_qc_fmri)
-                                    .join(cifti_mesh_wf.out.cifti_qc_recon)
-                                    .join(cifti_mesh_wf.out.fmriprep)
-                                    .join(cifti_mesh_wf.out.fmriprep_html)
-                                    .join(cifti_mesh_wf.out.freesurfer)
-                                    .combine(["$params.zz"])
-        publish_cifti(publish_cifti_input)
+workflow simple_workflow {
+    coordinate_optimization(input_channel)
 }
