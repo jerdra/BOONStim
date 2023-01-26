@@ -17,6 +17,66 @@ include {optimize_wf} from "../modules/optimization.nf" params(params)
 include {apply_mask as centroid_mask} from '../modules/utils.nf' params(params)
 include {apply_mask as weightfunc_mask} from '../modules/utils.nf' params(params)
 include {cifti_dilate as dilate_mask} from '../modules/utils.nf' params(params)
+include { neuronav_wf } from '../modules/neuronav.nf' params(params)
+
+process publish_base{
+
+    publishDir path: "${params.out}/boonstim/${sub}", \
+               mode: 'move', \
+               overwrite: true
+
+    input:
+    tuple val(sub),\
+    path(t1fs), path(centroid),\
+    path(fem), path(dscalar)
+
+    output:
+    tuple path(t1fs), path(centroid),\
+    path(fem), path(dscalar),\
+    emit: base_out
+
+    shell:
+    '''
+    #!/bin/bash
+
+    echo "Moving files into boonstim/!{sub}..."
+    '''
+
+}
+
+process publish_surfs{
+
+    publishDir path: "${params.out}/boonstim/${sub}/T1w", \
+               mode: 'move', \
+               overwrite: true
+
+    input:
+    tuple val(sub),\
+    path(pl), path(pr),\
+    path(wl), path(wr),\
+    path(ml), path(mr),\
+    path(msml), path(msmr)
+
+    output:
+    tuple path(pl), path(pr),\
+    path(wl), path(wr),\
+    path(ml), path(mr),\
+    path(msml), path(msmr), emit: surfs_out
+
+    shell:
+    '''
+    #!/bin/bash
+    echo "Transferring surfaces to boonstim/!{sub}/T1w..."
+    '''
+
+}
+// Separate out left and right into sub-channels
+def lr_branch = branchCriteria {
+                left: it[1] == 'L'
+                    return [it[0], it[2]]
+                right: it[1] == 'R'
+                    return [it[0],it[2]]
+                }
 
 workflow scalar_optimization {
     take:
@@ -79,6 +139,9 @@ workflow scalar_optimization {
                     params.coil
                    )
 
+        // Neuronavigation Workflow
+        neuronav_wf(optimize_wf.out.matsimnibs)
+
         // Calculate scaling factor between coil and cortex across multiple references
         calculate_reference_field_wf(cifti_mesh_wf.out.cifti,
                                      Channel.from(params.ref_coords))
@@ -116,32 +179,9 @@ workflow scalar_optimization {
                             .join(msm.left).join(msm.right)
         publish_surfs(i_publish_surfs)
 
-        /* Step 3: Publish meshing results from mri2mesh */
-        i_publish_mri2mesh = cifti_mesh_wf.out.mesh_m2m
-                                .join(cifti_mesh_wf.out.mesh_fs)
-        publish_mri2mesh(i_publish_mri2mesh)
-
-        /* Step 4: Publish optimization results */
-        i_publish_opt = optimize_wf.out.fields
-                            .join(optimize_wf.out.coil)
-                            .join(optimize_wf.out.history)
-                            .join(optimize_wf.out.brainsight)
-                            .join(optimize_wf.out.localite)
-        publish_opt(i_publish_opt)
-
-        /* Step 5: Publish the reference scaling values */
-        i_publish_scaleref = fieldscaling_wf.out.scaling_factor
-                                            .join(fieldscaling_wf.out.qc_html, by: [0,1])
-                                            .join(fieldscaling_wf.out.qc_geo, by: [0,1])
-        publish_scaleref(i_publish_scaleref)
-
-        // Publish Ciftify outputs
-        publish_cifti_input = cifti_mesh_wf.out.cifti
-                                    .join(cifti_mesh_wf.out.cifti_qc_fmri)
-                                    .join(cifti_mesh_wf.out.cifti_qc_recon)
-                                    .join(cifti_mesh_wf.out.fmriprep)
-                                    .join(cifti_mesh_wf.out.fmriprep_html)
-                                    .join(cifti_mesh_wf.out.freesurfer)
-                                    .combine(["$params.zz"])
-        publish_cifti(publish_cifti_input)
+       //  /* Step 5: Publish the reference scaling values */
+       //  i_publish_scaleref = fieldscaling_wf.out.scaling_factor
+       //                                      .join(fieldscaling_wf.out.qc_html, by: [0,1])
+       //                                      .join(fieldscaling_wf.out.qc_geo, by: [0,1])
+       //  publish_scaleref(i_publish_scaleref)
 }
