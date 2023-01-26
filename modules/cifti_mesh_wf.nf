@@ -489,21 +489,23 @@ workflow cifti_meshing_wf {
         update_msh(update_msh_input)
 
         // Publish outputs
-        publish_cifti(
-            ciftify.out.ciftify
-                .join(ciftify.out.qc_fmri)
-                .join(ciftify.out.qc_recon)
-                .join(fmriprep_wf.out.fmriprep)
-                .join(fmriprep_wf.out.html)
-                .join(fmriprep_wf.out.freesurfer)
-                .combine(["$params.zz"])
-        )
+        if (!params.skip_preproc_publish.toBoolean()){
+            publish_cifti(
+                ciftify.out.ciftify
+                    .join(ciftify.out.qc_fmri)
+                    .join(ciftify.out.qc_recon)
+                    .join(fmriprep_wf.out.fmriprep)
+                    .join(fmriprep_wf.out.html)
+                    .join(fmriprep_wf.out.freesurfer)
+                    .combine(["$params.zz"])
+            )
 
-        publish_mri2mesh(
-            mri2mesh.out.T1
-                .join(mri2mesh.out.mri2mesh)
-                .join(mri2mesh.out.freesurfer)
-        )
+            publish_mri2mesh(
+                mri2mesh.out.T1
+                    .join(mri2mesh.out.mri2mesh)
+                    .join(mri2mesh.out.freesurfer)
+            )
+        }
 
     emit:
         cifti = ciftify.out.ciftify
