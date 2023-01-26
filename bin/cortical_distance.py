@@ -322,7 +322,7 @@ def load_surf_verts(f_msh, entities):
 
         try:
             nodes, coords, params = gl.load_gmsh_nodes(f_msh, (dim, tag))
-        except ValueError:
+        except Exception:
             continue
         else:
             return nodes, coords, params
@@ -341,7 +341,7 @@ def load_surf_trigs(f_msh, entities):
 
         try:
             _, _, trigs = gl.load_gmsh_elems(f_msh, (dim, tag))
-        except ValueError:
+        except Exception:
             continue
         else:
             return trigs.reshape(-1, 3)
