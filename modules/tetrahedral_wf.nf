@@ -187,8 +187,8 @@ workflow tet_project_wf{
         tet_project2vol(project_input)
 
         add_niftis_input = tet_project2vol.out.ribbon
-                                    .groupTuple(by: 0, size: 2)
-                                    .map{ s,h,n -> [ s,n[0],n[1] ] }
+                                    .groupTuple(by: 0, sort: {it}, size: 2)
+                                    .map{ s,_,n -> [ s,*n ] }
         add_tet_niftis(add_niftis_input)
 
         tet_inputs = add_tet_niftis.out.sumvol.join(msh, by: 0)
