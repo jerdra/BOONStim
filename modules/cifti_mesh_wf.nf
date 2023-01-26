@@ -256,7 +256,7 @@ process mri2mesh {
         fmriprep (channel): (subject, fmriprep: Path) Subject fMRIPrep directory
         html (channel): (subject, fmriprep_html: Path) Subject fMRIPrep HTML file
     */
-
+    
     input:
     tuple val(sub), path(t1), path(optional_t2)
 
@@ -292,7 +292,6 @@ process update_msh{
     Outputs:
         mesh (channel): (sub, mesh: Path) Path to v2 .msh file
     */
-
 
     label 'gmsh4'
 
