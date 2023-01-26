@@ -3,6 +3,26 @@ nextflow.preview.dsl = 2
 
 include {optimize_wf as optimize} from "${params.optimization_module}" params(params)
 
+process publish_opt{
+
+    publishDir path: "${params.out}/boonstim/${sub}/optimization", \
+               mode: 'move', \
+               overwrite: true
+
+    input:
+    tuple val(sub),\
+    path(fields), path(coil), path(history)
+
+    output:
+    tuple path(fields), path(coil), path(history)
+
+    shell:
+    '''
+    #!/bin/bash
+    echo "Transferring optimization results to boonstim/!{sub}/optimization..."
+    '''
+}
+
 process qc_parameteric_surf{
     /*
     Generate QC image of the parameterized sampling domain
@@ -172,12 +192,16 @@ workflow optimize_wf{
                                    .join(weights)
         qc_parameteric_surf(i_qc_parameteric_surf)
 
+        i_publish_out = optimize.out.fields
+            .join(optimize.out.coil)
+            .join(optimize.out.history)
+        publish_opt(i_publish_out)
+
+
     emit:
         history = optimize.out.history
         fields = optimize.out.fields
         coil = optimize.out.coil
-        localite = localite_transform.out.localite_coords
-        brainsight = brainsight_transform.out.brainsight_coords
         matsimnibs = optimize.out.coords
         qc_parsurf = qc_parameteric_surf.out.qc_parameteric
 }
